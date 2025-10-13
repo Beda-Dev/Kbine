@@ -59,6 +59,7 @@ const config = {
  * - La limitation du nombre de connexions simultanees
  * - Les timeouts et la gestion des erreurs
  */
+console.log('Creation du pool de connexions MySQL...');
 const pool = mysql.createPool(config);
 
 // ===============================
@@ -76,6 +77,7 @@ const pool = mysql.createPool(config);
  * IMPORTANT: L'application s'arrete si la connexion echoue
  * pour eviter de demarrer sans base de donnees
  */
+console.log('Test de connexion a la base de donnees MySQL...');
 const testConnection = async () => {
   try {
     // Tentative d'obtention d'une connexion du pool
@@ -83,6 +85,7 @@ const testConnection = async () => {
     
     // Log de succes
     logger.info('Connexion a la base de donnees MySQL etablie');
+    console.log('Connexion a la base de donnees MySQL etablie');
     
     // Liberation immediate de la connexion
     // Important: toujours liberer les connexions pour eviter les fuites
@@ -91,16 +94,22 @@ const testConnection = async () => {
   } catch (error) {
     // Log de l'erreur avec details
     logger.error('Erreur de connexion a la base de donnees:', error);
+    console.log('Erreur de connexion a la base de donnees:', error);
     
     // Arret force de l'application
     // process.exit(1) indique un arret anormal
+    console.log('Arret force de l\'application...');
     process.exit(1);
   }
 };
 
 // Execution du test de connexion au chargement du module
 // Cela garantit que la DB est accessible avant de demarrer l'API
+console.log('Execution du test de connexion a la base de donnees MySQL...');
+console.log('======================================');
 testConnection();
+console.log('======================================');
+
 
 // ===============================
 // EXPORT DU POOL

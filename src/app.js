@@ -224,6 +224,14 @@ server.listen(PORT,'0.0.0.0', () => {
   logger.info(`   - Mémoire: ${Math.round(memoryUsage.heapUsed / 1024 / 1024)}MB / ${Math.round(memoryUsage.heapTotal / 1024 / 1024)}MB`);
   logger.info('======================================');
   
+   console.log('======================================');
+  console.log(`🚀 Serveur Kbine démarré avec succès`);
+  console.log(`   - Port: ${PORT}`);
+  console.log(`   - Environnement: ${env}`);
+  console.log(`   - PID: ${process.pid}`);
+  console.log(`   - Mémoire: ${Math.round(memoryUsage.heapUsed / 1024 / 1024)}MB / ${Math.round(memoryUsage.heapTotal / 1024 / 1024)}MB`);
+  console.log('======================================');
+  
   // Log des routes disponibles
   const routes = [];
   app._router.stack.forEach((middleware) => {
@@ -241,6 +249,7 @@ server.listen(PORT,'0.0.0.0', () => {
   });
   
   logger.debug('Routes disponibles:', { routes });
+  console.log('Routes disponibles:', { routes });
 });
 
 // Export de l'app pour les tests
