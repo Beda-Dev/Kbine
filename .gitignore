@@ -7,6 +7,13 @@ yarn-debug.log*
 yarn-error.log*
 
 # ===============================
+# DOCKER
+# ===============================
+docker-compose.yml
+docker-compose.override.yml
+Dockerfile
+
+# ===============================
 # ENVIRONMENT VARIABLES
 # ===============================
 .env
