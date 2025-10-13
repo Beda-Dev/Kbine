@@ -212,7 +212,7 @@ app.use('*', (req, res) => {
 const PORT = process.env.PORT || 3000;
 
 // Demarrage du serveur
-server.listen(PORT, () => {
+server.listen(PORT,'0.0.0.0', () => {
   const env = process.env.NODE_ENV || 'development';
   const memoryUsage = process.memoryUsage();
   
