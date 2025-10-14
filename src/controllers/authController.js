@@ -103,8 +103,10 @@ const login = async (req, res) => {
       // refreshToken: refreshToken,
       user: {
         id: user.id,
-        phoneNumber: user.phone_number,
-        role: user.role
+        phone_number: user.phone_number, // Changé de phoneNumber à phone_number
+        role: user.role,
+        created_at: user.createdAt, // Ajout de created_at
+        updated_at: user.updatedAt  // Ajout de updated_at
       },
       // isNewUser: isNewUser
     };
@@ -113,6 +115,8 @@ const login = async (req, res) => {
       userId: user.id,
       phoneNumber: user.phone_number,
       role: user.role,
+      createdAt: user.createdAt,
+      updatedAt: user.updatedAt,
       isNewUser: isNewUser
     });
     
@@ -191,8 +195,10 @@ const refreshToken = async (req, res) => {
       // refreshToken: newRefreshToken,
       user: {
         id: user.id,
-        phoneNumber: user.phone_number,
-        role: user.role
+        phone_number: user.phone_number, // Changé de phoneNumber à phone_number
+        role: user.role,
+        created_at: user.createdAt, // Ajout de created_at
+        updated_at: user.updatedAt  // Ajout de updated_at
       }
     });
 
