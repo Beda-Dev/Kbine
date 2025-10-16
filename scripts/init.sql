@@ -1,5 +1,7 @@
--- Script d'initialisation de la base de donnees Kbine
--- Ce script sera execute automatiquement au demarrage du container MySQL
+-- =========================================================
+-- Script d'initialisation de la base de donnees Kbine (v2)
+-- Compatible MySQL 8.x
+-- =========================================================
 
 -- Creation de la base de donnees si elle n'existe pas
 CREATE DATABASE IF NOT EXISTS kbine_db CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci;
@@ -7,7 +9,9 @@ CREATE DATABASE IF NOT EXISTS kbine_db CHARACTER SET utf8mb4 COLLATE utf8mb4_uni
 -- Utilisation de la base de donnees
 USE kbine_db;
 
--- Table des utilisateurs
+-- =========================================================
+-- TABLE : users
+-- =========================================================
 CREATE TABLE IF NOT EXISTS users (
     id INT AUTO_INCREMENT PRIMARY KEY,
     phone_number VARCHAR(15) UNIQUE NOT NULL,
@@ -16,40 +20,44 @@ CREATE TABLE IF NOT EXISTS users (
     updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP
 );
 
--- Table des operateurs telephoniques
+-- =========================================================
+-- TABLE : operators
+-- =========================================================
 CREATE TABLE IF NOT EXISTS operators (
     id INT AUTO_INCREMENT PRIMARY KEY,
     name VARCHAR(50) NOT NULL,
     code VARCHAR(10) UNIQUE NOT NULL,
-    prefixes JSON NOT NULL, -- Prefixes telephoniques (ex: ["07", "17", "27"])
+    prefixes JSON NOT NULL, -- Ex: ["07", "17", "27"]
     created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
 );
 
--- Table des forfaits/plans
+-- =========================================================
+-- TABLE : plans
+-- =========================================================
 CREATE TABLE IF NOT EXISTS plans (
     id INT AUTO_INCREMENT PRIMARY KEY,
     operator_id INT NOT NULL,
     name VARCHAR(100) NOT NULL,
     description TEXT,
     price DECIMAL(10,2) NOT NULL,
-    type ENUM('credit', 'minutes', 'internet') NOT NULL,
+    type ENUM('credit', 'minutes', 'internet', 'mixte') NOT NULL, -- Ajout du type "mixte"
     validity_days INT DEFAULT NULL,
     active BOOLEAN DEFAULT TRUE,
     created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
     FOREIGN KEY (operator_id) REFERENCES operators(id)
 );
 
--- Table des commandes
+-- =========================================================
+-- TABLE : orders
+-- =========================================================
+-- ⚠️ Version nettoyée : suppression des champs payment_method, phone_number, payment_reference
 CREATE TABLE IF NOT EXISTS orders (
     id INT AUTO_INCREMENT PRIMARY KEY,
     user_id INT NOT NULL,
     plan_id INT NOT NULL,
-    phone_number VARCHAR(15) NOT NULL,
     amount DECIMAL(10,2) NOT NULL,
     status ENUM('pending', 'assigned', 'processing', 'completed', 'cancelled') DEFAULT 'pending',
     assigned_to INT DEFAULT NULL,
-    payment_method ENUM('wave', 'orange_money', 'mtn_money', 'moov_money') NOT NULL,
-    payment_reference VARCHAR(100) DEFAULT NULL,
     created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
     updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
     FOREIGN KEY (user_id) REFERENCES users(id),
@@ -57,7 +65,9 @@ CREATE TABLE IF NOT EXISTS orders (
     FOREIGN KEY (assigned_to) REFERENCES users(id)
 );
 
--- Table des sessions
+-- =========================================================
+-- TABLE : sessions
+-- =========================================================
 CREATE TABLE IF NOT EXISTS sessions (
     id INT AUTO_INCREMENT PRIMARY KEY,
     user_id INT NOT NULL,
@@ -68,32 +78,39 @@ CREATE TABLE IF NOT EXISTS sessions (
     FOREIGN KEY (user_id) REFERENCES users(id)
 );
 
--- Table des paiements/transactions
+-- =========================================================
+-- TABLE : payments
+-- =========================================================
+-- ✅ Ajout du champ payment_phone
 CREATE TABLE IF NOT EXISTS payments (
     id INT AUTO_INCREMENT PRIMARY KEY,
     order_id INT NOT NULL,
     amount DECIMAL(10,2) NOT NULL,
     payment_method ENUM('wave', 'orange_money', 'mtn_money', 'moov_money') NOT NULL,
+    payment_phone VARCHAR(15) DEFAULT NULL, -- ✅ Nouveau champ
     payment_reference VARCHAR(100) NOT NULL,
-    external_reference VARCHAR(100) DEFAULT NULL, -- Reference du service de paiement
+    external_reference VARCHAR(100) DEFAULT NULL,
     status ENUM('pending', 'success', 'failed', 'refunded') DEFAULT 'pending',
-    callback_data JSON DEFAULT NULL, -- Donnees du callback
+    callback_data JSON DEFAULT NULL,
     created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
     updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
     FOREIGN KEY (order_id) REFERENCES orders(id)
 );
 
--- Insertion des operateurs par defaut
+-- =========================================================
+-- DONNEES INITIALES
+-- =========================================================
 INSERT IGNORE INTO operators (name, code, prefixes) VALUES
 ('Orange CI', 'ORANGE', '["07"]'),
 ('MTN', 'MTN', '["05"]'),
 ('Moov', 'MOOV', '["01"]');
 
--- Creation des utilisateurs admin par defaut
 INSERT IGNORE INTO users (phone_number, role) VALUES
 ('0789062079', 'admin'),
 ('0566955943', 'admin'),
 ('0566955943', 'admin');
 
--- Message de succes
-SELECT 'Base de donnees Kbine initialisee avec succes!' as message;
+-- =========================================================
+-- MESSAGE DE SUCCÈS
+-- =========================================================
+SELECT 'Base de donnees Kbine v2 initialisee avec succes!' AS message;
