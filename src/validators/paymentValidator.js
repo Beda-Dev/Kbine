@@ -1,8 +1,12 @@
+// ==========================================
+// FILE: paymentValidator.js (MIS À JOUR)
+// Modifications:
+// - Ajout du champ payment_phone
+// ==========================================
 const Joi = require('joi');
 
 /**
  * Schémas de validation pour les paiements
- * Suit la même structure que planValidator.js
  */
 
 // Schéma de base pour un paiement
@@ -36,6 +40,15 @@ const paymentSchema = Joi.object({
             'string.base': 'La méthode de paiement doit être une chaîne de caractères',
             'any.only': 'Méthode de paiement non valide',
             'any.required': 'La méthode de paiement est obligatoire'
+        }),
+    
+    payment_phone: Joi.string()
+        .pattern(/^0[0-9]{9}$/)
+        .optional()
+        .allow(null, '')
+        .messages({
+            'string.base': 'Le numéro de téléphone de paiement doit être une chaîne de caractères',
+            'string.pattern.base': 'Le numéro de téléphone doit être un numéro ivoirien valide (10 chiffres commençant par 0)'
         }),
     
     payment_reference: Joi.string()
@@ -75,7 +88,6 @@ const paymentSchema = Joi.object({
 
 /**
  * Validation pour la création d'un paiement
- * Tous les champs requis doivent être présents
  */
 const createPaymentValidation = (data) => {
     return paymentSchema.validate(data, { 
@@ -86,7 +98,6 @@ const createPaymentValidation = (data) => {
 
 /**
  * Validation pour la mise à jour d'un paiement
- * Tous les champs sont optionnels, mais au moins un doit être fourni
  */
 const updatePaymentValidation = (data) => {
     const updateSchema = Joi.object({
@@ -106,12 +117,20 @@ const updatePaymentValidation = (data) => {
                 'number.positive': 'Le montant doit être un nombre positif',
                 'number.precision': 'Le montant doit avoir au maximum 2 décimales'
             }),
+        
+        payment_phone: Joi.string()
+            .pattern(/^0[0-9]{9}$/)
+            .allow(null, '')
+            .messages({
+                'string.base': 'Le numéro de téléphone de paiement doit être une chaîne de caractères',
+                'string.pattern.base': 'Le numéro de téléphone doit être un numéro ivoirien valide (10 chiffres commençant par 0)'
+            }),
             
         status: Joi.string()
             .valid('pending', 'success', 'failed', 'refunded')
             .messages({
                 'string.base': 'Le statut doit être une chaîne de caractères',
-                'any.only': 'Statut de paiement non valide. Les statuts valides sont: pending, completed, failed, refunded'
+                'any.only': 'Statut de paiement non valide. Les statuts valides sont: pending, success, failed, refunded'
             }),
             
         status_notes: Joi.string()
@@ -211,52 +230,6 @@ module.exports = {
     updatePaymentStatusValidation,
     refundPaymentValidation,
     paymentIdValidation,
-    
-    // Anciennes fonctions (maintenues pour la rétrocompatibilité)
-    validatePayment: (data) => {
-        const { error, value } = createPaymentValidation(data);
-        if (error) throw error;
-        return value;
-    },
-    validateCreatePayment: (data) => {
-        const { error, value } = createPaymentValidation(data);
-        if (error) throw error;
-        return value;
-    },
-    validateUpdatePayment: (data) => {
-        const { error, value } = updatePaymentValidation(data);
-        if (error) throw error;
-        return value;
-    },
-    validateUpdatePaymentStatus: (data) => {
-        const { error, value } = updatePaymentStatusValidation(data);
-        if (error) throw error;
-        return value;
-    },
-    validateRefundPayment: (data) => {
-        const { error, value } = refundPaymentValidation(data);
-        if (error) throw error;
-        return value;
-    },
-    
-    // Schémas (exportés pour une utilisation avancée)
-    schemas: {
-        payment: paymentSchema,
-        createPayment: paymentSchema,
-        updatePayment: Joi.object({
-            amount: Joi.number().positive().precision(2),
-            status: Joi.string().valid('pending', 'success', 'failed', 'refunded'),
-            status_notes: Joi.string(),
-            callback_data: Joi.object()
-        }),
-        updatePaymentStatus: Joi.object({
-            status: Joi.string().valid('pending', 'success', 'failed', 'refunded').required(),
-            notes: Joi.string()
-        }),
-        refundPayment: Joi.object({
-            reason: Joi.string().trim().max(500).required()
-        })
-    },
     
     // Constantes
     PAYMENT_METHODS: ['wave', 'orange_money', 'mtn_money', 'moov_money'],

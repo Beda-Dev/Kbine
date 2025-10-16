@@ -1,8 +1,12 @@
+// ==========================================
+// FILE: planValidator.js (MIS À JOUR)
+// Modifications:
+// - Ajout du type 'mixte' dans l'enum
+// ==========================================
 const Joi = require('joi');
 
 /**
  * Schémas de validation pour les plans
- * CORRECTION: Pattern de numéro de téléphone cohérent avec le reste de l'application
  */
 
 // Schéma de base pour un plan
@@ -50,11 +54,11 @@ const planSchema = Joi.object({
         }),
 
     type: Joi.string()
-        .valid('credit', 'minutes', 'internet')
+        .valid('credit', 'minutes', 'internet', 'mixte')
         .required()
         .messages({
             'string.base': 'Le type doit être une chaîne de caractères',
-            'any.only': 'Type de plan invalide. Doit être \'credit\', \'minutes\' ou \'internet\'',
+            'any.only': 'Type de plan invalide. Doit être \'credit\', \'minutes\', \'internet\' ou \'mixte\'',
             'any.required': 'Le type de plan est obligatoire'
         }),
 
@@ -78,20 +82,17 @@ const planSchema = Joi.object({
 
 /**
  * Validation pour la création d'un plan
- * Tous les champs requis doivent être présents
  */
 const createPlanValidation = (data) => {
     return planSchema.validate(data, {
         abortEarly: false,
-        stripUnknown: false,  //  garde tous les champs
-        convert: true  //  convertit "3" en 3 automatiquement
+        stripUnknown: false,
+        convert: true
     });
 };
 
 /**
  * Validation pour la mise à jour d'un plan
- * Au moins un champ doit être fourni
- * Tous les champs sont optionnels individuellement
  */
 const updatePlanValidation = (data) => {
     const schema = Joi.object({
@@ -131,10 +132,10 @@ const updatePlanValidation = (data) => {
             }),
 
         type: Joi.string()
-            .valid('credit', 'minutes', 'internet')
+            .valid('credit', 'minutes', 'internet', 'mixte')
             .messages({
                 'string.base': 'Le type doit être une chaîne de caractères',
-                'any.only': 'Type de plan invalide. Doit être \'credit\', \'minutes\' ou \'internet\''
+                'any.only': 'Type de plan invalide. Doit être \'credit\', \'minutes\', \'internet\' ou \'mixte\''
             }),
 
         validity_days: Joi.number()
@@ -147,14 +148,12 @@ const updatePlanValidation = (data) => {
                 'number.positive': 'La validité doit être un nombre de jours positif'
             }),
 
-
-
         active: Joi.boolean()
             .messages({
                 'boolean.base': 'Le statut actif doit être un booléen'
             })
     })
-        .min(1) // Au moins un champ doit être fourni
+        .min(1)
         .messages({
             'object.min': 'Au moins un champ doit être fourni pour la mise à jour'
         });
@@ -166,7 +165,7 @@ const updatePlanValidation = (data) => {
 };
 
 /**
- * Validation pour les paramètres de requête (query params)
+ * Validation pour les paramètres de requête
  */
 const getPlansValidation = (query) => {
     const schema = Joi.object({
@@ -218,8 +217,6 @@ const operatorIdValidation = (id) => {
 
 /**
  * Validation pour le numéro de téléphone
- * CORRECTION: Pattern cohérent avec le reste de l'application
- * Format accepté: 0XXXXXXXXX (10 chiffres commençant par 0)
  */
 const phoneNumberValidation = (phoneNumber) => {
     const schema = Joi.string()
@@ -241,5 +238,7 @@ module.exports = {
     getPlansValidation,
     planIdValidation,
     operatorIdValidation,
-    phoneNumberValidation
+    phoneNumberValidation,
+    // Constantes
+    PLAN_TYPES: ['credit', 'minutes', 'internet', 'mixte']
 };
