@@ -442,18 +442,18 @@ const assignOrder = async (req, res, next) => {
 
     try {
         const orderId = parseInt(req.params.id);
-        const { assigned_to } = req.body;
+        const { staff_id } = req.body;
 
-        console.log('[OrderController] [assignOrder] Paramètres reçus', { orderId, assigned_to });
+        console.log('[OrderController] [assignOrder] Paramètres reçus', { orderId, staff_id });
 
         logger.info('[OrderController] [assignOrder] Assignation', {
             orderId,
-            assignedTo: assigned_to,
+            assignedTo: staff_id,
             requestingUser: req.user.id
         });
 
-        if (!assigned_to) {
-            console.log('[OrderController] [assignOrder] assigned_to manquant');
+        if (!staff_id) {
+            console.log('[OrderController] [assignOrder] staff_id manquant');
             return res.status(400).json({
                 success: false,
                 error: "L'ID de l'assigné est requis"
@@ -474,11 +474,11 @@ const assignOrder = async (req, res, next) => {
         console.log('[OrderController] [assignOrder] Commande trouvée, appel du service updateOrder');
         // Mettre à jour l'assignation
         const updatedOrder = await orderService.updateOrder(orderId, {
-            assigned_to,
+            assigned_to: staff_id,
             status: 'assigned'
         });
 
-        console.log('[OrderController] [assignOrder] Commande assignée avec succès', { orderId, assigned_to });
+        console.log('[OrderController] [assignOrder] Commande assignée avec succès', { orderId, assigned_to: staff_id });
 
         res.json({
             success: true,

@@ -262,8 +262,84 @@ const create = async (userData) => {
   }
 };
 
+/**
+ * Supprime un utilisateur et toutes ses données associées
+ */
+const deleteUser = async (userId) => {
+  console.log('[userService] Début de suppression utilisateur', { userId });
+  
+  if (!userId || isNaN(parseInt(userId, 10))) {
+    throw new Error('ID utilisateur invalide');
+  }
+
+  const connection = await db.getConnection();
+  
+  try {
+    await connection.beginTransaction();
+    console.log('[userService] Transaction démarrée');
+    
+    // 1. Récupérer les IDs des commandes de l'utilisateur
+    const [orders] = await connection.execute(
+      'SELECT id FROM orders WHERE user_id = ?',
+      [userId]
+    );
+    
+    const orderIds = orders.map(o => o.id);
+    console.log('[userService] Commandes trouvées:', orderIds.length);
+    
+    // 2. Supprimer les paiements liés aux commandes
+    if (orderIds.length > 0) {
+      const placeholders = orderIds.map(() => '?').join(',');
+      await connection.execute(
+        `DELETE FROM payments WHERE order_id IN (${placeholders})`,
+        orderIds
+      );
+      console.log('[userService] Paiements supprimés');
+    }
+    
+    // 3. Supprimer les commandes
+    await connection.execute(
+      'DELETE FROM orders WHERE user_id = ?',
+      [userId]
+    );
+    console.log('[userService] Commandes supprimées');
+    
+    // 4. Supprimer les sessions
+    await connection.execute(
+      'DELETE FROM sessions WHERE user_id = ?',
+      [userId]
+    );
+    console.log('[userService] Sessions supprimées');
+    
+    // 5. Supprimer l'utilisateur
+    const [result] = await connection.execute(
+      'DELETE FROM users WHERE id = ?',
+      [userId]
+    );
+    console.log('[userService] Utilisateur supprimé');
+    
+    if (result.affectedRows === 0) {
+      throw new Error('Utilisateur non trouvé');
+    }
+    
+    await connection.commit();
+    console.log('[userService] Transaction validée');
+    
+    return true;
+    
+  } catch (error) {
+    await connection.rollback();
+    console.error('[userService] Erreur suppression, rollback effectué:', error);
+    throw new Error(`Erreur lors de la suppression de l'utilisateur: ${error.message}`);
+  } finally {
+    connection.release();
+  }
+};
+
+
 module.exports = {
   findById,
   findByPhoneNumber,
-  create
+  create,
+  deleteUser
 };

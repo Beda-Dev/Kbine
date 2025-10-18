@@ -353,59 +353,90 @@ const updateUser = async (req, res) => {
  * Supprime un utilisateur
  * Accessible uniquement aux administrateurs
  */
-const deleteUser = async (req, res) => {
-    try {
-        const userId = parseInt(req.params.id);
+// const deleteUser = async (req, res) => {
+//     try {
+//         const userId = parseInt(req.params.id);
 
-        // Empêcher la suppression de son propre compte
-        if (req.user.id === userId) {
-            return res.status(400).json({
-                success: false,
-                error: 'Vous ne pouvez pas supprimer votre propre compte'
-            });
-        }
 
-        // Vérification que l'utilisateur existe
-        const [existingUsers] = await db.execute(
-            'SELECT id, role FROM users WHERE id = ?',
-            [userId]
-        );
+//         // Vérification que l'utilisateur existe
+//         const [existingUsers] = await db.execute(
+//             'SELECT id, role FROM users WHERE id = ?',
+//             [userId]
+//         );
 
-        if (existingUsers.length === 0) {
-            return res.status(404).json({
-                success: false,
-                error: 'Utilisateur non trouvé'
-            });
-        }
+//         if (existingUsers.length === 0) {
+//             return res.status(404).json({
+//                 success: false,
+//                 error: 'Utilisateur non trouvé'
+//             });
+//         }
 
-        // Supprimer d'abord les sessions liées
-        await db.execute(
-            'DELETE FROM sessions WHERE user_id = ?',
-            [userId]
-        );
+//         // Supprimer d'abord les sessions liées
+//         await db.execute(
+//             'DELETE FROM sessions WHERE user_id = ?',
+//             [userId]
+//         );
 
-        // Ensuite supprimer l'utilisateur
-        const [result] = await db.execute(
-            'DELETE FROM users WHERE id = ?',
-            [userId]
-        );
+//         // Ensuite supprimer l'utilisateur
+//         const [result] = await db.execute(
+//             'DELETE FROM users WHERE id = ?',
+//             [userId]
+//         );
 
-        return res.json({
-            success: true,
-            message: 'Utilisateur supprimé avec succès',
-            data: {
-                id: userId,
-                deletedUser: existingUsers[0]
-            }
-        });
+//         return res.json({
+//             success: true,
+//             message: 'Utilisateur supprimé avec succès',
+//             data: {
+//                 id: userId,
+//                 deletedUser: existingUsers[0]
+//             }
+//         });
 
-    } catch (error) {
-        logger.error('Erreur lors de la suppression de l\'utilisateur:', error);
-        return res.status(500).json({
-            success: false,
-            error: 'Erreur serveur lors de la suppression de l\'utilisateur'
-        });
+//     } catch (error) {
+//         logger.error('Erreur lors de la suppression de l\'utilisateur:', error);
+//         return res.status(500).json({
+//             success: false,
+//             error: 'Erreur serveur lors de la suppression de l\'utilisateur'
+//         });
+//     }
+// };
+
+const deleteUser = async (req, res, next) => {
+  try {
+    const userId = parseInt(req.params.id);
+    const requestingUserId = req.user.id;
+    
+
+    
+    // Vérifier que l'utilisateur existe
+    const user = await userService.findById(userId);
+    if (!user) {
+      return res.status(404).json({
+        success: false,
+        error: 'Utilisateur non trouvé'
+      });
     }
+    
+    // Supprimer l'utilisateur et ses données
+    await userService.deleteUser(userId);
+    
+    logger.info('Utilisateur supprimé avec succès', {
+      userId,
+      deletedBy: requestingUserId
+    });
+    
+    res.status(200).json({
+      success: true,
+      message: 'Utilisateur et données associées supprimés avec succès'
+    });
+    
+  } catch (error) {
+    logger.error('Erreur lors de la suppression utilisateur', {
+      error: error.message,
+      userId: req.params.id
+    });
+    next(error);
+  }
 };
 
 /**

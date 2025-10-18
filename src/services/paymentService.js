@@ -15,6 +15,7 @@ const validatePaymentData = (paymentData) => {
         order_id: paymentData.order_id,
         amount: paymentData.amount,
         payment_method: paymentData.payment_method,
+        payment_phone: paymentData.payment_phone,
         payment_reference: paymentData.payment_reference
     });
 
@@ -34,11 +35,20 @@ const validatePaymentData = (paymentData) => {
         throw new Error('Référence de paiement requise');
     }
 
+    // ✅ Validation du numéro de téléphone (optionnel mais recommandé)
+    if (paymentData.payment_phone) {
+        const phoneRegex = /^[0-9]{10,15}$/;
+        if (!phoneRegex.test(paymentData.payment_phone.replace(/[\s\-\+]/g, ''))) {
+            throw new Error('Numéro de téléphone de paiement invalide');
+        }
+    }
+
     console.log('[PaymentService] validatePaymentData - Validation réussie');
 };
 
 /**
  * Crée un nouveau paiement
+ * ✅ CORRECTION: Ajout du champ payment_phone
  */
 const createPayment = async (paymentData) => {
     console.log('[PaymentService] createPayment - Début de création de paiement');
@@ -71,11 +81,12 @@ const createPayment = async (paymentData) => {
             throw new Error('Commande non trouvée');
         }
 
-        // Création du paiement
+        // ✅ Création du paiement avec payment_phone
         const payment = {
             order_id: paymentData.order_id,
             amount: paymentData.amount,
             payment_method: paymentData.payment_method,
+            payment_phone: paymentData.payment_phone || null,
             payment_reference: paymentData.payment_reference,
             external_reference: paymentData.external_reference || Date.now().toString(),
             status: 'pending',
@@ -84,10 +95,16 @@ const createPayment = async (paymentData) => {
             updated_at: new Date()
         };
 
+        console.log('[PaymentService] createPayment - Données du paiement préparées', payment);
+
         const [result] = await connection.query('INSERT INTO payments SET ?', [payment]);
         await connection.commit();
 
-        logger.info(`Paiement créé avec succès - ID: ${result.insertId}`);
+        logger.info(`Paiement créé avec succès - ID: ${result.insertId}`, {
+            order_id: payment.order_id,
+            payment_method: payment.payment_method,
+            payment_phone: payment.payment_phone
+        });
 
         return {
             id: result.insertId,
@@ -109,7 +126,6 @@ const createPayment = async (paymentData) => {
 
 /**
  * Met à jour un paiement existant
- * 🔧 CORRECTION: Meilleure gestion de la connexion
  */
 const updatePayment = async (id, updateData) => {
     console.log('[PaymentService] updatePayment - Début de mise à jour', { paymentId: id });
@@ -131,6 +147,14 @@ const updatePayment = async (id, updateData) => {
         // Valider le statut si fourni
         if (updateData.status && !PAYMENT_STATUS.includes(updateData.status)) {
             throw new Error(`Statut invalide: ${updateData.status}`);
+        }
+
+        // ✅ Valider payment_phone si fourni
+        if (updateData.payment_phone) {
+            const phoneRegex = /^[0-9]{10,15}$/;
+            if (!phoneRegex.test(updateData.payment_phone.replace(/[\s\-\+]/g, ''))) {
+                throw new Error('Numéro de téléphone de paiement invalide');
+            }
         }
 
         // Préparer les données de mise à jour
@@ -206,10 +230,8 @@ const updatePayment = async (id, updateData) => {
 
 /**
  * Supprime un paiement (soft delete)
- * 🔧 CORRECTION: Meilleure gestion des erreurs et de la connexion
  */
 const deletePayment = async (id) => {
-    // Validation de l'ID
     const paymentId = parseInt(id);
     if (!paymentId || isNaN(paymentId)) {
         throw new Error('ID de paiement invalide');
@@ -222,7 +244,6 @@ const deletePayment = async (id) => {
         connection = await db.getConnection();
         await connection.beginTransaction();
 
-        // Vérifier que le paiement existe
         const [payments] = await connection.query('SELECT * FROM payments WHERE id = ?', [paymentId]);
 
         if (!payments || payments.length === 0) {
@@ -231,12 +252,10 @@ const deletePayment = async (id) => {
 
         const payment = payments[0];
 
-        // Vérifier si le paiement peut être supprimé
         if (payment.status === 'success') {
             throw new Error('Impossible de supprimer un paiement réussi. Veuillez effectuer un remboursement.');
         }
 
-        // Préparer les données de callback
         let callbackData = {};
         if (payment.callback_data) {
             try {
@@ -248,7 +267,6 @@ const deletePayment = async (id) => {
             }
         }
 
-        // Mettre à jour les métadonnées de suppression
         const now = new Date();
         callbackData = {
             ...callbackData,
@@ -257,7 +275,6 @@ const deletePayment = async (id) => {
             notes: (callbackData.notes || '') + '\nPaiement annulé/supprimé le ' + now.toISOString()
         };
 
-        // Soft delete: mettre à jour le statut
         const [result] = await connection.query(
             'UPDATE payments SET status = ?, callback_data = ?, updated_at = ? WHERE id = ?',
             ['failed', JSON.stringify(callbackData), now, paymentId]
@@ -286,18 +303,23 @@ const deletePayment = async (id) => {
 
 /**
  * Récupère un paiement par son ID avec les relations
+ * ✅ CORRECTION: Ajout de payment_phone dans la sélection
  */
 const getPaymentById = async (id) => {
     console.log('[PaymentService] getPaymentById - Début de récupération', { paymentId: id });
 
+    let connection;
     try {
         const [payments] = await db.query(
             `SELECT p.*,
-                    o.id as order_id_full, o.user_id, o.plan_id, o.phone_number as order_phone_number,
+                    o.id as order_id_full, o.user_id, o.plan_id,
                     o.amount as order_amount, o.status as order_status,
+                    o.created_at as order_created_at, o.updated_at as order_updated_at,
                     pl.name as plan_name, pl.price as plan_price,
-                    op.name as operator_name,
-                    u.phone_number as user_phone, u.role as user_role
+                    pl.description as plan_description, pl.type as plan_type,
+                    op.name as operator_name, op.code as operator_code,
+                    u.phone_number as user_phone, u.role as user_role,
+                    u.created_at as user_created_at, u.updated_at as user_updated_at
              FROM payments p
              LEFT JOIN orders o ON p.order_id = o.id
              LEFT JOIN plans pl ON o.plan_id = pl.id
@@ -328,21 +350,52 @@ const getPaymentById = async (id) => {
                 id: payment.order_id,
                 user_id: payment.user_id,
                 plan_id: payment.plan_id,
-                phone_number: payment.order_phone_number,
                 amount: payment.order_amount,
-                status: payment.order_status
+                status: payment.order_status,
+                created_at: payment.order_created_at,
+                updated_at: payment.order_updated_at
+            };
+        }
+
+        // Ajouter les informations du plan
+        if (payment.plan_id) {
+            payment.plan = {
+                id: payment.plan_id,
+                name: payment.plan_name,
+                description: payment.plan_description,
+                price: payment.plan_price,
+                type: payment.plan_type,
+                operator_name: payment.operator_name,
+                operator_code: payment.operator_code
+            };
+        }
+
+        // Ajouter les informations de l'utilisateur
+        if (payment.user_id) {
+            payment.user = {
+                id: payment.user_id,
+                phone_number: payment.user_phone,
+                role: payment.user_role,
+                created_at: payment.user_created_at,
+                updated_at: payment.user_updated_at
             };
         }
 
         // Supprimer les champs redondants
-        ['order_id_full', 'user_id', 'plan_id', 'order_phone_number',
-            'order_amount', 'order_status', 'plan_name', 'plan_price',
-            'operator_name', 'user_phone', 'user_role'].forEach(field => delete payment[field]);
+        ['order_id_full', 'user_id', 'plan_id', 'order_amount', 'order_status',
+         'order_created_at', 'order_updated_at', 'plan_name', 'plan_price',
+         'plan_description', 'plan_type', 'operator_name', 'operator_code',
+         'user_phone', 'user_role', 'user_created_at', 'user_updated_at'
+        ].forEach(field => delete payment[field]);
 
         return payment;
     } catch (error) {
         logger.error('Erreur lors de la récupération du paiement', { error: error.message, paymentId: id });
         throw error;
+    } finally {
+        if (connection) {
+            connection.release();
+        }
     }
 };
 
@@ -397,9 +450,11 @@ const getPayments = async ({
         const whereClause = whereClauses.length > 0 ? `WHERE ${whereClauses.join(' AND ')}` : '';
 
         const [payments] = await db.query(
-            `SELECT p.*, o.status as order_status
+            `SELECT p.*, o.status as order_status, o.user_id, 
+                    u.phone_number as user_phone
              FROM payments p
              LEFT JOIN orders o ON p.order_id = o.id
+             LEFT JOIN users u ON o.user_id = u.id
              ${whereClause}
              ORDER BY p.created_at DESC
              LIMIT ? OFFSET ?`,
@@ -430,7 +485,7 @@ const getPayments = async ({
                 total,
                 total_pages: totalPages,
                 current_page: page,
-                per_page: limit,
+                limit: limit,
                 has_next_page: page < totalPages,
                 has_previous_page: page > 1
             }

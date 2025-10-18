@@ -27,7 +27,7 @@ GET http://localhost:3000/health
 {
   "status": "OK",
   "timestamp": "2025-10-02T11:31:09.031Z",
-  "service": "kbine-backend"
+  "service": "Kbine-backend"
 }
 ```
 
@@ -90,7 +90,7 @@ POST http://localhost:3000/api/auth/login
 ### 2. Docker Setup
 ```bash
 cd backend
-docker-compose -p kbine up -d
+docker-compose -p Kbine up -d
 ```
 
 ### 3. Implémentation Progressive

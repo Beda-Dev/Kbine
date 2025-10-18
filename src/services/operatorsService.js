@@ -6,8 +6,12 @@ const db = require('../config/database');
  * @returns {Promise<Object>} L'opérateur créé
  */
 const create = async (operatorData) => {
+    console.log('=== DEBUT DE LA REQUETE ===');
+    console.log('Requete SQL:', 'INSERT INTO operators (name, code, prefixes) VALUES (?, ?, ?)');
+    console.log('Parametres:', operatorData);
     try {
         // S'assurer que les préfixes sont stockés sous forme de tableau JSON
+        
         const prefixes = Array.isArray(operatorData.prefixes) 
             ? JSON.stringify(operatorData.prefixes)
             : operatorData.prefixes;

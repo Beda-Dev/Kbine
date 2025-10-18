@@ -168,7 +168,11 @@ const listOrdersValidation = (query) => {
                 'number.base': "L'ID utilisateur doit être un nombre",
                 'number.integer': "L'ID utilisateur doit être un entier",
                 'number.positive': "L'ID utilisateur doit être un nombre positif"
-            })
+            }),
+        date: Joi.date().iso().messages({
+            'date.base': 'La date doit être au format ISO (YYYY-MM-DD)',
+            'date.format': 'Format de date invalide'
+        })
     });
 
     return schema.validate(query, {
