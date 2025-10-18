@@ -226,7 +226,7 @@ const logout = async (req, res) => {
       );
     } else if (token) {
       // Invalidation de toutes les sessions de l'utilisateur
-      const decoded = jwt.verify(token, process.env.JWT_SECRET || 'Kbine_secret_key');
+      const decoded = jwt.verify(token, process.env.JWT_SECRET || 'kbine_secret_key');
       await db.execute(
         'DELETE FROM sessions WHERE user_id = ?',
         [decoded.userId]

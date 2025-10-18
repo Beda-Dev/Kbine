@@ -1,5 +1,5 @@
 /**
- * Configuration de la connexion a la base de donnees MySQL
+ * Configuration de la connexion à la base de données MySQL
  */
 
 const mysql = require('mysql2/promise');
@@ -7,81 +7,79 @@ const logger = require('../utils/logger');
 
 // Configuration du pool
 const config = {
-  host: process.env.DB_HOST || 'Kbine-mysql',
+  host: process.env.DB_HOST || 'kbine-mysql',
   port: process.env.DB_PORT || 3306,
-  user: process.env.DB_USER || 'Kbine_user',
-  password: process.env.DB_PASSWORD || 'Kbine_password',
-  database: process.env.DB_NAME || 'Kbine_db',
+  user: process.env.DB_USER || 'kbine_user',
+  password: process.env.DB_PASSWORD || 'kbine_secure_password',
+  database: process.env.DB_NAME || 'kbine_db',
   waitForConnections: true,
   connectionLimit: 10,
   queueLimit: 0,
   connectTimeout: 60000,
 };
 
-console.log('Configuration de la base de donnees:', {
+console.log('Configuration de la base de données:', {
   host: config.host,
   port: config.port,
   user: config.user,
   database: config.database
 });
 
-console.log('Creation du pool de connexions MySQL...');
+console.log('Création du pool de connexions MySQL...');
 const pool = mysql.createPool(config);
 
 // Test de connexion
 const testConnection = async () => {
   try {
     const connection = await pool.getConnection();
-    logger.info('Connexion a la base de donnees MySQL etablie');
-    console.log('Connexion a la base de donnees MySQL etablie');
+    logger.info('Connexion à la base de données MySQL établie');
+    console.log('Connexion à la base de données MySQL établie');
     connection.release();
   } catch (error) {
-    logger.error('Erreur de connexion a la base de donnees:', error);
-    console.log('Erreur de connexion a la base de donnees:', error);
-    console.log('Arret force de l\'application...');
+    logger.error('Erreur de connexion à la base de données:', error);
+    console.log('Erreur de connexion à la base de données:', error);
+    console.log('Arrêt forcé de l\'application...');
     process.exit(1);
   }
 };
 
-console.log('Execution du test de connexion...');
+console.log('Exécution du test de connexion...');
 testConnection();
 
 // Export du pool avec méthodes corrigées
 module.exports = {
     execute: async (sql, params) => {
-        console.log('=== DEBUT DE LA REQUETE ===');
-        console.log('Requete SQL:', sql);
-        console.log('Parametres:', params);
+        console.log('=== DÉBUT DE LA REQUÊTE ===');
+        console.log('Requête SQL:', sql);
+        console.log('Paramètres:', params);
         const connection = await pool.getConnection();
-        console.log('=== CONNEXION Etablie ===');
+        console.log('=== CONNEXION Établie ===');
         try {
             const result = await connection.execute(sql, params);
-            console.log('=== REQUETE EXECUTEE ===');
-            // console.log('Résultat brut:', JSON.stringify(result, null, 2));
+            console.log('=== REQUÊTE EXÉCUTÉE ===');
             return result;
         } finally {
             connection.release();
-            console.log('=== CONNEXION LIBEREE ===');
+            console.log('=== CONNEXION LIBÉRÉE ===');
         }
     },
     
     query: async (sql, params) => {
-        console.log('=== DEBUT DE LA REQUETE (QUERY) ===');
-        console.log('Requete SQL:', sql);
-        console.log('Parametres:', params);
+        console.log('=== DÉBUT DE LA REQUÊTE (QUERY) ===');
+        console.log('Requête SQL:', sql);
+        console.log('Paramètres:', params);
         const connection = await pool.getConnection();
-        console.log('=== CONNEXION Etablie ===');
+        console.log('=== CONNEXION Établie ===');
         try {
             const result = await connection.query(sql, params);
-            console.log('=== REQUETE EXECUTEE ===');
+            console.log('=== REQUÊTE EXÉCUTÉE ===');
             return result;
         } finally {
             connection.release();
-            console.log('=== CONNEXION LIBEREE ===');
+            console.log('=== CONNEXION LIBÉRÉE ===');
         }
     },
     
-    // ✅ CORRECTION: Suppression des logs erronés
     getConnection: async () => {
         console.log('=== DEMANDE DE CONNEXION ===');
         return await pool.getConnection();

@@ -217,7 +217,7 @@ server.listen(PORT,'0.0.0.0', () => {
   const memoryUsage = process.memoryUsage();
   
   logger.info('======================================');
-  logger.info(`🚀 Serveur Kbine démarré avec succès`);
+  logger.info(`🚀 Serveur kbine démarré avec succès`);
   logger.info(`   - Port: ${PORT}`);
   logger.info(`   - Environnement: ${env}`);
   logger.info(`   - PID: ${process.pid}`);
@@ -225,7 +225,7 @@ server.listen(PORT,'0.0.0.0', () => {
   logger.info('======================================');
   
    console.log('======================================');
-  console.log(`🚀 Serveur Kbine démarré avec succès`);
+  console.log(`🚀 Serveur kbine démarré avec succès`);
   console.log(`   - Port: ${PORT}`);
   console.log(`   - Environnement: ${env}`);
   console.log(`   - PID: ${process.pid}`);

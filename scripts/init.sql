@@ -1,10 +1,10 @@
 -- =========================================================
--- Script d'initialisation de la base de donnees Kbine (v2)
+-- Script d'initialisation de la base de donnees kbine (v2)
 -- Compatible MySQL 8.x
 -- =========================================================
 
-CREATE DATABASE IF NOT EXISTS Kbine_db CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci;
-USE Kbine_db;
+CREATE DATABASE IF NOT EXISTS kbine_db CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci;
+USE kbine_db;
 
 -- =========================================================
 -- TABLE : users
@@ -102,10 +102,9 @@ INSERT IGNORE INTO operators (name, code, prefixes) VALUES
 
 INSERT IGNORE INTO users (phone_number, role) VALUES
 ('0789062079', 'admin'),
-('0566955943', 'admin'),
 ('0566955943', 'admin');
 
 -- =========================================================
 -- MESSAGE DE SUCCÈS
 -- =========================================================
-SELECT 'Base de donnees Kbine v2 initialisee avec succes!' AS message;
+SELECT 'Base de donnees kbine v2 initialisee avec succes!' AS message;
