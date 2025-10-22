@@ -24,7 +24,7 @@ const createOrder = async (orderData) => {
 
         const params = [
             orderData.user_id,
-            orderData.plan_id,
+            orderData.plan_id || null,  // ✅ Gère plan_id optionnel
             orderData.amount,
             status,
             orderData.assigned_to || null
@@ -41,8 +41,6 @@ const createOrder = async (orderData) => {
             secondElement: result[1]
         });
 
-        // ✅ CORRECTION: mysql2 retourne [ResultSetHeader, FieldPacket[]]
-        // L'insertId est dans result[0]
         const resultHeader = result[0];
         const insertId = resultHeader.insertId;
 
@@ -104,7 +102,11 @@ const findById = async (orderId) => {
             `SELECT o.*,
                 u.phone_number as user_phone, u.role as user_role,
                 u.created_at as user_created_at, u.updated_at as user_updated_at,
+                p.id as plan_id, p.operator_id as plan_operator_id,
                 p.name as plan_name, p.description as plan_description,
+                p.price as plan_price, p.type as plan_type,
+                p.validity_days as plan_validity_days, p.active as plan_active,
+                p.created_at as plan_created_at,
                 pay.id as payment_id, pay.amount as payment_amount,
                 pay.payment_method, pay.payment_phone, pay.payment_reference,
                 pay.status as payment_status, pay.created_at as payment_created_at
@@ -152,18 +154,27 @@ const findById = async (orderId) => {
             }];
         }
 
-        // Ajouter le plan associé
+        // ✅ MODIFICATION: Ajouter TOUTES les données du plan si présent
         if (order.plan_id) {
             result.plan = {
                 id: order.plan_id,
+                operator_id: order.plan_operator_id,
                 name: order.plan_name,
-                description: order.plan_description
+                description: order.plan_description,
+                price: order.plan_price,
+                type: order.plan_type,
+                validity_days: order.plan_validity_days,
+                active: order.plan_active,
+                created_at: order.plan_created_at
             };
+        } else {
+            result.plan = null; // ✅ Explicite quand il n'y a pas de plan
         }
 
         // Supprimer les champs redondants
         ['user_phone', 'user_role', 'user_created_at', 'user_updated_at',
-            'plan_name', 'plan_description',
+            'plan_id', 'plan_operator_id', 'plan_name', 'plan_description',
+            'plan_price', 'plan_type', 'plan_validity_days', 'plan_active', 'plan_created_at',
             'payment_id', 'payment_amount', 'payment_method', 'payment_phone',
             'payment_reference', 'payment_status', 'payment_created_at'
         ].forEach(field => delete result[field]);
@@ -192,10 +203,11 @@ const findAll = async (filters = {}) => {
         let query = `SELECT o.*,
                     u.phone_number as user_phone, u.role as user_role,
                     u.created_at as user_created_at, u.updated_at as user_updated_at,
+                    p.id as plan_id_data, p.operator_id as plan_operator_id,
                     p.name as plan_name, p.description as plan_description,
                     p.price as plan_price, p.type as plan_type,
                     p.validity_days as plan_validity_days, p.active as plan_active,
-                    p.operator_id as plan_operator_id, p.created_at as plan_created_at
+                    p.created_at as plan_created_at
              FROM orders o
              LEFT JOIN users u ON o.user_id = u.id
              LEFT JOIN plans p ON o.plan_id = p.id`;
@@ -239,9 +251,10 @@ const findAll = async (filters = {}) => {
                 };
             }
 
+            // ✅ MODIFICATION: Ajouter TOUTES les données du plan si présent
             if (order.plan_id) {
                 result.plan = {
-                    id: order.plan_id,
+                    id: order.plan_id_data || order.plan_id,
                     operator_id: order.plan_operator_id,
                     name: order.plan_name,
                     description: order.plan_description,
@@ -251,11 +264,13 @@ const findAll = async (filters = {}) => {
                     active: order.plan_active,
                     created_at: order.plan_created_at
                 };
+            } else {
+                result.plan = null; // ✅ Explicite quand il n'y a pas de plan
             }
 
             ['user_phone', 'user_role', 'user_created_at', 'user_updated_at',
-             'plan_name', 'plan_description', 'plan_price', 'plan_type',
-             'plan_validity_days', 'plan_active', 'plan_operator_id', 'plan_created_at']
+             'plan_id_data', 'plan_operator_id', 'plan_name', 'plan_description',
+             'plan_price', 'plan_type', 'plan_validity_days', 'plan_active', 'plan_created_at']
                 .forEach(field => delete result[field]);
 
             return result;

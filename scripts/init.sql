@@ -50,14 +50,14 @@ CREATE TABLE IF NOT EXISTS plans (
 CREATE TABLE IF NOT EXISTS orders (
     id INT AUTO_INCREMENT PRIMARY KEY,
     user_id INT NOT NULL,
-    plan_id INT NOT NULL,
+    plan_id INT DEFAULT NULL,
     amount DECIMAL(10,2) NOT NULL,
     status ENUM('pending', 'assigned', 'processing', 'completed', 'cancelled') DEFAULT 'pending',
     assigned_to INT DEFAULT NULL,
     created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
     updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
     FOREIGN KEY (user_id) REFERENCES users(id) ON DELETE CASCADE,        -- 🔥 Supprime les commandes si l'utilisateur est supprimé
-    FOREIGN KEY (plan_id) REFERENCES plans(id),
+    FOREIGN KEY (plan_id) REFERENCES plans(id) ON DELETE SET NULL,
     FOREIGN KEY (assigned_to) REFERENCES users(id) ON DELETE SET NULL     -- 🔥 Si le staff est supprimé, la commande reste mais assigned_to devient NULL
 );
 

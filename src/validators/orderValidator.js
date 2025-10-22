@@ -6,20 +6,18 @@ const Joi = require('joi');
 // Constantes de validation
 const ORDER_STATUS = ['pending', 'assigned', 'processing', 'completed', 'cancelled'];
 
-// Note: PAYMENT_METHODS est maintenant dans paymentValidator.js uniquement
-
 // Schéma de base pour une commande
-// ✅ CORRECTION: Suppression des champs payment_method, phone_number, payment_reference
+// ✅ MODIFICATION: plan_id devient optionnel
 const orderSchema = Joi.object({
     plan_id: Joi.number()
         .integer()
         .positive()
-        .required()
+        .allow(null)  // ✅ Permet NULL
+        .optional()    // ✅ Rend le champ optionnel
         .messages({
             'number.base': "L'ID du forfait doit être un nombre",
             'number.integer': "L'ID du forfait doit être un entier",
-            'number.positive': "L'ID du forfait doit être un nombre positif",
-            'any.required': "L'ID du forfait est obligatoire"
+            'number.positive': "L'ID du forfait doit être un nombre positif"
         }),
         
     amount: Joi.number()
@@ -46,13 +44,13 @@ const createOrderValidation = (data) => {
 
 /**
  * Validation pour la mise à jour d'une commande
- * ✅ CORRECTION: Suppression des champs payment_method, phone_number, payment_reference
  */
 const updateOrderValidation = (data) => {
     const schema = Joi.object({
         plan_id: Joi.number()
             .integer()
             .positive()
+            .allow(null)  // ✅ Permet NULL
             .messages({
                 'number.base': "L'ID du forfait doit être un nombre",
                 'number.integer': "L'ID du forfait doit être un entier",
