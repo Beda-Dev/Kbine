@@ -31,6 +31,27 @@ router.use(authenticateToken);
 // ROUTES POUR LES COMMANDES
 // ==========================================
 
+
+/**
+ * Récupère le statut de paiement d'une commande par son ID
+ * GET /api/orders/payment-status/:id
+ * Nécessite une authentification
+ */
+router.get('/payment-status/:id',
+    (req, res, next) => {
+        const { error } = orderIdValidation(parseInt(req.params.id));
+        if (error) {
+            return res.status(400).json({
+                success: false,
+                error: 'ID de commande invalide',
+                details: error.details.map(d => d.message)
+            });
+        }
+        next();
+    },
+    orderController.getPaymentStatus
+);
+
 /**
  * Crée une nouvelle commande
  * POST /api/orders

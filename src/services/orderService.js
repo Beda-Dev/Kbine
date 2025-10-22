@@ -1,5 +1,6 @@
 const db = require('../config/database');
 const logger = require('../utils/logger');
+const { generateOrderReference } = require('../utils/orderReferenceGenerator');
 
 const createOrder = async (orderData) => {
     console.log('[OrderService] [createOrder] Début de création de commande', { orderData });
@@ -10,6 +11,33 @@ const createOrder = async (orderData) => {
     });
 
     try {
+        // Générer une référence unique pour la commande
+        let orderReference = generateOrderReference();
+        let maxAttempts = 5;
+        let attempt = 0;
+        
+        // Vérifier l'unicité de la référence (avec retry en cas de collision)
+        while (attempt < maxAttempts) {
+            const [existing] = await db.execute(
+                'SELECT id FROM orders WHERE order_reference = ?',
+                [orderReference]
+            );
+            
+            if (existing.length === 0) {
+                break; // Référence unique trouvée
+            }
+            
+            // Générer une nouvelle référence
+            orderReference = generateOrderReference();
+            attempt++;
+        }
+        
+        if (attempt >= maxAttempts) {
+            throw new Error('Impossible de générer une référence de commande unique');
+        }
+        
+        console.log('[OrderService] [createOrder] Référence générée', { orderReference });
+
         // Définir le statut par défaut si non fourni
         const status = orderData.status || 'pending';
         console.log('[OrderService] [createOrder] Statut défini', { status });
@@ -18,13 +46,14 @@ const createOrder = async (orderData) => {
 
         const query = `
             INSERT INTO orders 
-            (user_id, plan_id, amount, status, assigned_to, created_at, updated_at)
-            VALUES (?, ?, ?, ?, ?, NOW(), NOW())
+            (order_reference, user_id, plan_id, amount, status, assigned_to, created_at, updated_at)
+            VALUES (?, ?, ?, ?, ?, ?, NOW(), NOW())
         `;
 
         const params = [
+            orderReference,
             orderData.user_id,
-            orderData.plan_id || null,  // ✅ Gère plan_id optionnel
+            orderData.plan_id || null,
             orderData.amount,
             status,
             orderData.assigned_to || null
@@ -46,6 +75,7 @@ const createOrder = async (orderData) => {
 
         console.log('[OrderService] [createOrder] ID généré récupéré', {
             insertId,
+            orderReference,
             affectedRows: resultHeader.affectedRows
         });
 
@@ -54,7 +84,8 @@ const createOrder = async (orderData) => {
         }
 
         logger.debug('[OrderService] Commande créée avec succès', {
-            orderId: insertId
+            orderId: insertId,
+            orderReference
         });
 
         console.log('[OrderService] [createOrder] Récupération des détails de la commande créée');
@@ -127,7 +158,7 @@ const findById = async (orderId) => {
         }
 
         const order = rows[0];
-        console.log('[OrderService] [findById] Commande trouvée', { orderId, status: order.status });
+        console.log('[OrderService] [findById] Commande trouvée', { orderId, orderReference: order.order_reference, status: order.status });
         const result = { ...order };
 
         // Ajouter l'utilisateur associé
@@ -154,7 +185,7 @@ const findById = async (orderId) => {
             }];
         }
 
-        // ✅ MODIFICATION: Ajouter TOUTES les données du plan si présent
+        // Ajouter TOUTES les données du plan si présent
         if (order.plan_id) {
             result.plan = {
                 id: order.plan_id,
@@ -168,7 +199,7 @@ const findById = async (orderId) => {
                 created_at: order.plan_created_at
             };
         } else {
-            result.plan = null; // ✅ Explicite quand il n'y a pas de plan
+            result.plan = null;
         }
 
         // Supprimer les champs redondants
@@ -188,6 +219,110 @@ const findById = async (orderId) => {
             orderId
         });
         logger.error(`[OrderService] Erreur lors de la recherche de la commande ${orderId}`, {
+            error: error.message,
+            stack: error.stack
+        });
+        throw new Error(`Erreur lors de la récupération de la commande: ${error.message}`);
+    }
+};
+
+const findByReference = async (orderReference) => {
+    console.log('[OrderService] [findByReference] Début de recherche', { orderReference });
+    logger.debug(`[OrderService] Recherche de la commande par référence: ${orderReference}`);
+
+    try {
+        console.log('[OrderService] [findByReference] Exécution requête SELECT');
+
+        const [rows] = await db.execute(
+            `SELECT o.*,
+                u.phone_number as user_phone, u.role as user_role,
+                u.created_at as user_created_at, u.updated_at as user_updated_at,
+                p.id as plan_id, p.operator_id as plan_operator_id,
+                p.name as plan_name, p.description as plan_description,
+                p.price as plan_price, p.type as plan_type,
+                p.validity_days as plan_validity_days, p.active as plan_active,
+                p.created_at as plan_created_at,
+                pay.id as payment_id, pay.amount as payment_amount,
+                pay.payment_method, pay.payment_phone, pay.payment_reference,
+                pay.status as payment_status, pay.created_at as payment_created_at
+            FROM orders o
+            LEFT JOIN users u ON o.user_id = u.id
+            LEFT JOIN plans p ON o.plan_id = p.id
+            LEFT JOIN payments pay ON pay.order_id = o.id
+            WHERE o.order_reference = ?`,
+            [orderReference]
+        );
+
+        console.log('[OrderService] [findByReference] Résultats obtenus', { rowCount: rows.length });
+
+        if (rows.length === 0) {
+            console.log('[OrderService] [findByReference] Commande non trouvée', { orderReference });
+            logger.warn(`[OrderService] Commande non trouvée: ${orderReference}`);
+            return null;
+        }
+
+        const order = rows[0];
+        console.log('[OrderService] [findByReference] Commande trouvée', { orderReference, status: order.status });
+        const result = { ...order };
+
+        // Ajouter l'utilisateur associé
+        if (order.user_id) {
+            result.user = {
+                id: order.user_id,
+                phone_number: order.user_phone,
+                role: order.user_role,
+                created_at: order.user_created_at,
+                updated_at: order.user_updated_at
+            };
+        }
+
+        // Ajouter le paiement si présent
+        if (order.payment_id) {
+            result.payments = [{
+                id: order.payment_id,
+                amount: order.payment_amount,
+                payment_method: order.payment_method,
+                payment_phone: order.payment_phone,
+                payment_reference: order.payment_reference,
+                status: order.payment_status,
+                created_at: order.payment_created_at
+            }];
+        }
+
+        // Ajouter TOUTES les données du plan si présent
+        if (order.plan_id) {
+            result.plan = {
+                id: order.plan_id,
+                operator_id: order.plan_operator_id,
+                name: order.plan_name,
+                description: order.plan_description,
+                price: order.plan_price,
+                type: order.plan_type,
+                validity_days: order.plan_validity_days,
+                active: order.plan_active,
+                created_at: order.plan_created_at
+            };
+        } else {
+            result.plan = null;
+        }
+
+        // Supprimer les champs redondants
+        ['user_phone', 'user_role', 'user_created_at', 'user_updated_at',
+            'plan_id', 'plan_operator_id', 'plan_name', 'plan_description',
+            'plan_price', 'plan_type', 'plan_validity_days', 'plan_active', 'plan_created_at',
+            'payment_id', 'payment_amount', 'payment_method', 'payment_phone',
+            'payment_reference', 'payment_status', 'payment_created_at'
+        ].forEach(field => delete result[field]);
+
+        logger.debug(`[OrderService] Commande trouvée par référence: ${orderReference}`, { order: result });
+        return result;
+    } catch (error) {
+        console.log('[OrderService] [findByReference] Erreur attrapée', {
+            error: error.message,
+            stack: error.stack,
+            orderReference
+        });
+        logger.error(`[OrderService] Erreur lors de la recherche de la commande ${orderReference}`, {
             error: error.message,
             stack: error.stack
         });
@@ -251,7 +386,7 @@ const findAll = async (filters = {}) => {
                 };
             }
 
-            // ✅ MODIFICATION: Ajouter TOUTES les données du plan si présent
+            // Ajouter TOUTES les données du plan si présent
             if (order.plan_id) {
                 result.plan = {
                     id: order.plan_id_data || order.plan_id,
@@ -265,7 +400,7 @@ const findAll = async (filters = {}) => {
                     created_at: order.plan_created_at
                 };
             } else {
-                result.plan = null; // ✅ Explicite quand il n'y a pas de plan
+                result.plan = null;
             }
 
             ['user_phone', 'user_role', 'user_created_at', 'user_updated_at',
@@ -399,10 +534,91 @@ const deleteOrder = async (orderId) => {
     }
 };
 
+/**
+ * Récupère le statut de paiement d'une commande
+ */
+const getOrderPaymentStatus = async (orderId) => {
+    console.log('[OrderService] [getOrderPaymentStatus] Début', { orderId });
+    logger.debug(`[OrderService] Récupération du statut de paiement: ${orderId}`);
+
+    try {
+        const [rows] = await db.execute(
+            `SELECT 
+                o.id,
+                o.order_reference,
+                o.amount as order_amount,
+                o.status as order_status,
+                o.created_at as order_created_at,
+                p.id as plan_id,
+                p.name as plan_name,
+                pay.id as payment_id,
+                pay.status as payment_status,
+                pay.payment_method,
+                pay.payment_reference,
+                pay.amount as payment_amount,
+                pay.created_at as payment_created_at,
+                pay.updated_at as payment_updated_at
+            FROM orders o
+            LEFT JOIN plans p ON o.plan_id = p.id
+            LEFT JOIN payments pay ON pay.order_id = o.id
+            WHERE o.id = ?`,
+            [orderId]
+        );
+
+        if (rows.length === 0) {
+            console.log('[OrderService] [getOrderPaymentStatus] Commande non trouvée', { orderId });
+            return null;
+        }
+
+        const order = rows[0];
+        
+        const result = {
+            order_reference: order.order_reference,
+            order_status: order.order_status,
+            order_amount: parseFloat(order.order_amount),
+            order_created_at: order.order_created_at,
+            plan: order.plan_id ? {
+                id: order.plan_id,
+                name: order.plan_name
+            } : null,
+            payment: order.payment_id ? {
+                status: order.payment_status,
+                method: order.payment_method,
+                reference: order.payment_reference,
+                amount: parseFloat(order.payment_amount),
+                created_at: order.payment_created_at,
+                updated_at: order.payment_updated_at
+            } : null,
+            is_paid: order.payment_status === 'success',
+            is_pending: order.payment_status === 'pending' || !order.payment_id
+        };
+
+        console.log('[OrderService] [getOrderPaymentStatus] Statut récupéré', { 
+            orderId, 
+            isPaid: result.is_paid 
+        });
+
+        return result;
+    } catch (error) {
+        console.log('[OrderService] [getOrderPaymentStatus] Erreur attrapée', {
+            error: error.message,
+            stack: error.stack,
+            orderId
+        });
+        logger.error(`[OrderService] Erreur lors de la récupération du statut de paiement`, {
+            error: error.message,
+            orderId
+        });
+        throw new Error(`Erreur lors de la récupération du statut de paiement: ${error.message}`);
+    }
+};
+
 module.exports = {
     createOrder,
     findById,
+    findByReference,
     findAll,
     updateOrder,
-    deleteOrder
+    deleteOrder,
+    getOrderPaymentStatus
 };

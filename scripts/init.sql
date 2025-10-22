@@ -1,5 +1,5 @@
 -- =========================================================
--- Script d'initialisation de la base de donnees kbine (v2)
+-- Script d'initialisation de la base de donnees kbine (v3)
 -- Compatible MySQL 8.x
 -- =========================================================
 
@@ -49,6 +49,7 @@ CREATE TABLE IF NOT EXISTS plans (
 -- =========================================================
 CREATE TABLE IF NOT EXISTS orders (
     id INT AUTO_INCREMENT PRIMARY KEY,
+    order_reference VARCHAR(20) UNIQUE NOT NULL,
     user_id INT NOT NULL,
     plan_id INT DEFAULT NULL,
     amount DECIMAL(10,2) NOT NULL,
@@ -56,9 +57,12 @@ CREATE TABLE IF NOT EXISTS orders (
     assigned_to INT DEFAULT NULL,
     created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
     updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
-    FOREIGN KEY (user_id) REFERENCES users(id) ON DELETE CASCADE,        -- 🔥 Supprime les commandes si l'utilisateur est supprimé
+    FOREIGN KEY (user_id) REFERENCES users(id) ON DELETE CASCADE,
     FOREIGN KEY (plan_id) REFERENCES plans(id) ON DELETE SET NULL,
-    FOREIGN KEY (assigned_to) REFERENCES users(id) ON DELETE SET NULL     -- 🔥 Si le staff est supprimé, la commande reste mais assigned_to devient NULL
+    FOREIGN KEY (assigned_to) REFERENCES users(id) ON DELETE SET NULL,
+    INDEX idx_order_reference (order_reference),
+    INDEX idx_user_id (user_id),
+    INDEX idx_status (status)
 );
 
 -- =========================================================
@@ -71,7 +75,7 @@ CREATE TABLE IF NOT EXISTS sessions (
     refresh_token VARCHAR(500) DEFAULT NULL,
     expires_at TIMESTAMP NOT NULL,
     created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
-    FOREIGN KEY (user_id) REFERENCES users(id) ON DELETE CASCADE          -- 🔥 Supprime la session si l'utilisateur est supprimé
+    FOREIGN KEY (user_id) REFERENCES users(id) ON DELETE CASCADE
 );
 
 -- =========================================================
@@ -89,8 +93,33 @@ CREATE TABLE IF NOT EXISTS payments (
     callback_data JSON DEFAULT NULL,
     created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
     updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
-    FOREIGN KEY (order_id) REFERENCES orders(id) ON DELETE CASCADE         -- 🔥 Supprime le paiement si la commande est supprimée
+    FOREIGN KEY (order_id) REFERENCES orders(id) ON DELETE CASCADE
 );
+
+
+-- =========================================================
+-- TABLE : app_version
+-- =========================================================
+CREATE TABLE IF NOT EXISTS app_version (
+    id BIGINT PRIMARY KEY AUTO_INCREMENT,
+    
+    -- Versions iOS
+    ios_version VARCHAR(20) NOT NULL,
+    ios_build_number INT NOT NULL,
+    
+    -- Versions Android  
+    android_version VARCHAR(20) NOT NULL,
+    android_build_number INT NOT NULL,
+    
+    -- Contrôle global
+    force_update BOOLEAN DEFAULT FALSE,
+    
+    -- Métadonnées
+    updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
+    created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+);
+
+
 
 -- =========================================================
 -- DONNEES INITIALES
@@ -104,7 +133,17 @@ INSERT IGNORE INTO users (phone_number, role) VALUES
 ('0789062079', 'admin'),
 ('0566955943', 'admin');
 
+INSERT IGNORE INTO app_version (
+    ios_version, ios_build_number,
+    android_version, android_build_number,
+    force_update
+) VALUES (
+    '1.1.1', 8,
+    '1.1.1', 8,
+    FALSE
+);
+
 -- =========================================================
 -- MESSAGE DE SUCCÈS
 -- =========================================================
-SELECT 'Base de donnees kbine v2 initialisee avec succes!' AS message;
+SELECT 'Base de donnees kbine v3 initialisee avec succes!' AS message;

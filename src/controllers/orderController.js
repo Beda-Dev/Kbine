@@ -208,6 +208,62 @@ const getOrderById = async (req, res, next) => {
     }
 };
 
+
+/**
+ * Récupère le statut de paiement d'une commande par sa référence
+ * GET /api/orders/payment-status/:id
+ */
+const getPaymentStatus = async (req, res, next) => {
+    console.log('[OrderController] [getPaymentStatus] Début de récupération statut', {
+        orderId: req.params.id
+    });
+
+    try {
+        const orderId = req.params.id;
+
+        console.log('[OrderController] [getPaymentStatus] ID parsé', { orderId });
+
+        logger.debug('[OrderController] [getPaymentStatus] Récupération du statut', {
+            orderId
+        });
+
+        console.log('[OrderController] [getPaymentStatus] Appel du service getOrderPaymentStatus');
+        const paymentStatus = await orderService.getOrderPaymentStatus(orderId);
+
+        if (!paymentStatus) {
+            console.log('[OrderController] [getPaymentStatus] Commande non trouvée', { orderId });
+            return res.status(404).json({
+                success: false,
+                error: 'Commande non trouvée',
+                message: `Aucune commande trouvée avec l'ID: ${orderId}`
+            });
+        }
+
+        console.log('[OrderController] [getPaymentStatus] Statut récupéré', {
+            orderId,
+            isPaid: paymentStatus.is_paid,
+            paymentStatus: paymentStatus.payment?.status
+        });
+
+        res.json({
+            success: true,
+            data: paymentStatus
+        });
+    } catch (error) {
+        console.log('[OrderController] [getPaymentStatus] Erreur attrapée', {
+            error: error.message,
+            stack: error.stack,
+            orderId: req.params.id
+        });
+        logger.error('[OrderController] [getPaymentStatus] Erreur', {
+            error: error.message,
+            orderId: req.params.id
+        });
+        next(error);
+    }
+};
+
+
 /**
  * Met à jour une commande existante
  * PUT /api/orders/:id
@@ -506,5 +562,6 @@ module.exports = {
     updateOrder,
     deleteOrder,
     updateOrderStatus,
-    assignOrder
+    assignOrder,
+    getPaymentStatus
 };

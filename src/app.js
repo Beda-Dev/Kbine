@@ -37,6 +37,7 @@ const operatorRoutes = require('./routes/operatorRoutes');
 const orderRoutes = require('./routes/orderRoutes');
 const paymentRoutes = require('./routes/paymentRoutes');
 const planRoutes = require('./routes/planRoutes');
+const appVersionRoutes = require('./routes/appVersionRoutes');
 
 
 // TODO pour le developpeur junior: Creer les autres fichiers de routes
@@ -162,6 +163,7 @@ app.use('/api/plans', planRoutes);
 app.use('/api/operators', operatorRoutes);
 app.use('/api/orders', orderRoutes);
 app.use('/api/payments', paymentRoutes);
+app.use('/api/app', appVersionRoutes);
 
 // ===============================
 // ROUTES PUBLIQUES
@@ -237,7 +239,7 @@ server.listen(PORT,'0.0.0.0', () => {
   app._router.stack.forEach((middleware) => {
     if (middleware.route) {
       // Routes directes
-      routes.push(`${Object.keys(middleware.route.methods).join(', ').toUpperCase()} ${middleware.route.path}`);
+      routes.push(` ${Object.keys(middleware.route.methods).join(', ').toUpperCase()} ${middleware.route.path}`);
     } else if (middleware.name === 'router') {
       // Routes montées avec app.use()
       middleware.handle.stack.forEach((handler) => {
