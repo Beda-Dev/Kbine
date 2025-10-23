@@ -5,20 +5,20 @@
 const paymentConfig = {
   // Configuration Wave
   wave: {
-    apiUrl: process.env.WAVE_API_URL,
-    apiToken: process.env.WAVE_API_TOKEN,
-    webhookSecret: process.env.WAVE_WEBHOOK_SECRET,
+    apiUrl: process.env.WAVE_API_URL || 'https://api.wavepayments.com',
+    apiToken: process.env.WAVE_API_TOKEN || 'your_api_token',
+    webhookSecret: process.env.WAVE_WEBHOOK_SECRET || 'your_webhook_secret',
     currency: "XOF",
   },
 
   // Configuration TouchPoint
   touchpoint: {
-    apiUrl: process.env.TOUCHPOINT_API_URL,
-    username: process.env.TOUCHPOINT_USERNAME,
-    password: process.env.TOUCHPOINT_PASSWORD,
-    agencyCode: process.env.TOUCHPOINT_AGENCY_CODE,
-    loginAgent: process.env.TOUCHPOINT_LOGIN_AGENT,
-    passwordAgent: process.env.TOUCHPOINT_PASSWORD_AGENT,
+    apiUrl: process.env.TOUCHPOINT_API_URL || 'https://api.touchpoint.com',
+    username: process.env.TOUCHPOINT_USERNAME || 'your_username',
+    password: process.env.TOUCHPOINT_PASSWORD || 'your_password',
+    agencyCode: process.env.TOUCHPOINT_AGENCY_CODE || 'your_agency_code',
+    loginAgent: process.env.TOUCHPOINT_LOGIN_AGENT || 'your_login_agent',
+    passwordAgent: process.env.TOUCHPOINT_PASSWORD_AGENT || 'your_password_agent',
 
     // Codes de service TouchPoint
     serviceCodes: {
