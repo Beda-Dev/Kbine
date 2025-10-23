@@ -15,6 +15,7 @@
 // - 07 12 34 56 78 (10 chiffres commençant par 0)
 // - +225 07 12 34 56 78 (12 chiffres avec l'indicatif)
 const PHONE_NUMBER_REGEX = /^(\+225[0-9]{8}|0[0-9]{9})$/;
+const db = require('../config/database');
 
 /**
  * Rechercher un utilisateur par ID

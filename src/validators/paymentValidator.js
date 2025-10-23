@@ -89,12 +89,12 @@ const paymentSchema = Joi.object({
 /**
  * Validation pour la création d'un paiement
  */
-const createPaymentValidation = (data) => {
-    return paymentSchema.validate(data, { 
-        abortEarly: false,
-        stripUnknown: true
-    });
-};
+// const createPaymentValidation = (data) => {
+//     return paymentSchema.validate(data, { 
+//         abortEarly: false,
+//         stripUnknown: true
+//     });
+// };
 
 /**
  * Validation pour la mise à jour d'un paiement
@@ -223,6 +223,192 @@ const paymentIdValidation = (id) => {
     return schema.validate(id, { convert: true });
 };
 
+/**
+ * Validation pour la création d'un paiement
+ */
+const createPaymentValidation = (data) => {
+  const schema = Joi.object({
+    order_reference: Joi.string()
+      .pattern(/^ORD-\d{8}-[A-Z0-9]{5}$/)
+      .required()
+      .messages({
+        "string.base": "La référence de commande doit être une chaîne de caractères",
+        "string.pattern.base": "Format de référence de commande invalide (ex: ORD-20250123-ABC12)",
+        "any.required": "La référence de commande est obligatoire",
+      }),
+
+    amount: Joi.number().positive().precision(2).required().messages({
+      "number.base": "Le montant doit être un nombre",
+      "number.positive": "Le montant doit être un nombre positif",
+      "number.precision": "Le montant doit avoir au maximum 2 décimales",
+      "any.required": "Le montant est obligatoire",
+    }),
+
+    payment_phone: Joi.string()
+      .pattern(/^0[0-9]{9}$/)
+      .required()
+      .messages({
+        "string.base": "Le numéro de téléphone doit être une chaîne de caractères",
+        "string.pattern.base":
+          "Le numéro de téléphone doit être un numéro ivoirien valide (10 chiffres commençant par 0)",
+        "any.required": "Le numéro de téléphone est obligatoire",
+      }),
+
+    payment_method: Joi.string().valid("wave", "orange_money", "mtn_money", "moov_money").required().messages({
+      "string.base": "La méthode de paiement doit être une chaîne de caractères",
+      "any.only": "Méthode de paiement non valide. Méthodes acceptées: wave, orange_money, mtn_money, moov_money",
+      "any.required": "La méthode de paiement est obligatoire",
+    }),
+
+    otp: Joi.string()
+      .pattern(/^[0-9]{6}$/)
+      .optional()
+      .messages({
+        "string.base": "L'OTP doit être une chaîne de caractères",
+        "string.pattern.base": "L'OTP doit être un code à 6 chiffres",
+      }),
+  })
+
+  return schema.validate(data, {
+    abortEarly: false,
+    stripUnknown: true,
+  })
+}
+
+/**
+ * Validation pour la mise à jour d'un paiement
+ */
+// const updatePaymentValidation = (data) => {
+//   const schema = Joi.object({
+//     amount: Joi.number().positive().precision(2).optional().messages({
+//       "number.base": "Le montant doit être un nombre",
+//       "number.positive": "Le montant doit être un nombre positif",
+//       "number.precision": "Le montant doit avoir au maximum 2 décimales",
+//     }),
+
+//     payment_method: Joi.string().valid("wave", "orange_money", "mtn_money", "moov_money").optional().messages({
+//       "string.base": "La méthode de paiement doit être une chaîne de caractères",
+//       "any.only": "Méthode de paiement non valide. Méthodes acceptées: wave, orange_money, mtn_money, moov_money",
+//     }),
+//   })
+
+//   return schema.validate(data, {
+//     abortEarly: false,
+//     stripUnknown: true,
+//   })
+// }
+
+/**
+ * Validation pour la mise à jour du statut d'un paiement
+ */
+// const updatePaymentStatusValidation = (data) => {
+//   const schema = Joi.object({
+//     status: Joi.string().valid("pending", "success", "failed", "refunded").required().messages({
+//       "string.base": "Le statut doit être une chaîne de caractères",
+//       "any.only": "Statut non valide. Statuts acceptés: pending, success, failed, refunded",
+//       "any.required": "Le statut est obligatoire",
+//     }),
+//   })
+
+//   return schema.validate(data, {
+//     abortEarly: false,
+//     stripUnknown: true,
+//   })
+// }
+
+/**
+ * Validation pour le remboursement d'un paiement
+ */
+// const refundPaymentValidation = (data) => {
+//   const schema = Joi.object({
+//     payment_id: Joi.string().required().messages({
+//       "string.base": "L'ID de paiement doit être une chaîne de caractères",
+//       "any.required": "L'ID de paiement est obligatoire",
+//     }),
+
+//     amount: Joi.number().positive().precision(2).required().messages({
+//       "number.base": "Le montant doit être un nombre",
+//       "number.positive": "Le montant doit être un nombre positif",
+//       "number.precision": "Le montant doit avoir au maximum 2 décimales",
+//       "any.required": "Le montant est obligatoire",
+//     }),
+//   })
+
+//   return schema.validate(data, {
+//     abortEarly: false,
+//     stripUnknown: true,
+//   })
+// }
+
+// /**
+//  * Validation pour l'ID de paiement
+//  */
+// const paymentIdValidation = (data) => {
+//   const schema = Joi.object({
+//     payment_id: Joi.string().required().messages({
+//       "string.base": "L'ID de paiement doit être une chaîne de caractères",
+//       "any.required": "L'ID de paiement est obligatoire",
+//     }),
+//   })
+
+//   return schema.validate(data, {
+//     abortEarly: false,
+//     stripUnknown: true,
+//   })
+// }
+
+/**
+ * Validation pour l'initialisation d'un paiement
+ */
+const initializePaymentValidation = (data) => {
+  const schema = Joi.object({
+    order_reference: Joi.string()
+      .pattern(/^ORD-\d{8}-[A-Z0-9]{5}$/)
+      .required()
+      .messages({
+        "string.base": "La référence de commande doit être une chaîne de caractères",
+        "string.pattern.base": "Format de référence de commande invalide (ex: ORD-20250123-ABC12)",
+        "any.required": "La référence de commande est obligatoire",
+      }),
+
+    amount: Joi.number().positive().precision(2).required().messages({
+      "number.base": "Le montant doit être un nombre",
+      "number.positive": "Le montant doit être un nombre positif",
+      "number.precision": "Le montant doit avoir au maximum 2 décimales",
+      "any.required": "Le montant est obligatoire",
+    }),
+
+    payment_phone: Joi.string()
+      .pattern(/^0[0-9]{9}$/)
+      .required()
+      .messages({
+        "string.base": "Le numéro de téléphone doit être une chaîne de caractères",
+        "string.pattern.base":
+          "Le numéro de téléphone doit être un numéro ivoirien valide (10 chiffres commençant par 0)",
+        "any.required": "Le numéro de téléphone est obligatoire",
+      }),
+
+    payment_method: Joi.string().valid("wave", "orange_money", "mtn_money", "moov_money").required().messages({
+      "string.base": "La méthode de paiement doit être une chaîne de caractères",
+      "any.only": "Méthode de paiement non valide. Méthodes acceptées: wave, orange_money, mtn_money, moov_money",
+      "any.required": "La méthode de paiement est obligatoire",
+    }),
+
+    otp: Joi.string()
+      .pattern(/^[0-9]{6}$/)
+      .optional()
+      .messages({
+        "string.base": "L'OTP doit être une chaîne de caractères",
+        "string.pattern.base": "L'OTP doit être un code à 6 chiffres",
+      }),
+  })
+
+  return schema.validate(data, {
+    abortEarly: false,
+    stripUnknown: true,
+  })
+}
+
 module.exports = {
     // Nouvelles fonctions de validation (recommandé)
     createPaymentValidation,
@@ -230,6 +416,7 @@ module.exports = {
     updatePaymentStatusValidation,
     refundPaymentValidation,
     paymentIdValidation,
+    initializePaymentValidation,
     
     // Constantes
     PAYMENT_METHODS: ['wave', 'orange_money', 'mtn_money', 'moov_money'],

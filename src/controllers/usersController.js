@@ -2,6 +2,7 @@ const db = require('../config/database');
 const logger = require('../utils/logger');
 const { userValidator, userUpdateValidator } = require('../validators/userValidator');
 const { authenticateToken, requireRole } = require('../middlewares/auth');
+const userService = require('../services/userService');
 
 /**
  * Récupère tous les utilisateurs

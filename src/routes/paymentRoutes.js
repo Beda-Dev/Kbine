@@ -8,13 +8,61 @@ const {
     refundPaymentValidation,
     paymentIdValidation,
     PAYMENT_METHODS,
-    PAYMENT_STATUS
+    PAYMENT_STATUS,
+    initializePaymentValidation,
+    waveWebhookValidation,
+    touchpointWebhookValidation,
+    checkPaymentStatusValidation,
+    validatePaymentSignature
 } = require('../validators/paymentValidator');
 const { authenticateToken, requireRole } = require('../middlewares/auth');
 
 // Middleware pour vérifier les rôles
 const requireAdmin = requireRole(['admin']);
 const requireStaffOrAdmin = requireRole(['staff', 'admin']);
+
+
+/**
+ * @route   POST /api/payments/initialize
+ * @desc    Initialiser un paiement (Wave ou TouchPoint)
+ * @access  Public
+ */
+router.post(
+  "/initialize",
+  (req, res, next) => {
+    const { error } = require("../validators/paymentValidator").initializePaymentValidation(req.body)
+    if (error) {
+      return res.status(400).json({
+        success: false,
+        error: "Données de paiement invalides",
+        details: error.details.map((d) => d.message),
+      })
+    }
+    next()
+  },
+  paymentController.initializePayment,
+)
+
+/**
+ * @route   POST /api/payments/webhook/wave
+ * @desc    Webhook Wave pour notification de paiement
+ * @access  Public (avec vérification signature)
+ */
+router.post("/webhook/wave", paymentController.waveWebhook)
+
+/**
+ * @route   POST /api/payments/webhook/touchpoint
+ * @desc    Webhook TouchPoint pour notification de paiement
+ * @access  Public
+ */
+router.post("/webhook/touchpoint", paymentController.touchpointWebhook)
+
+/**
+ * @route   GET /api/payments/status/:order_reference
+ * @desc    Vérifier le statut d'un paiement par référence de commande
+ * @access  Public
+ */
+router.get("/status/:order_reference", paymentController.checkPaymentStatus)
 
 /**
  * @route   GET /api/payments/methods

@@ -1,5 +1,7 @@
 const db = require('../config/database');
 const logger = require('../utils/logger');
+const waveService = require('./waveService');
+const touchpointService = require('./touchpointService');
 
 // Types de paiement valides
 const PAYMENT_METHODS = ['wave', 'orange_money', 'mtn_money', 'moov_money'];
@@ -18,6 +20,7 @@ const validatePaymentData = (paymentData) => {
         payment_phone: paymentData.payment_phone,
         payment_reference: paymentData.payment_reference
     });
+    console.log('[PaymentService] validatePaymentData - Données complètes', JSON.stringify(paymentData, null, 2));
 
     if (!paymentData.order_id || !Number.isInteger(paymentData.order_id)) {
         throw new Error('ID de commande invalide');
@@ -52,11 +55,13 @@ const validatePaymentData = (paymentData) => {
  */
 const createPayment = async (paymentData) => {
     console.log('[PaymentService] createPayment - Début de création de paiement');
+    console.log('[PaymentService] createPayment - Données reçues', JSON.stringify(paymentData, null, 2));
 
     let connection;
     try {
         connection = await db.getConnection();
         await connection.beginTransaction();
+        console.log('[PaymentService] createPayment - Transaction démarrée');
 
         // Validation des données
         validatePaymentData(paymentData);
@@ -66,6 +71,7 @@ const createPayment = async (paymentData) => {
             'SELECT id FROM payments WHERE payment_reference = ?',
             [paymentData.payment_reference]
         );
+        console.log('[PaymentService] createPayment - Paiement existant (count)', existingPayment?.length || 0);
 
         if (existingPayment.length > 0) {
             throw new Error('Une transaction avec cette référence existe déjà');
@@ -76,6 +82,7 @@ const createPayment = async (paymentData) => {
             'SELECT id, status FROM orders WHERE id = ?',
             [paymentData.order_id]
         );
+        console.log('[PaymentService] createPayment - Commande trouvée (count)', orderResults?.length || 0);
 
         if (!orderResults || orderResults.length === 0) {
             throw new Error('Commande non trouvée');
@@ -98,7 +105,10 @@ const createPayment = async (paymentData) => {
         console.log('[PaymentService] createPayment - Données du paiement préparées', payment);
 
         const [result] = await connection.query('INSERT INTO payments SET ?', [payment]);
+        console.log('[PaymentService] createPayment - Résultat insertion', result);
         await connection.commit();
+        console.log('[PaymentService] deletePayment - Commit réussi');
+        console.log('[PaymentService] createPayment - Transaction commit');
 
         logger.info(`Paiement créé avec succès - ID: ${result.insertId}`, {
             order_id: payment.order_id,
@@ -129,6 +139,7 @@ const createPayment = async (paymentData) => {
  */
 const updatePayment = async (id, updateData) => {
     console.log('[PaymentService] updatePayment - Début de mise à jour', { paymentId: id });
+    console.log('[PaymentService] updatePayment - Données de mise à jour reçues', JSON.stringify(updateData, null, 2));
 
     let connection;
     try {
@@ -137,12 +148,16 @@ const updatePayment = async (id, updateData) => {
 
         // Vérifier que le paiement existe
         const [payments] = await connection.query('SELECT * FROM payments WHERE id = ?', [id]);
+        console.log('[PaymentService] refundPayment - Paiements trouvés', payments?.length || 0);
+        console.log('[PaymentService] updatePayment - Paiements trouvés', { count: payments?.length || 0 });
 
         if (!payments || payments.length === 0) {
             throw new Error('Paiement non trouvé');
         }
 
         const payment = payments[0];
+        console.log('[PaymentService] deletePayment - Paiement courant', { id: payment.id, status: payment.status });
+        console.log('[PaymentService] updatePayment - Paiement courant', { id: payment.id, status: payment.status });
 
         // Valider le statut si fourni
         if (updateData.status && !PAYMENT_STATUS.includes(updateData.status)) {
@@ -162,6 +177,7 @@ const updatePayment = async (id, updateData) => {
             ...updateData,
             updated_at: new Date()
         };
+        console.log('[PaymentService] updatePayment - Champs à mettre à jour', JSON.stringify(fieldsToUpdate, null, 2));
 
         // Gérer callback_data
         if (fieldsToUpdate.callback_data && typeof fieldsToUpdate.callback_data === 'object') {
@@ -192,6 +208,7 @@ const updatePayment = async (id, updateData) => {
             .join(', ');
         const updateValues = Object.values(fieldsToUpdate);
 
+        console.log('[PaymentService] updatePayment - Exécution de la requête UPDATE');
         await connection.query(
             `UPDATE payments SET ${updateFields} WHERE id = ?`,
             [...updateValues, id]
@@ -199,6 +216,7 @@ const updatePayment = async (id, updateData) => {
 
         // Récupérer le paiement mis à jour AVANT de libérer la connexion
         const [updatedPayments] = await connection.query('SELECT * FROM payments WHERE id = ?', [id]);
+        console.log('[PaymentService] updatePayment - Paiement mis à jour récupéré');
 
         await connection.commit();
 
@@ -214,6 +232,7 @@ const updatePayment = async (id, updateData) => {
         }
 
         logger.info(`Paiement mis à jour - ID: ${id}`);
+        console.log('[PaymentService] updatePayment - Succès', { id });
         return updatedPayment;
     } catch (error) {
         if (connection) {
@@ -238,6 +257,7 @@ const deletePayment = async (id) => {
     }
 
     console.log('[PaymentService] deletePayment - Début de suppression', { paymentId });
+    console.log('[PaymentService] deletePayment - Paramètres reçus', { id });
 
     let connection;
     try {
@@ -245,6 +265,7 @@ const deletePayment = async (id) => {
         await connection.beginTransaction();
 
         const [payments] = await connection.query('SELECT * FROM payments WHERE id = ?', [paymentId]);
+        console.log('[PaymentService] deletePayment - Paiement trouvé (count)', payments?.length || 0);
 
         if (!payments || payments.length === 0) {
             throw new Error('Paiement non trouvé');
@@ -275,10 +296,12 @@ const deletePayment = async (id) => {
             notes: (callbackData.notes || '') + '\nPaiement annulé/supprimé le ' + now.toISOString()
         };
 
+        console.log('[PaymentService] deletePayment - Exécution UPDATE statut=failed avec callback_data');
         const [result] = await connection.query(
             'UPDATE payments SET status = ?, callback_data = ?, updated_at = ? WHERE id = ?',
             ['failed', JSON.stringify(callbackData), now, paymentId]
         );
+        console.log('[PaymentService] deletePayment - Résultat UPDATE', { affectedRows: result?.affectedRows });
 
         if (result.affectedRows === 0) {
             throw new Error('Échec de la suppression du paiement');
@@ -289,6 +312,7 @@ const deletePayment = async (id) => {
         logger.info(`Paiement supprimé (soft delete) - ID: ${paymentId}`);
         return true;
     } catch (error) {
+        console.log('[PaymentService] deletePayment - Erreur', { message: error.message });
         if (connection) {
             await connection.rollback();
         }
@@ -307,6 +331,7 @@ const deletePayment = async (id) => {
  */
 const getPaymentById = async (id) => {
     console.log('[PaymentService] getPaymentById - Début de récupération', { paymentId: id });
+    console.log('[PaymentService] getPaymentById - Paramètres reçus', { id });
 
     let connection;
     try {
@@ -328,12 +353,14 @@ const getPaymentById = async (id) => {
              WHERE p.id = ?`,
             [id]
         );
+        console.log('[PaymentService] getPaymentById - Résultats (count)', payments?.length || 0);
 
         if (!payments || payments.length === 0) {
             throw new Error('Paiement non trouvé');
         }
 
         const payment = { ...payments[0] };
+        console.log('[PaymentService] getPaymentById - Paiement brut', JSON.stringify(payment, null, 2));
 
         // Parser callback_data
         if (payment.callback_data) {
@@ -388,6 +415,7 @@ const getPaymentById = async (id) => {
          'user_phone', 'user_role', 'user_created_at', 'user_updated_at'
         ].forEach(field => delete payment[field]);
 
+        console.log('[PaymentService] getPaymentById - Paiement final', JSON.stringify(payment, null, 2));
         return payment;
     } catch (error) {
         logger.error('Erreur lors de la récupération du paiement', { error: error.message, paymentId: id });
@@ -414,6 +442,7 @@ const getPayments = async ({
     plan_id
 } = {}) => {
     try {
+        console.log('[PaymentService] getPayments - Paramètres', { page, limit, status, payment_method, start_date, end_date, order_id, user_id, plan_id });
         const offset = (page - 1) * limit;
         const whereClauses = [];
         const params = [];
@@ -448,6 +477,7 @@ const getPayments = async ({
         }
 
         const whereClause = whereClauses.length > 0 ? `WHERE ${whereClauses.join(' AND ')}` : '';
+        console.log('[PaymentService] getPayments - whereClause', whereClause);
 
         const [payments] = await db.query(
             `SELECT p.*, o.status as order_status, o.user_id, 
@@ -460,6 +490,7 @@ const getPayments = async ({
              LIMIT ? OFFSET ?`,
             [...params, limit, offset]
         );
+        console.log('[PaymentService] getPayments - Résultats (count)', payments?.length || 0);
 
         const [countResult] = await db.query(
             `SELECT COUNT(p.id) as total 
@@ -468,6 +499,7 @@ const getPayments = async ({
              ${whereClause}`,
             params
         );
+        console.log('[PaymentService] getPayments - Total', countResult?.[0]?.total);
 
         const total = countResult[0].total;
         const totalPages = Math.ceil(total / limit);
@@ -500,6 +532,7 @@ const getPayments = async ({
  * Met à jour le statut d'un paiement
  */
 const updatePaymentStatus = async (id, status, notes = '') => {
+    console.log('[PaymentService] updatePaymentStatus - Début', { id, status, notes });
     if (!PAYMENT_STATUS.includes(status)) {
         throw new Error(`Statut invalide. Doit être l'un des suivants: ${PAYMENT_STATUS.join(', ')}`);
     }
@@ -509,6 +542,7 @@ const updatePaymentStatus = async (id, status, notes = '') => {
         updateData.status_notes = notes;
     }
 
+    console.log('[PaymentService] updatePaymentStatus - Données envoyées à updatePayment', JSON.stringify(updateData, null, 2));
     return updatePayment(id, updateData);
 };
 
@@ -516,10 +550,12 @@ const updatePaymentStatus = async (id, status, notes = '') => {
  * Rembourse un paiement
  */
 const refundPayment = async (id, reason) => {
+    console.log('[PaymentService] refundPayment - Début', { id, reason });
     let connection;
     try {
         connection = await db.getConnection();
         await connection.beginTransaction();
+        console.log('[PaymentService] refundPayment - Transaction démarrée');
 
         const [payments] = await connection.query('SELECT * FROM payments WHERE id = ?', [id]);
 
@@ -550,17 +586,20 @@ const refundPayment = async (id, reason) => {
         callbackData.refunded_at = new Date().toISOString();
         callbackData.notes = `Remboursement effectué. Raison: ${reason}`;
 
+        console.log('[PaymentService] refundPayment - Exécution UPDATE statut=refunded');
         await connection.query(
             'UPDATE payments SET status = ?, callback_data = ?, updated_at = ? WHERE id = ?',
             ['refunded', JSON.stringify(callbackData), new Date(), id]
         );
 
         await connection.commit();
+        console.log('[PaymentService] refundPayment - Commit réussi');
 
         logger.info(`Paiement remboursé - ID: ${id}`, { reason });
 
         return await getPaymentById(id);
     } catch (error) {
+        console.log('[PaymentService] refundPayment - Erreur', { message: error.message });
         if (connection) {
             await connection.rollback();
         }
@@ -578,16 +617,384 @@ const refundPayment = async (id, reason) => {
  */
 const isPaymentComplete = async (orderId) => {
     try {
+        console.log('[PaymentService] isPaymentComplete - Début', { orderId });
         const [payments] = await db.query(
             'SELECT status FROM payments WHERE order_id = ? ORDER BY created_at DESC LIMIT 1',
             [orderId]
         );
-        return payments.length > 0 && payments[0].status === 'success';
+        const complete = payments.length > 0 && payments[0].status === 'success';
+        console.log('[PaymentService] isPaymentComplete - Résultat', { complete, found: payments.length });
+        return complete;
     } catch (error) {
         logger.error('Erreur lors de la vérification du statut de paiement', { error: error.message, orderId });
         throw error;
     }
 };
+
+/**
+ * Générer un ID de transaction unique
+ * @param {string} orderReference - Référence de la commande
+ * @returns {string} - ID de transaction
+ */
+const generateTransactionId = (orderReference) => {
+  console.log('[PaymentService] generateTransactionId - Début', { orderReference });
+  const timestamp = new Date()
+    .toISOString()
+    .replace(/[-:T.Z]/g, "")
+    .slice(0, 14)
+  const id = `${timestamp}${orderReference}`
+  console.log('[PaymentService] generateTransactionId - ID généré', { transaction_id: id });
+  return id
+}
+
+/**
+ * Initialiser un paiement
+ * @param {Object} paymentData - Données du paiement
+ * @returns {Promise<Object>} - Résultat de l'initialisation
+ */
+const initializePayment = async (paymentData) => {
+  const { order_reference, amount, payment_phone, payment_method, otp } = paymentData
+  console.log('[PaymentService] initializePayment - Début', JSON.stringify(paymentData, null, 2))
+
+  try {
+    logger.info("[PaymentService] Initialisation paiement", {
+      order_reference,
+      amount,
+      payment_method,
+    })
+
+    // 1. Vérifier que la commande existe
+    const [orders] = await db.execute("SELECT * FROM orders WHERE order_reference = ?", [order_reference])
+    console.log('[PaymentService] initializePayment - Commandes trouvées', orders?.length || 0)
+
+    if (orders.length === 0) {
+      throw new Error("Commande non trouvée")
+    }
+
+    const order = orders[0]
+
+    // 2. Vérifier que la commande n'est pas déjà payée
+    if (order.status === "completed") {
+      throw new Error("Cette commande a déjà été payée")
+    }
+
+    // 3. Vérifier que le montant correspond
+    if (Number.parseFloat(amount) !== Number.parseFloat(order.amount)) {
+      throw new Error("Le montant ne correspond pas à la commande")
+    }
+
+    // 4. Générer un ID de transaction unique
+    const transaction_id = generateTransactionId(order_reference)
+    console.log('[PaymentService] initializePayment - transaction_id', { transaction_id })
+    const payment_reference = `PAY-${transaction_id}`
+
+    // 5. Créer l'enregistrement de paiement avec statut 'pending'
+    const [result] = await db.execute(
+      `INSERT INTO payments (
+                order_id, amount, payment_method, payment_phone, 
+                payment_reference, external_reference, status, callback_data
+            ) VALUES (?, ?, ?, ?, ?, ?, ?, ?)`,
+      [
+        order.id,
+        amount,
+        payment_method,
+        payment_phone,
+        payment_reference,
+        transaction_id,
+        "pending",
+        JSON.stringify({ initiated_at: new Date().toISOString() }),
+      ],
+    )
+    console.log('[PaymentService] initializePayment - Insertion paiement ID', result?.insertId)
+
+    const paymentId = result.insertId
+
+    logger.info("[PaymentService] Paiement créé en base", {
+      paymentId,
+      transaction_id,
+    })
+
+    // 6. Initialiser le paiement selon la méthode
+    let paymentResult
+
+    if (payment_method === "wave") {
+      console.log('[PaymentService] initializePayment - Méthode Wave')
+      // Paiement Wave
+      paymentResult = await waveService.createCheckoutSession({
+        amount,
+        order_reference,
+        transaction_id,
+      })
+      console.log('[PaymentService] initializePayment - Résultat Wave', JSON.stringify(paymentResult, null, 2))
+
+      // Mettre à jour avec les données Wave
+      await db.execute(`UPDATE payments SET callback_data = ? WHERE id = ?`, [
+        JSON.stringify({
+          ...JSON.parse(
+            (await db.execute("SELECT callback_data FROM payments WHERE id = ?", [paymentId]))[0][0].callback_data,
+          ),
+          session_id: paymentResult.session_id,
+          checkout_url: paymentResult.checkout_url,
+        }),
+        paymentId,
+      ])
+      console.log('[PaymentService] initializePayment - Update callback Wave OK')
+
+      return {
+        success: true,
+        payment_id: paymentId,
+        transaction_id,
+        payment_method: "wave",
+        checkout_url: paymentResult.checkout_url,
+        message: "Veuillez compléter le paiement via Wave",
+      }
+    } else {
+      // Paiement TouchPoint (MTN, Orange Money, Moov)
+      console.log('[PaymentService] initializePayment - Méthode TouchPoint', { payment_method })
+      paymentResult = await touchpointService.createTransaction({
+        amount,
+        payment_phone,
+        payment_method,
+        transaction_id,
+        otp,
+      })
+      console.log('[PaymentService] initializePayment - Résultat TouchPoint', JSON.stringify(paymentResult, null, 2))
+
+      return {
+        success: true,
+        payment_id: paymentId,
+        transaction_id,
+        payment_method,
+        status: paymentResult.status,
+        message: paymentResult.message,
+      }
+    }
+  } catch (error) {
+    logger.error("[PaymentService] Erreur initialisation paiement", {
+      error: error.message,
+      order_reference,
+    })
+    console.log('[PaymentService] initializePayment - Erreur', { message: error.message })
+    throw error
+  }
+}
+
+/**
+ * Traiter le webhook Wave
+ * @param {Object} webhookData - Données du webhook
+ * @param {string} signature - Signature Wave
+ * @param {string} body - Corps brut de la requête
+ * @returns {Promise<Object>} - Résultat du traitement
+ */
+const processWaveWebhook = async (signature, body) => {
+  try {
+    logger.info("[PaymentService] Traitement webhook Wave")
+    console.log('[PaymentService] processWaveWebhook - Début', { signatureLength: signature?.length || 0, bodyLength: body?.length || 0 })
+
+    // Vérifier la signature
+    const webhookData = waveService.verifyWebhookSignature(signature, body)
+    console.log('[PaymentService] processWaveWebhook - webhookData', JSON.stringify(webhookData, null, 2))
+
+    if (!webhookData) {
+      throw new Error("Signature webhook invalide")
+    }
+
+    const { type, data } = webhookData
+    console.log('[PaymentService] processWaveWebhook - type', type)
+    const { transaction_id, payment_status, when_completed, currency } = data
+    console.log('[PaymentService] processWaveWebhook - data', { transaction_id, payment_status, when_completed, currency })
+
+    // Récupérer le paiement
+    const [payments] = await db.execute("SELECT * FROM payments WHERE external_reference = ?", [transaction_id])
+    console.log('[PaymentService] processWaveWebhook - Paiements trouvés', payments?.length || 0)
+
+    if (payments.length === 0) {
+      throw new Error("Paiement non trouvé")
+    }
+
+    const payment = payments[0]
+
+    // Vérifier si déjà traité
+    if (payment.status === "success") {
+      logger.info("[PaymentService] Paiement déjà traité", { transaction_id })
+      return { success: true, message: "Paiement déjà traité" }
+    }
+
+    // Mapper le statut
+    const newStatus = waveService.mapStatus(payment_status)
+    console.log('[PaymentService] processWaveWebhook - Nouveau statut', { newStatus })
+
+    // Mettre à jour le paiement
+    await db.execute(
+      `UPDATE payments 
+             SET status = ?, callback_data = ?, updated_at = NOW()
+             WHERE id = ?`,
+      [
+        newStatus,
+        JSON.stringify({
+          ...JSON.parse(payment.callback_data || "{}"),
+          wave_transaction_id: transaction_id,
+          payment_status,
+          when_completed,
+          currency,
+          webhook_received_at: new Date().toISOString(),
+        }),
+        payment.id,
+      ],
+    )
+    console.log('[PaymentService] processWaveWebhook - Update paiement OK')
+
+    // Si paiement réussi, mettre à jour la commande
+    if (newStatus === "success") {
+      await db.execute(`UPDATE orders SET status = 'completed', updated_at = NOW() WHERE id = ?`, [payment.order_id])
+
+      logger.info("[PaymentService] Commande validée", {
+        orderId: payment.order_id,
+        paymentId: payment.id,
+      })
+      console.log('[PaymentService] processWaveWebhook - Commande mise à jour completed', { order_id: payment.order_id })
+    }
+
+    return {
+      success: true,
+      status: newStatus,
+      message: "Webhook traité avec succès",
+    }
+  } catch (error) {
+    logger.error("[PaymentService] Erreur traitement webhook Wave", {
+      error: error.message,
+    })
+    console.log('[PaymentService] processWaveWebhook - Erreur', { message: error.message })
+    throw error
+  }
+}
+
+/**
+ * Traiter le webhook TouchPoint
+ * @param {Object} webhookData - Données du webhook
+ * @returns {Promise<Object>} - Résultat du traitement
+ */
+const processTouchPointWebhook = async (webhookData) => {
+  try {
+    logger.info("[PaymentService] Traitement webhook TouchPoint", {
+      data: webhookData,
+    })
+    console.log('[PaymentService] processTouchPointWebhook - Début', JSON.stringify(webhookData, null, 2))
+
+    const { partner_transaction_id, status } = webhookData
+
+    // Récupérer le paiement
+    const [payments] = await db.execute("SELECT * FROM payments WHERE external_reference = ?", [partner_transaction_id])
+    console.log('[PaymentService] processTouchPointWebhook - Paiements trouvés', payments?.length || 0)
+
+    if (payments.length === 0) {
+      throw new Error("Paiement non trouvé")
+    }
+
+    const payment = payments[0]
+
+    // Vérifier si déjà traité
+    if (payment.status === "success") {
+      logger.info("[PaymentService] Paiement déjà traité", {
+        transaction_id: partner_transaction_id,
+      })
+      return { success: true, message: "Paiement déjà traité" }
+    }
+
+    // Mapper le statut
+    const newStatus = touchpointService.mapStatus(status)
+    console.log('[PaymentService] processTouchPointWebhook - Nouveau statut', { newStatus })
+
+    // Mettre à jour le paiement
+    await db.execute(
+      `UPDATE payments 
+             SET status = ?, callback_data = ?, updated_at = NOW()
+             WHERE id = ?`,
+      [
+        newStatus,
+        JSON.stringify({
+          ...JSON.parse(payment.callback_data || "{}"),
+          touchpoint_status: status,
+          webhook_data: webhookData,
+          webhook_received_at: new Date().toISOString(),
+        }),
+        payment.id,
+      ],
+    )
+    console.log('[PaymentService] processTouchPointWebhook - Update paiement OK')
+
+    // Si paiement réussi, mettre à jour la commande
+    if (newStatus === "success") {
+      await db.execute(`UPDATE orders SET status = 'completed', updated_at = NOW() WHERE id = ?`, [payment.order_id])
+
+      logger.info("[PaymentService] Commande validée", {
+        orderId: payment.order_id,
+        paymentId: payment.id,
+      })
+    }
+
+    return {
+      success: true,
+      status: newStatus,
+      message: "Webhook traité avec succès",
+    }
+  } catch (error) {
+    logger.error("[PaymentService] Erreur traitement webhook TouchPoint", {
+      error: error.message,
+    })
+    console.log('[PaymentService] processTouchPointWebhook - Erreur', { message: error.message })
+    throw error
+  }
+}
+
+/**
+ * Vérifier le statut d'un paiement
+ * @param {string} orderReference - Référence de la commande
+ * @returns {Promise<Object>} - Statut du paiement
+ */
+const checkPaymentStatus = async (orderReference) => {
+  try {
+    console.log('[PaymentService] checkPaymentStatus - Début', { orderReference })
+    const [results] = await db.execute(
+      `SELECT p.*, o.order_reference, o.status as order_status
+             FROM payments p
+             JOIN orders o ON p.order_id = o.id
+             WHERE o.order_reference = ?
+             ORDER BY p.created_at DESC
+             LIMIT 1`,
+      [orderReference],
+    )
+    console.log('[PaymentService] checkPaymentStatus - Résultats (count)', results?.length || 0)
+
+    if (results.length === 0) {
+      throw new Error("Aucun paiement trouvé pour cette commande")
+    }
+
+    const payment = results[0]
+    console.log('[PaymentService] checkPaymentStatus - Paiement', JSON.stringify(payment, null, 2))
+
+    const response = {
+      success: true,
+      payment_id: payment.id,
+      order_reference: payment.order_reference,
+      amount: payment.amount,
+      payment_method: payment.payment_method,
+      status: payment.status,
+      order_status: payment.order_status,
+      created_at: payment.created_at,
+      updated_at: payment.updated_at,
+    }
+    console.log('[PaymentService] checkPaymentStatus - Réponse', JSON.stringify(response, null, 2))
+    return response
+  } catch (error) {
+    logger.error("[PaymentService] Erreur vérification statut", {
+      error: error.message,
+      orderReference,
+    })
+    console.log('[PaymentService] checkPaymentStatus - Erreur', { message: error.message })
+    throw error
+  }
+}
 
 module.exports = {
     createPayment,
@@ -599,5 +1006,10 @@ module.exports = {
     refundPayment,
     isPaymentComplete,
     PAYMENT_METHODS,
-    PAYMENT_STATUS
+    PAYMENT_STATUS,
+    generateTransactionId,
+    initializePayment,
+    processWaveWebhook,
+    processTouchPointWebhook,
+    checkPaymentStatus,
 };

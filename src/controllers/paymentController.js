@@ -1,6 +1,7 @@
 const logger = require('../utils/logger');
 const paymentService = require('../services/paymentService');
 const { PAYMENT_METHODS, PAYMENT_STATUS } = paymentService;
+const paymentConfig = require('../config/payment');
 
 /**
  * @route   POST /api/payments
@@ -9,7 +10,9 @@ const { PAYMENT_METHODS, PAYMENT_STATUS } = paymentService;
  */
 const createPayment = async (req, res, next) => {
     try {
+        console.log('[PaymentController] [createPayment] Début', JSON.stringify(req.body, null, 2));
         const payment = await paymentService.createPayment(req.body);
+        console.log('[PaymentController] [createPayment] Succès', { paymentId: payment?.id });
         
         logger.info(`Paiement créé avec succès - ID: ${payment.id}`, { 
             paymentId: payment.id,
@@ -22,6 +25,7 @@ const createPayment = async (req, res, next) => {
             data: payment
         });
     } catch (error) {
+        console.log('[PaymentController] [createPayment] Erreur', { message: error.message });
         logger.error('Erreur lors de la création du paiement', { 
             error: error.message,
             stack: error.stack,
@@ -57,6 +61,7 @@ const createPayment = async (req, res, next) => {
  */
 const getPayments = async (req, res, next) => {
     try {
+        console.log('[PaymentController] [getPayments] Début', JSON.stringify(req.query, null, 2));
         const { 
             page = 1, 
             limit = 10, 
@@ -80,12 +85,14 @@ const getPayments = async (req, res, next) => {
             user_id: user_id ? parseInt(user_id) : undefined,
             plan_id: plan_id ? parseInt(plan_id) : undefined
         });
+        console.log('[PaymentController] [getPayments] Succès', { count: result?.data?.length || 0 });
         
         res.json({
             success: true,
             ...result
         });
     } catch (error) {
+        console.log('[PaymentController] [getPayments] Erreur', { message: error.message });
         logger.error('Erreur lors de la récupération des paiements', { 
             error: error.message,
             stack: error.stack
@@ -106,13 +113,16 @@ const getPayments = async (req, res, next) => {
  */
 const getPaymentById = async (req, res, next) => {
     try {
+        console.log('[PaymentController] [getPaymentById] Début', { id: req.params.id });
         const payment = await paymentService.getPaymentById(req.params.id);
+        console.log('[PaymentController] [getPaymentById] Succès', { id: payment?.id });
         
         res.json({
             success: true,
             data: payment
         });
     } catch (error) {
+        console.log('[PaymentController] [getPaymentById] Erreur', { message: error.message });
         logger.error('Erreur lors de la récupération du paiement', { 
             error: error.message,
             stack: error.stack,
@@ -293,10 +303,12 @@ const deletePayment = async (req, res, next) => {
  */
 const updatePaymentStatus = async (req, res, next) => {
     try {
+        console.log('[PaymentController] [updatePaymentStatus] Début', { id: req.params.id, body: req.body });
         const { id } = req.params;
         const { status, notes } = req.body;
         
         const payment = await paymentService.updatePaymentStatus(id, status, notes);
+        console.log('[PaymentController] [updatePaymentStatus] Succès', { id });
         
         logger.info(`Statut du paiement mis à jour - ID: ${id}`, { 
             paymentId: id,
@@ -310,6 +322,7 @@ const updatePaymentStatus = async (req, res, next) => {
             data: payment
         });
     } catch (error) {
+        console.log('[PaymentController] [updatePaymentStatus] Erreur', { message: error.message });
         logger.error('Erreur lors de la mise à jour du statut du paiement', { 
             error: error.message,
             stack: error.stack,
@@ -346,10 +359,12 @@ const updatePaymentStatus = async (req, res, next) => {
  */
 const refundPayment = async (req, res, next) => {
     try {
+        console.log('[PaymentController] [refundPayment] Début', { id: req.params.id, body: req.body });
         const { id } = req.params;
         const { reason } = req.body;
         
         const payment = await paymentService.refundPayment(id, reason);
+        console.log('[PaymentController] [refundPayment] Succès', { id });
         
         logger.info(`Paiement remboursé - ID: ${id}`, { 
             paymentId: id,
@@ -362,6 +377,7 @@ const refundPayment = async (req, res, next) => {
             data: payment
         });
     } catch (error) {
+        console.log('[PaymentController] [refundPayment] Erreur', { message: error.message });
         logger.error('Erreur lors du remboursement du paiement', { 
             error: error.message,
             stack: error.stack,
@@ -392,6 +408,176 @@ const refundPayment = async (req, res, next) => {
     }
 };
 
+
+
+
+
+/**
+ * @route   POST /api/payments/initialize
+ * @desc    Initialiser un paiement (Wave ou TouchPoint)
+ * @access  Public
+ */
+const initializePayment = async (req, res) => {
+  try {
+    console.log('[PaymentController] [initializePayment] Début', JSON.stringify(req.body, null, 2))
+    const result = await paymentService.initializePayment(req.body)
+    console.log('[PaymentController] [initializePayment] Succès', { payment_id: result?.payment_id, transaction_id: result?.transaction_id })
+
+    logger.info("Paiement initialisé avec succès", {
+      paymentId: result.payment_id,
+      transactionId: result.transaction_id,
+    })
+
+    res.status(200).json({
+      success: true,
+      message: "Paiement initialisé avec succès",
+      data: result,
+    })
+  } catch (error) {
+    console.log('[PaymentController] [initializePayment] Erreur', { message: error.message })
+    logger.error("Erreur lors de l'initialisation du paiement", {
+      error: error.message,
+      body: req.body,
+    })
+
+    if (error.message.includes("non trouvée")) {
+      return res.status(404).json({
+        success: false,
+        error: error.message,
+      })
+    }
+
+    if (error.message.includes("déjà été payée")) {
+      return res.status(409).json({
+        success: false,
+        error: error.message,
+      })
+    }
+
+    if (error.message.includes("ne correspond pas")) {
+      return res.status(400).json({
+        success: false,
+        error: error.message,
+      })
+    }
+
+    res.status(500).json({
+      success: false,
+      error: "Erreur lors de l'initialisation du paiement",
+      details: error.message,
+    })
+  }
+}
+
+/**
+ * @route   POST /api/payments/webhook/wave
+ * @desc    Webhook Wave pour notification de paiement
+ * @access  Public (avec vérification signature)
+ */
+const waveWebhook = async (req, res) => {
+  try {
+    console.log('[PaymentController] [waveWebhook] Début', { signature: req.headers["wave-signature"]?.length || 0 })
+    const signature = req.headers["wave-signature"]
+    const body = JSON.stringify(req.body)
+
+    if (!signature) {
+      return res.status(400).json({
+        success: false,
+        error: "Signature manquante",
+      })
+    }
+
+    const result = await paymentService.processWaveWebhook(signature, body)
+
+    logger.info("Webhook Wave traité avec succès", { result })
+    console.log('[PaymentController] [waveWebhook] Succès')
+
+    res.status(200).json({
+      success: true,
+      message: "Webhook traité avec succès",
+    })
+  } catch (error) {
+    console.log('[PaymentController] [waveWebhook] Erreur', { message: error.message })
+    logger.error("Erreur traitement webhook Wave", {
+      error: error.message,
+    })
+
+    res.status(400).json({
+      success: false,
+      error: error.message,
+    })
+  }
+}
+
+/**
+ * @route   POST /api/payments/webhook/touchpoint
+ * @desc    Webhook TouchPoint pour notification de paiement
+ * @access  Public
+ */
+const touchpointWebhook = async (req, res) => {
+  try {
+    console.log('[PaymentController] [touchpointWebhook] Début', JSON.stringify(req.body, null, 2))
+    const result = await paymentService.processTouchPointWebhook(req.body)
+
+    logger.info("Webhook TouchPoint traité avec succès", { result })
+    console.log('[PaymentController] [touchpointWebhook] Succès')
+
+    res.status(200).json({
+      success: true,
+      message: "Webhook traité avec succès",
+    })
+  } catch (error) {
+    console.log('[PaymentController] [touchpointWebhook] Erreur', { message: error.message })
+    logger.error("Erreur traitement webhook TouchPoint", {
+      error: error.message,
+    })
+
+    res.status(400).json({
+      success: false,
+      error: error.message,
+    })
+  }
+}
+
+/**
+ * @route   GET /api/payments/status/:order_reference
+ * @desc    Vérifier le statut d'un paiement
+ * @access  Public
+ */
+const checkPaymentStatus = async (req, res) => {
+  try {
+    console.log('[PaymentController] [checkPaymentStatus] Début', { order_reference: req.params.order_reference })
+    const { order_reference } = req.params
+
+    const result = await paymentService.checkPaymentStatus(order_reference)
+    console.log('[PaymentController] [checkPaymentStatus] Succès')
+
+    res.status(200).json({
+      success: true,
+      data: result,
+    })
+  } catch (error) {
+    console.log('[PaymentController] [checkPaymentStatus] Erreur', { message: error.message })
+    logger.error("Erreur vérification statut paiement", {
+      error: error.message,
+      orderReference: req.params.order_reference,
+    })
+
+    if (error.message.includes("Aucun paiement trouvé")) {
+      return res.status(404).json({
+        success: false,
+        error: error.message,
+      })
+    }
+
+    res.status(500).json({
+      success: false,
+      error: "Erreur lors de la vérification du statut",
+      details: error.message,
+    })
+  }
+}
+
 // Export des constantes pour utilisation dans les routes
 module.exports = {
     // Constantes
@@ -405,5 +591,9 @@ module.exports = {
     updatePayment,
     deletePayment,
     updatePaymentStatus,
-    refundPayment
+    refundPayment,
+    waveWebhook,
+    touchpointWebhook,
+    checkPaymentStatus,
+    initializePayment,
 };
