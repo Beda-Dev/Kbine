@@ -9,9 +9,10 @@
 5. [Plans / Forfaits](#plans--forfaits)
 6. [Commandes](#commandes)
 7. [Paiements](#paiements)
-8. [Versions d'Application](#versions-dapplication)
-9. [Codes d'Erreur](#codes-derreur)
-10. [Formats de Données](#formats-de-données)
+8. [Versions d'Application](#9-versions-dapplication)
+9. [Codes d'Erreur](#10-codes-derreur)
+10. [Exemples d'Utilisation](#11-exemples-dutilisation)
+11. [Bonnes Pratiques](#12-bonnes-pratiques)
 
 ---
 
@@ -1243,7 +1244,7 @@ Authorization: Bearer <token>
 
 ---
 
-## 10. Codes d'Erreur Standards
+## 10. codes-d'erreur
 
 ### Codes HTTP Utilisés
 
