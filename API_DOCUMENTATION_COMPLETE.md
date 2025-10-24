@@ -1088,3 +1088,510 @@ Authorization: Bearer <token>
 ---
 
 ### 8. Mettre à Jour le Statut d'un Paiement
+
+### 8.1 Mettre à Jour le Statut d'un Paiement
+**Endpoint:** `PATCH /api/payments/:id/status`
+
+**Description:** Met à jour uniquement le statut d'un paiement existant.
+
+**Niveau d'accès:** Staff / Admin
+
+#### Données à Envoyer (JSON)
+```json
+{
+  "status": "success",
+  "notes": "Paiement confirmé manuellement"
+}
+```
+
+#### Réponse en Cas de Succès (200)
+```json
+{
+  "success": true,
+  "message": "Statut du paiement mis à jour avec succès",
+  "data": {
+    "id": 45,
+    "order_id": 123,
+    "amount": 5000.00,
+    "payment_method": "wave",
+    "status": "success",
+    "updated_at": "2025-01-24T11:30:00.000Z"
+  }
+}
+```
+
+---
+
+### 8.2 Rembourser un Paiement
+**Endpoint:** `POST /api/payments/:id/refund`
+
+**Description:** Effectue le remboursement d'un paiement réussi.
+
+**Niveau d'accès:** Admin
+
+#### Données à Envoyer (JSON)
+```json
+{
+  "reason": "Commande annulée par le client"
+}
+```
+
+#### Réponse en Cas de Succès (200)
+```json
+{
+  "success": true,
+  "message": "Paiement remboursé avec succès",
+  "data": {
+    "id": 45,
+    "status": "refunded",
+    "callback_data": {
+      "refund_reason": "Commande annulée par le client",
+      "refunded_at": "2025-01-24T12:00:00.000Z"
+    }
+  }
+}
+```
+
+---
+
+## 9. Versions d'Application
+
+### 9.1 Obtenir la Version par Plateforme
+**Endpoint:** `GET /api/app/version?platform={platform}`
+
+**Description:** Récupère les informations de version pour une plateforme donnée (iOS ou Android).
+
+**Niveau d'accès:** Public
+
+#### Paramètres de Requête
+| Paramètre | Type | Valeurs | Description |
+|-----------|------|---------|-------------|
+| `platform` | string | `ios`, `android` | Plateforme cible |
+
+#### Réponse en Cas de Succès (200)
+```json
+{
+  "success": true,
+  "data": {
+    "version": "1.1.1",
+    "build_number": 8,
+    "force_update": false
+  },
+  "timestamp": "2025-01-24T10:00:00.000Z"
+}
+```
+
+---
+
+### 9.2 Mettre à Jour les Versions
+**Endpoint:** `PUT /api/app/version`
+
+**Description:** Met à jour les versions de l'application pour toutes les plateformes.
+
+**Niveau d'accès:** Admin
+
+#### Données à Envoyer (JSON)
+```json
+{
+  "ios_version": "1.2.0",
+  "ios_build_number": 10,
+  "android_version": "1.2.0",
+  "android_build_number": 10,
+  "force_update": true
+}
+```
+
+#### Réponse en Cas de Succès (200)
+```json
+{
+  "success": true,
+  "message": "Versions mises à jour avec succès",
+  "data": {
+    "ios_version": "1.2.0",
+    "ios_build_number": 10,
+    "android_version": "1.2.0",
+    "android_build_number": 10,
+    "force_update": true
+  }
+}
+```
+
+---
+
+### 9.3 Obtenir la Configuration Complète
+**Endpoint:** `GET /api/app/version/config`
+
+**Description:** Récupère la configuration complète des versions (toutes plateformes).
+
+**Niveau d'accès:** Admin
+
+#### Réponse en Cas de Succès (200)
+```json
+{
+  "success": true,
+  "data": {
+    "ios_version": "1.1.1",
+    "ios_build_number": 8,
+    "android_version": "1.1.1",
+    "android_build_number": 8,
+    "force_update": false,
+    "updated_at": "2025-01-20T10:00:00.000Z",
+    "created_at": "2025-01-01T00:00:00.000Z"
+  }
+}
+```
+
+---
+
+## 10. Codes d'Erreur Standards
+
+### Codes HTTP Utilisés
+
+| Code | Description | Usage |
+|------|-------------|-------|
+| 200 | OK | Requête réussie |
+| 201 | Created | Ressource créée avec succès |
+| 204 | No Content | Suppression réussie (pas de contenu) |
+| 400 | Bad Request | Données invalides ou manquantes |
+| 401 | Unauthorized | Authentification requise ou token invalide |
+| 403 | Forbidden | Accès refusé (permissions insuffisantes) |
+| 404 | Not Found | Ressource non trouvée |
+| 409 | Conflict | Conflit (ex: doublon) |
+| 429 | Too Many Requests | Limite de taux dépassée |
+| 500 | Internal Server Error | Erreur serveur |
+| 503 | Service Unavailable | Service temporairement indisponible |
+
+### Formats d'Erreur
+
+#### Erreur Simple
+```json
+{
+  "success": false,
+  "error": "Message d'erreur principal"
+}
+```
+
+#### Erreur avec Détails
+```json
+{
+  "success": false,
+  "error": "Message d'erreur principal",
+  "details": "Description détaillée de l'erreur"
+}
+```
+
+#### Erreur de Validation (400)
+```json
+{
+  "success": false,
+  "error": "Données invalides",
+  "details": [
+    {
+      "field": "phone_number",
+      "message": "Le numéro de téléphone est requis"
+    }
+  ]
+}
+```
+
+---
+
+## 11. Exemples d'Utilisation
+
+### 11.1 Workflow Complet: Commande et Paiement
+
+#### Étape 1: Authentification
+```bash
+POST /api/auth/login
+Content-Type: application/json
+
+{
+  "phoneNumber": "0701020304"
+}
+```
+
+**Réponse:**
+```json
+{
+  "token": "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9...",
+  "user": {
+    "id": 1,
+    "phone_number": "0701020304",
+    "role": "client"
+  }
+}
+```
+
+#### Étape 2: Récupérer les Plans Disponibles
+```bash
+GET /api/plans/phone/0701020304
+```
+
+**Réponse:**
+```json
+{
+  "success": true,
+  "operator": {
+    "id": 1,
+    "name": "Orange CI",
+    "code": "ORANGE"
+  },
+  "plans": [
+    {
+      "id": 1,
+      "name": "Recharge 1000 FCFA",
+      "price": 1000.00,
+      "type": "credit"
+    }
+  ]
+}
+```
+
+#### Étape 3: Créer une Commande
+```bash
+POST /api/orders
+Authorization: Bearer {token}
+Content-Type: application/json
+
+{
+  "plan_id": 1,
+  "amount": 1000.00
+}
+```
+
+**Réponse:**
+```json
+{
+  "success": true,
+  "data": {
+    "id": 125,
+    "order_reference": "ORD-20250124-ABC12",
+    "amount": 1000.00,
+    "status": "pending"
+  }
+}
+```
+
+#### Étape 4: Initialiser le Paiement
+```bash
+POST /api/payments/initialize
+Content-Type: application/json
+
+{
+  "order_reference": "ORD-20250124-ABC12",
+  "amount": 1000.00,
+  "payment_phone": "0701020304",
+  "payment_method": "wave"
+}
+```
+
+**Réponse:**
+```json
+{
+  "success": true,
+  "payment_id": 45,
+  "transaction_id": "20250124123456ORD-20250124-ABC12",
+  "checkout_url": "https://checkout.wave.com/...",
+  "message": "Veuillez compléter le paiement via Wave"
+}
+```
+
+#### Étape 5: Vérifier le Statut du Paiement
+```bash
+GET /api/payments/status/ORD-20250124-ABC12
+```
+
+**Réponse:**
+```json
+{
+  "success": true,
+  "data": {
+    "order_reference": "ORD-20250124-ABC12",
+    "payment_status": "success",
+    "order_status": "completed"
+  }
+}
+```
+
+---
+
+## 12. Bonnes Pratiques
+
+### 12.1 Sécurité
+
+1. **Toujours utiliser HTTPS** en production
+2. **Stocker les tokens JWT de manière sécurisée** (jamais en localStorage pour les données sensibles)
+3. **Implémenter le refresh token** pour éviter de demander trop souvent les identifiants
+4. **Valider toutes les entrées** côté client ET serveur
+5. **Ne jamais exposer les clés secrètes** dans le code client
+
+### 12.2 Gestion des Erreurs
+
+1. **Toujours vérifier le code de statut HTTP**
+2. **Afficher des messages d'erreur clairs** à l'utilisateur
+3. **Logger les erreurs** pour le debugging
+4. **Implémenter des retry** pour les erreurs temporaires (503, timeout)
+
+### 12.3 Performance
+
+1. **Mettre en cache les données statiques** (opérateurs, plans)
+2. **Utiliser la pagination** pour les listes longues
+3. **Limiter le nombre de requêtes** simultanées
+4. **Implémenter un indicateur de chargement** pour les requêtes longues
+
+---
+
+## 13. Webhooks
+
+### 13.1 Webhook Wave
+**Endpoint:** `POST /api/payments/webhook/wave`
+
+**Description:** Reçoit les notifications de paiement de Wave.
+
+**Headers requis:**
+- `wave-signature`: Signature HMAC pour vérifier l'authenticité
+
+**Format des données:**
+```json
+{
+  "type": "payment.successful",
+  "data": {
+    "transaction_id": "20250124123456ORD-20250124-ABC12",
+    "payment_status": "succeeded",
+    "amount": 1000.00,
+    "currency": "XOF",
+    "when_completed": "2025-01-24T12:00:00.000Z"
+  }
+}
+```
+
+---
+
+### 13.2 Webhook TouchPoint
+**Endpoint:** `POST /api/payments/webhook/touchpoint`
+
+**Description:** Reçoit les notifications de paiement de TouchPoint (MTN, Orange Money, Moov).
+
+**Format des données:**
+```json
+{
+  "partner_transaction_id": "20250124123456ORD-20250124-ABC12",
+  "status": "SUCCESSFUL",
+  "amount": 1000.00,
+  "customer_number": "0701020304"
+}
+```
+
+---
+
+## 14. Variables d'Environnement
+
+### Configuration Requise
+
+```env
+# Base de données
+DB_HOST=kbine-mysql
+DB_PORT=3306
+DB_USER=kbine_user
+DB_PASSWORD=kbine_secure_password
+DB_NAME=kbine_db
+
+# JWT
+JWT_SECRET=votre_secret_jwt_tres_securise
+JWT_REFRESH_SECRET=votre_secret_refresh_jwt
+JWT_ACCESS_EXPIRES_IN=24h
+JWT_REFRESH_EXPIRES_IN=7d
+
+# Serveur
+PORT=3000
+NODE_ENV=production
+
+# Wave
+WAVE_API_URL=https://api.wave.com
+WAVE_API_TOKEN=votre_token_wave
+WAVE_WEBHOOK_SECRET=votre_secret_webhook_wave
+
+# TouchPoint
+TOUCHPOINT_API_URL=https://api.touchpoint.com
+TOUCHPOINT_USERNAME=votre_username
+TOUCHPOINT_PASSWORD=votre_password
+TOUCHPOINT_AGENCY_CODE=votre_code_agence
+TOUCHPOINT_LOGIN_AGENT=votre_login_agent
+TOUCHPOINT_PASSWORD_AGENT=votre_password_agent
+
+# Application
+APP_URL=https://votre-domaine.com
+LOG_LEVEL=info
+```
+
+---
+
+## 15. Tests
+
+### Exemple de Test avec cURL
+
+#### Test de Login
+```bash
+curl -X POST http://localhost:3000/api/auth/login \
+  -H "Content-Type: application/json" \
+  -d '{"phoneNumber": "0701020304"}'
+```
+
+#### Test de Récupération des Plans
+```bash
+curl -X GET http://localhost:3000/api/plans/phone/0701020304
+```
+
+#### Test de Création de Commande
+```bash
+curl -X POST http://localhost:3000/api/orders \
+  -H "Content-Type: application/json" \
+  -H "Authorization: Bearer {votre_token}" \
+  -d '{"plan_id": 1, "amount": 1000.00}'
+```
+
+---
+
+## 16. Support et Contact
+
+### Ressources Disponibles
+
+- **Documentation API:** Consulter ce document
+- **Logs:** Vérifier les fichiers `logs/error.log` et `logs/combined.log`
+- **Base de données:** Utiliser les requêtes SQL directement si nécessaire
+
+### Résolution de Problèmes Courants
+
+| Problème | Cause Possible | Solution |
+|----------|----------------|----------|
+| Token invalide (401) | Token expiré ou malformé | Réauthentifier l'utilisateur |
+| Opérateur non trouvé | Préfixe invalide | Vérifier les préfixes en base |
+| Paiement échoué | Problème avec le provider | Vérifier les logs et les credentials |
+| Commande non créée | Données manquantes | Valider les champs requis |
+
+---
+
+## 17. Changelog
+
+### Version 1.1.1 (Actuelle)
+- ✅ Ajout de la gestion des paiements Wave et TouchPoint
+- ✅ Implémentation des webhooks
+- ✅ Amélioration de la gestion des erreurs
+- ✅ Ajout de la gestion des versions d'application
+
+### Version 1.0.0
+- 🎉 Version initiale
+- ✅ Authentification JWT
+- ✅ Gestion des utilisateurs
+- ✅ Gestion des opérateurs et plans
+- ✅ Système de commandes
+
+---
+
+## 18. Licence et Mentions Légales
+
+**Kbine Backend API - Version 1.1.1**
+
+© 2025 Kbine. Tous droits réservés.
+
+Cette documentation est fournie à titre informatif. Les endpoints et formats peuvent évoluer.
