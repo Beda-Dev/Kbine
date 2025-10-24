@@ -6,29 +6,24 @@ const logger = require('../utils/logger');
  * Récupère la version de l'application par plateforme
  * GET /api/app/version?platform={platform}
  */
+// Dans appVersionController.js - Amélioration de getAppVersion
 const getAppVersion = async (req, res) => {
     const context = '[AppVersionController] [getAppVersion]';
     
     try {
+        // ✅ Les données sont déjà validées par le middleware
         const { platform } = req.query;
         
         console.log(`${context} Requête reçue`, { platform });
         
-        // Validation de la plateforme
-        if (!platform || !['ios', 'android'].includes(platform.toLowerCase())) {
-            console.log(`${context} Plateforme invalide`, { platform });
-            return res.status(400).json({
-                success: false,
-                error: 'Plateforme invalide. Doit être "ios" ou "android"'
-            });
-        }
-
+        // ✅ Plus besoin de revalider ici, c'est déjà fait dans le middleware
+        
         // Récupérer la configuration de version
         console.log(`${context} Récupération des données de version`);
         const [rows] = await db.execute('SELECT * FROM app_version LIMIT 1');
         
         if (rows.length === 0) {
-            console.log(`${context} Aucune configuration de version trouvée`);
+            console.log(`${context} Aucune configuration trouvée`);
             return res.status(404).json({
                 success: false,
                 error: 'Configuration de version non trouvée'
@@ -65,10 +60,6 @@ const getAppVersion = async (req, res) => {
         console.error(`${context} Erreur serveur`, {
             error: error.message,
             stack: error.stack
-        });
-        logger.error(`${context} Erreur lors de la récupération de la version`, {
-            error: error.message,
-            platform: req.query.platform
         });
         
         res.status(500).json({
