@@ -9,8 +9,9 @@
 5. [Plans / Forfaits](#plans--forfaits)
 6. [Commandes](#commandes)
 7. [Paiements](#paiements)
-8. [Codes d'Erreur](#codes-derreur)
-9. [Formats de Données](#formats-de-données)
+8. [Versions d'Application](#versions-dapplication)
+9. [Codes d'Erreur](#codes-derreur)
+10. [Formats de Données](#formats-de-données)
 
 ---
 
@@ -74,8 +75,10 @@ Authorization: Bearer <token_jwt> (pour les routes protégées)
   "token": "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9...",
   "user": {
     "id": 1,
-    "phoneNumber": "0701020304",
-    "role": "client"
+    "phone_number": "0701020304",
+    "role": "client",
+    "created_at": "2025-01-15T10:30:00.000Z",
+    "updated_at": "2025-01-15T10:30:00.000Z"
   }
 }
 ```
@@ -116,10 +119,6 @@ Authorization: Bearer <token_jwt> (pour les routes protégées)
 }
 ```
 
-#### Règles de Validation
-
-- **refreshToken** (string, requis): Token de rafraîchissement valide
-
 #### Réponse en Cas de Succès (200)
 
 ```json
@@ -127,25 +126,11 @@ Authorization: Bearer <token_jwt> (pour les routes protégées)
   "token": "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9...",
   "user": {
     "id": 1,
-    "phoneNumber": "0701020304",
-    "role": "client"
+    "phone_number": "0701020304",
+    "role": "client",
+    "created_at": "2025-01-15T10:30:00.000Z",
+    "updated_at": "2025-01-15T10:30:00.000Z"
   }
-}
-```
-
-#### Réponses d'Erreur
-
-**400 - Token Manquant**
-```json
-{
-  "error": "Refresh token requis"
-}
-```
-
-**401 - Session Expirée**
-```json
-{
-  "error": "Session expirée ou invalide"
 }
 ```
 
@@ -163,14 +148,6 @@ Authorization: Bearer <token_jwt> (pour les routes protégées)
 
 ```
 Authorization: Bearer <token>
-```
-
-#### Données à Envoyer (JSON) - Optionnel
-
-```json
-{
-  "refreshToken": "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9..."
-}
 ```
 
 #### Réponse en Cas de Succès (200)
@@ -192,12 +169,6 @@ Authorization: Bearer <token>
 **Description:** Récupère les informations du profil de l'utilisateur authentifié.
 
 **Niveau d'accès:** Client
-
-#### Headers Requis
-
-```
-Authorization: Bearer <token>
-```
 
 #### Réponse en Cas de Succès (200)
 
@@ -225,12 +196,6 @@ Authorization: Bearer <token>
 
 **Niveau d'accès:** Admin
 
-#### Headers Requis
-
-```
-Authorization: Bearer <token>
-```
-
 #### Réponse en Cas de Succès (200)
 
 ```json
@@ -244,13 +209,6 @@ Authorization: Bearer <token>
       "role": "client",
       "created_at": "2025-01-15T10:30:00.000Z",
       "updated_at": "2025-01-15T10:30:00.000Z"
-    },
-    {
-      "id": 2,
-      "phone_number": "0501020304",
-      "role": "staff",
-      "created_at": "2025-01-14T09:20:00.000Z",
-      "updated_at": "2025-01-14T09:20:00.000Z"
     }
   ],
   "count": 2
@@ -263,19 +221,9 @@ Authorization: Bearer <token>
 
 **Endpoint:** `GET /api/users/:id`
 
-**Description:** Récupère les détails d'un utilisateur spécifique. Accessible aux administrateurs et à l'utilisateur lui-même.
+**Description:** Récupère les détails d'un utilisateur spécifique.
 
 **Niveau d'accès:** Client (pour son propre profil) / Admin (pour tous)
-
-#### Headers Requis
-
-```
-Authorization: Bearer <token>
-```
-
-#### Paramètres d'URL
-
-- **id** (integer, requis): ID de l'utilisateur
 
 #### Réponse en Cas de Succès (200)
 
@@ -293,24 +241,6 @@ Authorization: Bearer <token>
 }
 ```
 
-#### Réponses d'Erreur
-
-**403 - Accès Non Autorisé**
-```json
-{
-  "success": false,
-  "error": "Accès non autorisé"
-}
-```
-
-**404 - Utilisateur Non Trouvé**
-```json
-{
-  "success": false,
-  "error": "Utilisateur non trouvé"
-}
-```
-
 ---
 
 ### 4. Créer un Nouvel Utilisateur
@@ -321,12 +251,6 @@ Authorization: Bearer <token>
 
 **Niveau d'accès:** Admin
 
-#### Headers Requis
-
-```
-Authorization: Bearer <token>
-```
-
 #### Données à Envoyer (JSON)
 
 ```json
@@ -335,16 +259,6 @@ Authorization: Bearer <token>
   "role": "client"
 }
 ```
-
-#### Règles de Validation
-
-- **phone_number** (string, requis):
-  - Pattern: `/^(\+?225)?0[0-9]{9}$/`
-  - Format: 10 chiffres commençant par 0
-  - Doit être unique
-
-- **role** (string, requis):
-  - Valeurs acceptées: `client`, `staff`, `admin`
 
 #### Réponse en Cas de Succès (201)
 
@@ -362,58 +276,17 @@ Authorization: Bearer <token>
 }
 ```
 
-#### Réponses d'Erreur
-
-**400 - Données Invalides**
-```json
-{
-  "success": false,
-  "error": "Données invalides",
-  "details": [
-    {
-      "field": "phone_number",
-      "message": "Le numéro de téléphone doit être un numéro ivoirien valide",
-      "type": "string.pattern.base"
-    }
-  ]
-}
-```
-
-**409 - Numéro Déjà Utilisé**
-```json
-{
-  "success": false,
-  "error": "Ce numéro de téléphone est déjà utilisé",
-  "details": {
-    "code": "PHONE_NUMBER_EXISTS",
-    "message": "Un utilisateur avec ce numéro de téléphone existe déjà"
-  }
-}
-```
-
 ---
 
 ### 5. Mettre à Jour un Utilisateur
 
 **Endpoint:** `PUT /api/users/:id`
 
-**Description:** Met à jour les informations d'un utilisateur. Accessible aux administrateurs et à l'utilisateur lui-même (avec restrictions).
+**Description:** Met à jour les informations d'un utilisateur.
 
-**Niveau d'accès:** Client (pour son propre profil, sans changement de rôle) / Admin (pour tous)
-
-#### Headers Requis
-
-```
-Authorization: Bearer <token>
-```
-
-#### Paramètres d'URL
-
-- **id** (integer, requis): ID de l'utilisateur
+**Niveau d'accès:** Client (pour son propre profil) / Admin (pour tous)
 
 #### Données à Envoyer (JSON)
-
-Au moins un champ doit être fourni:
 
 ```json
 {
@@ -421,16 +294,6 @@ Au moins un champ doit être fourni:
   "role": "staff"
 }
 ```
-
-#### Règles de Validation
-
-- **phone_number** (string, optionnel):
-  - Pattern: `/^(\+?225)?0[0-9]{9}$/`
-  - Doit être unique si fourni
-
-- **role** (string, optionnel):
-  - Valeurs acceptées: `client`, `staff`, `admin`
-  - Seuls les admins peuvent modifier les rôles
 
 #### Réponse en Cas de Succès (200)
 
@@ -448,60 +311,22 @@ Au moins un champ doit être fourni:
 }
 ```
 
-#### Réponses d'Erreur
-
-**403 - Modification de Rôle Non Autorisée**
-```json
-{
-  "success": false,
-  "error": "Accès refusé",
-  "details": "Vous ne pouvez pas modifier votre rôle"
-}
-```
-
 ---
 
 ### 6. Supprimer un Utilisateur
 
 **Endpoint:** `DELETE /api/users/:id`
 
-**Description:** Supprime un utilisateur et ses sessions associées.
+**Description:** Supprime un utilisateur et toutes ses données associées (commandes, paiements, sessions).
 
 **Niveau d'accès:** Admin
-
-#### Headers Requis
-
-```
-Authorization: Bearer <token>
-```
-
-#### Paramètres d'URL
-
-- **id** (integer, requis): ID de l'utilisateur
 
 #### Réponse en Cas de Succès (200)
 
 ```json
 {
   "success": true,
-  "message": "Utilisateur supprimé avec succès",
-  "data": {
-    "id": 5,
-    "deletedUser": {
-      "id": 5,
-      "role": "client"
-    }
-  }
-}
-```
-
-#### Réponses d'Erreur
-
-**400 - Auto-Suppression**
-```json
-{
-  "success": false,
-  "error": "Vous ne pouvez pas supprimer votre propre compte"
+  "message": "Utilisateur et données associées supprimés avec succès"
 }
 ```
 
@@ -522,22 +347,14 @@ Authorization: Bearer <token>
 ```json
 {
   "success": true,
+  "count": 3,
   "data": [
     {
       "id": 1,
       "name": "Orange CI",
       "code": "ORANGE",
       "prefixes": ["07"],
-      "created_at": "2025-01-01T00:00:00.000Z",
-      "updated_at": "2025-01-01T00:00:00.000Z"
-    },
-    {
-      "id": 2,
-      "name": "MTN",
-      "code": "MTN",
-      "prefixes": ["05"],
-      "created_at": "2025-01-01T00:00:00.000Z",
-      "updated_at": "2025-01-01T00:00:00.000Z"
+      "created_at": "2025-01-01T00:00:00.000Z"
     }
   ]
 }
@@ -553,10 +370,6 @@ Authorization: Bearer <token>
 
 **Niveau d'accès:** Public
 
-#### Paramètres d'URL
-
-- **id** (integer, requis): ID de l'opérateur
-
 #### Réponse en Cas de Succès (200)
 
 ```json
@@ -567,28 +380,8 @@ Authorization: Bearer <token>
     "name": "Orange CI",
     "code": "ORANGE",
     "prefixes": ["07"],
-    "created_at": "2025-01-01T00:00:00.000Z",
-    "updated_at": "2025-01-01T00:00:00.000Z"
+    "created_at": "2025-01-01T00:00:00.000Z"
   }
-}
-```
-
-#### Réponses d'Erreur
-
-**400 - ID Invalide**
-```json
-{
-  "success": false,
-  "error": "ID opérateur invalide",
-  "details": ["L'ID de l'opérateur doit être un nombre positif"]
-}
-```
-
-**404 - Opérateur Non Trouvé**
-```json
-{
-  "success": false,
-  "error": "Opérateur non trouvé"
 }
 ```
 
@@ -602,12 +395,6 @@ Authorization: Bearer <token>
 
 **Niveau d'accès:** Admin / Staff
 
-#### Headers Requis
-
-```
-Authorization: Bearer <token>
-```
-
 #### Données à Envoyer (JSON)
 
 ```json
@@ -617,21 +404,6 @@ Authorization: Bearer <token>
   "prefixes": ["09", "19"]
 }
 ```
-
-#### Règles de Validation
-
-- **name** (string, requis):
-  - Longueur: 2-50 caractères
-
-- **code** (string, requis):
-  - Longueur: 2-10 caractères
-  - Doit être en MAJUSCULES
-
-- **prefixes** (array, requis):
-  - Au moins 1 préfixe
-  - Maximum 20 préfixes
-  - Chaque préfixe: 2-3 chiffres
-  - Les préfixes doivent être uniques dans le tableau
 
 #### Réponse en Cas de Succès (201)
 
@@ -644,87 +416,8 @@ Authorization: Bearer <token>
     "name": "Telecel",
     "code": "TELECEL",
     "prefixes": ["09", "19"],
-    "created_at": "2025-01-15T15:30:00.000Z",
-    "updated_at": "2025-01-15T15:30:00.000Z"
+    "created_at": "2025-01-15T15:30:00.000Z"
   }
-}
-```
-
----
-
-### 4. Mettre à Jour un Opérateur
-
-**Endpoint:** `PUT /api/operators/:id`
-
-**Description:** Modifie les informations d'un opérateur existant.
-
-**Niveau d'accès:** Admin / Staff
-
-#### Headers Requis
-
-```
-Authorization: Bearer <token>
-```
-
-#### Paramètres d'URL
-
-- **id** (integer, requis): ID de l'opérateur
-
-#### Données à Envoyer (JSON)
-
-Au moins un champ doit être fourni:
-
-```json
-{
-  "name": "Orange Côte d'Ivoire",
-  "code": "ORANGE",
-  "prefixes": ["07", "17", "27"]
-}
-```
-
-#### Réponse en Cas de Succès (200)
-
-```json
-{
-  "success": true,
-  "message": "Opérateur mis à jour avec succès",
-  "data": {
-    "id": 1,
-    "name": "Orange Côte d'Ivoire",
-    "code": "ORANGE",
-    "prefixes": ["07", "17", "27"],
-    "created_at": "2025-01-01T00:00:00.000Z",
-    "updated_at": "2025-01-15T16:00:00.000Z"
-  }
-}
-```
-
----
-
-### 5. Supprimer un Opérateur
-
-**Endpoint:** `DELETE /api/operators/:id`
-
-**Description:** Supprime un opérateur.
-
-**Niveau d'accès:** Admin / Staff
-
-#### Headers Requis
-
-```
-Authorization: Bearer <token>
-```
-
-#### Paramètres d'URL
-
-- **id** (integer, requis): ID de l'opérateur
-
-#### Réponse en Cas de Succès (200)
-
-```json
-{
-  "success": true,
-  "message": "Opérateur supprimé avec succès"
 }
 ```
 
@@ -736,42 +429,37 @@ Authorization: Bearer <token>
 
 **Endpoint:** `GET /api/plans`
 
-**Description:** Récupère la liste de tous les forfaits. Les plans inactifs ne sont retournés que pour les admins.
+**Description:** Récupère la liste de tous les forfaits.
 
 **Niveau d'accès:** Admin
 
-#### Headers Requis
-
-```
-Authorization: Bearer <token>
-```
-
-#### Paramètres de Requête (Query Params)
+#### Paramètres de Requête
 
 | Paramètre | Type | Défaut | Description |
 |-----------|------|--------|-------------|
 | `includeInactive` | boolean | false | Inclure les plans inactifs |
-
-**Exemple:** `GET /api/plans?includeInactive=true`
 
 #### Réponse en Cas de Succès (200)
 
 ```json
 {
   "success": true,
+  "count": 10,
   "data": [
     {
       "id": 1,
       "operator_id": 1,
-      "operator_name": "Orange CI",
       "name": "Recharge 1000 FCFA",
       "description": "Crédit de communication de 1000 FCFA",
       "price": 1000.00,
       "type": "credit",
       "validity_days": null,
       "active": true,
-      "created_at": "2025-01-01T00:00:00.000Z",
-      "updated_at": "2025-01-01T00:00:00.000Z"
+      "operator": {
+        "id": 1,
+        "name": "Orange CI",
+        "code": "ORANGE"
+      }
     }
   ]
 }
@@ -787,15 +475,12 @@ Authorization: Bearer <token>
 
 **Niveau d'accès:** Public
 
-#### Paramètres d'URL
-
-- **operatorId** (integer, requis): ID de l'opérateur
-
 #### Réponse en Cas de Succès (200)
 
 ```json
 {
   "success": true,
+  "count": 5,
   "data": [
     {
       "id": 1,
@@ -817,19 +502,13 @@ Authorization: Bearer <token>
 
 **Endpoint:** `GET /api/plans/phone/:phoneNumber`
 
-**Description:** Détecte automatiquement l'opérateur via le préfixe du numéro et retourne les plans correspondants.
+**Description:** Détecte automatiquement l'opérateur via le préfixe du numéro et retourne les plans correspondants triés par ID croissant.
 
 **Niveau d'accès:** Public
 
-#### Paramètres d'URL
+#### Exemple
 
-- **phoneNumber** (string, requis): Numéro de téléphone (10 chiffres commençant par 0)
-
-**Exemple:** `GET /api/plans/phone/0701020304`
-
-#### Règles de Validation
-
-- **phoneNumber**: Pattern `/^0[0-9]{9}$/`
+`GET /api/plans/phone/0701020304`
 
 #### Réponse en Cas de Succès (200)
 
@@ -854,81 +533,15 @@ Authorization: Bearer <token>
 }
 ```
 
-#### Réponses d'Erreur
-
-**400 - Numéro Invalide**
-```json
-{
-  "success": false,
-  "error": "Numéro de téléphone invalide",
-  "details": ["Le numéro de téléphone doit être un numéro ivoirien valide (10 chiffres commençant par 0)"]
-}
-```
-
-**404 - Opérateur Non Trouvé**
-```json
-{
-  "success": false,
-  "error": "Aucun opérateur trouvé pour ce préfixe"
-}
-```
-
 ---
 
-### 4. Détails d'un Plan
-
-**Endpoint:** `GET /api/plans/:id`
-
-**Description:** Récupère les détails d'un forfait spécifique.
-
-**Niveau d'accès:** Admin
-
-#### Headers Requis
-
-```
-Authorization: Bearer <token>
-```
-
-#### Paramètres d'URL
-
-- **id** (integer, requis): ID du plan
-
-#### Réponse en Cas de Succès (200)
-
-```json
-{
-  "success": true,
-  "data": {
-    "id": 1,
-    "operator_id": 1,
-    "operator_name": "Orange CI",
-    "name": "Recharge 1000 FCFA",
-    "description": "Crédit de communication de 1000 FCFA",
-    "price": 1000.00,
-    "type": "credit",
-    "validity_days": null,
-    "active": true,
-    "created_at": "2025-01-01T00:00:00.000Z",
-    "updated_at": "2025-01-01T00:00:00.000Z"
-  }
-}
-```
-
----
-
-### 5. Créer un Plan
+### 4. Créer un Plan
 
 **Endpoint:** `POST /api/plans`
 
 **Description:** Crée un nouveau forfait.
 
 **Niveau d'accès:** Admin
-
-#### Headers Requis
-
-```
-Authorization: Bearer <token>
-```
 
 #### Données à Envoyer (JSON)
 
@@ -944,30 +557,12 @@ Authorization: Bearer <token>
 }
 ```
 
-#### Règles de Validation
+#### Types de Plans Valides
 
-- **operator_id** (integer, requis):
-  - Doit être un ID d'opérateur valide
-
-- **name** (string, requis):
-  - Maximum 100 caractères
-
-- **description** (string, optionnel):
-  - Maximum 500 caractères
-
-- **price** (decimal, requis):
-  - Doit être positif
-  - Maximum 2 décimales
-
-- **type** (string, requis):
-  - Valeurs acceptées: `credit`, `minutes`, `internet`
-
-- **validity_days** (integer, optionnel):
-  - Doit être positif si fourni
-  - null pour crédit sans validité
-
-- **active** (boolean, optionnel):
-  - Par défaut: true
+- `credit` - Crédit de communication
+- `minutes` - Minutes d'appel
+- `internet` - Forfait internet
+- `mixte` - Forfait combiné
 
 #### Réponse en Cas de Succès (201)
 
@@ -983,92 +578,8 @@ Authorization: Bearer <token>
     "price": 5000.00,
     "type": "credit",
     "validity_days": null,
-    "active": true,
-    "created_at": "2025-01-15T16:00:00.000Z",
-    "updated_at": "2025-01-15T16:00:00.000Z"
+    "active": true
   }
-}
-```
-
----
-
-### 6. Mettre à Jour un Plan
-
-**Endpoint:** `PUT /api/plans/:id`
-
-**Description:** Modifie les informations d'un forfait existant.
-
-**Niveau d'accès:** Admin
-
-#### Headers Requis
-
-```
-Authorization: Bearer <token>
-```
-
-#### Paramètres d'URL
-
-- **id** (integer, requis): ID du plan
-
-#### Données à Envoyer (JSON)
-
-Au moins un champ doit être fourni:
-
-```json
-{
-  "name": "Recharge 5000 FCFA Premium",
-  "price": 5200.00,
-  "active": false
-}
-```
-
-#### Réponse en Cas de Succès (200)
-
-```json
-{
-  "success": true,
-  "message": "Plan mis à jour avec succès",
-  "data": {
-    "id": 15,
-    "operator_id": 1,
-    "name": "Recharge 5000 FCFA Premium",
-    "description": "Crédit de communication de 5000 FCFA",
-    "price": 5200.00,
-    "type": "credit",
-    "validity_days": null,
-    "active": false,
-    "created_at": "2025-01-15T16:00:00.000Z",
-    "updated_at": "2025-01-15T16:30:00.000Z"
-  }
-}
-```
-
----
-
-### 7. Supprimer un Plan
-
-**Endpoint:** `DELETE /api/plans/:id`
-
-**Description:** Supprime un forfait.
-
-**Niveau d'accès:** Admin
-
-#### Headers Requis
-
-```
-Authorization: Bearer <token>
-```
-
-#### Paramètres d'URL
-
-- **id** (integer, requis): ID du plan
-
-#### Réponse en Cas de Succès (200)
-
-```json
-{
-  "success": true,
-  "message": "Plan supprimé avec succès"
 }
 ```
 
@@ -1084,42 +595,16 @@ Authorization: Bearer <token>
 
 **Niveau d'accès:** Client
 
-#### Headers Requis
-
-```
-Authorization: Bearer <token>
-```
-
 #### Données à Envoyer (JSON)
 
 ```json
 {
   "plan_id": 1,
-  "phone_number": "0701020304",
-  "amount": 1000.00,
-  "payment_method": "wave",
-  "payment_reference": "PAY-123456"
+  "amount": 1000.00
 }
 ```
 
-#### Règles de Validation
-
-- **plan_id** (integer, requis):
-  - Doit être un ID de plan valide
-
-- **phone_number** (string, requis):
-  - Pattern: `/^0[0-9]{9}$/`
-  - 10 chiffres commençant par 0
-
-- **amount** (decimal, requis):
-  - Doit être positif
-  - Maximum 2 décimales
-
-- **payment_method** (string, requis):
-  - Valeurs acceptées: `wave`, `orange_money`, `mtn_money`, `moov_money`
-
-- **payment_reference** (string, optionnel):
-  - Référence de paiement
+**Note:** Le champ `plan_id` est optionnel (peut être `null` pour les recharges personnalisées).
 
 #### Réponse en Cas de Succès (201)
 
@@ -1129,15 +614,17 @@ Authorization: Bearer <token>
   "message": "Commande créée avec succès",
   "data": {
     "id": 125,
+    "order_reference": "ORD-20250124-ABC12",
     "user_id": 1,
     "plan_id": 1,
-    "phone_number": "0701020304",
     "amount": 1000.00,
     "status": "pending",
-    "payment_method": "wave",
-    "payment_reference": "PAY-123456",
     "created_at": "2025-01-15T16:30:00.000Z",
-    "updated_at": "2025-01-15T16:30:00.000Z"
+    "plan": {
+      "id": 1,
+      "name": "Recharge 1000 FCFA",
+      "price": 1000.00
+    }
   }
 }
 ```
@@ -1148,17 +635,11 @@ Authorization: Bearer <token>
 
 **Endpoint:** `GET /api/orders`
 
-**Description:** Récupère la liste des commandes. Pour les clients: leurs propres commandes uniquement. Pour admin/staff: toutes les commandes.
+**Description:** Récupère la liste des commandes avec pagination et filtres.
 
-**Niveau d'accès:** Client
+**Niveau d'accès:** Client (ses propres commandes) / Staff/Admin (toutes les commandes)
 
-#### Headers Requis
-
-```
-Authorization: Bearer <token>
-```
-
-#### Paramètres de Requête (Query Params)
+#### Paramètres de Requête
 
 | Paramètre | Type | Défaut | Description |
 |-----------|------|--------|-------------|
@@ -1167,14 +648,13 @@ Authorization: Bearer <token>
 | `status` | string | - | Filtrer par statut |
 | `user_id` | integer | - | Filtrer par utilisateur (admin/staff uniquement) |
 
-**Statuts possibles:**
+#### Statuts Possibles
+
 - `pending` - En attente de paiement
 - `assigned` - Assignée à un staff
 - `processing` - En cours de traitement
 - `completed` - Terminée
 - `cancelled` - Annulée
-
-**Exemple:** `GET /api/orders?page=1&limit=20&status=pending`
 
 #### Réponse en Cas de Succès (200)
 
@@ -1184,25 +664,25 @@ Authorization: Bearer <token>
   "data": [
     {
       "id": 125,
+      "order_reference": "ORD-20250124-ABC12",
       "user_id": 1,
       "plan_id": 1,
-      "plan_name": "Recharge 1000 FCFA",
-      "operator_name": "Orange CI",
-      "phone_number": "0701020304",
       "amount": 1000.00,
       "status": "completed",
       "assigned_to": 5,
-      "payment_method": "wave",
-      "payment_reference": "PAY-123456",
       "created_at": "2025-01-15T16:30:00.000Z",
-      "updated_at": "2025-01-15T16:35:00.000Z"
+      "plan": {
+        "id": 1,
+        "name": "Recharge 1000 FCFA",
+        "operator_name": "Orange CI"
+      }
     }
   ],
   "pagination": {
     "page": 1,
-    "limit": 20,
+    "limit": 10,
     "total": 45,
-    "totalPages": 3
+    "totalPages": 5
   }
 }
 ```
@@ -1215,17 +695,7 @@ Authorization: Bearer <token>
 
 **Description:** Récupère les détails d'une commande spécifique.
 
-**Niveau d'accès:** Client (propriétaire uniquement) / Admin / Staff
-
-#### Headers Requis
-
-```
-Authorization: Bearer <token>
-```
-
-#### Paramètres d'URL
-
-- **id** (integer, requis): ID de la commande
+**Niveau d'accès:** Client (propriétaire) / Admin / Staff
 
 #### Réponse en Cas de Succès (200)
 
@@ -1234,67 +704,63 @@ Authorization: Bearer <token>
   "success": true,
   "data": {
     "id": 125,
+    "order_reference": "ORD-20250124-ABC12",
     "user_id": 1,
     "plan_id": 1,
-    "plan_name": "Recharge 1000 FCFA",
-    "operator_name": "Orange CI",
-    "phone_number": "0701020304",
     "amount": 1000.00,
     "status": "completed",
     "assigned_to": 5,
-    "assigned_to_name": "0566955943",
-    "payment_method": "wave",
-    "payment_reference": "PAY-123456",
     "created_at": "2025-01-15T16:30:00.000Z",
-    "updated_at": "2025-01-15T16:35:00.000Z"
+    "updated_at": "2025-01-15T16:35:00.000Z",
+    "user": {
+      "id": 1,
+      "phone_number": "0701020304",
+      "role": "client"
+    },
+    "plan": {
+      "id": 1,
+      "name": "Recharge 1000 FCFA",
+      "price": 1000.00,
+      "operator_name": "Orange CI"
+    }
   }
 }
 ```
 
 ---
 
-### 4. Mettre à Jour une Commande
+### 4. Vérifier le Statut de Paiement d'une Commande
 
-**Endpoint:** `PUT /api/orders/:id`
+**Endpoint:** `GET /api/orders/payment-status/:id`
 
-**Description:** Met à jour les informations d'une commande.
+**Description:** Récupère le statut de paiement d'une commande spécifique.
 
-**Niveau d'accès:** Client (propriétaire) / Admin / Staff
-
-#### Headers Requis
-
-```
-Authorization: Bearer <token>
-```
-
-#### Paramètres d'URL
-
-- **id** (integer, requis): ID de la commande
-
-#### Données à Envoyer (JSON)
-
-Au moins un champ doit être fourni:
-
-```json
-{
-  "phone_number": "0701020305",
-  "amount": 1100.00,
-  "status": "processing"
-}
-```
+**Niveau d'accès:** Client
 
 #### Réponse en Cas de Succès (200)
 
 ```json
 {
   "success": true,
-  "message": "Commande mise à jour avec succès",
   "data": {
-    "id": 125,
-    "phone_number": "0701020305",
-    "amount": 1100.00,
-    "status": "processing",
-    "updated_at": "2025-01-15T16:45:00.000Z"
+    "order_reference": "ORD-20250124-ABC12",
+    "order_status": "completed",
+    "order_amount": 1000.00,
+    "order_created_at": "2025-01-15T16:30:00.000Z",
+    "plan": {
+      "id": 1,
+      "name": "Recharge 1000 FCFA"
+    },
+    "payment": {
+      "status": "success",
+      "method": "wave",
+      "reference": "PAY-123456",
+      "amount": 1000.00,
+      "created_at": "2025-01-15T16:31:00.000Z",
+      "updated_at": "2025-01-15T16:32:00.000Z"
+    },
+    "is_paid": true,
+    "is_pending": false
   }
 }
 ```
@@ -1309,16 +775,6 @@ Au moins un champ doit être fourni:
 
 **Niveau d'accès:** Staff / Admin
 
-#### Headers Requis
-
-```
-Authorization: Bearer <token>
-```
-
-#### Paramètres d'URL
-
-- **id** (integer, requis): ID de la commande
-
 #### Données à Envoyer (JSON)
 
 ```json
@@ -1326,11 +782,6 @@ Authorization: Bearer <token>
   "status": "processing"
 }
 ```
-
-#### Règles de Validation
-
-- **status** (string, requis):
-  - Valeurs acceptées: `pending`, `assigned`, `processing`, `completed`, `cancelled`
 
 #### Réponse en Cas de Succès (200)
 
@@ -1356,28 +807,12 @@ Authorization: Bearer <token>
 
 **Niveau d'accès:** Staff / Admin
 
-#### Headers Requis
-
-```
-Authorization: Bearer <token>
-```
-
-#### Paramètres d'URL
-
-- **id** (integer, requis): ID de la commande
-
 #### Données à Envoyer (JSON)
 
 ```json
 {
   "staff_id": 5
 }
-```
-
-Ou pour s'assigner soi-même (en omettant staff_id):
-
-```json
-{}
 ```
 
 #### Réponse en Cas de Succès (200)
@@ -1392,35 +827,6 @@ Ou pour s'assigner soi-même (en omettant staff_id):
     "status": "assigned",
     "updated_at": "2025-01-15T16:31:00.000Z"
   }
-}
-```
-
----
-
-### 7. Supprimer une Commande
-
-**Endpoint:** `DELETE /api/orders/:id`
-
-**Description:** Supprime une commande (réservé aux administrateurs).
-
-**Niveau d'accès:** Admin
-
-#### Headers Requis
-
-```
-Authorization: Bearer <token>
-```
-
-#### Paramètres d'URL
-
-- **id** (integer, requis): ID de la commande
-
-#### Réponse en Cas de Succès (200)
-
-```json
-{
-  "success": true,
-  "message": "Commande supprimée avec succès"
 }
 ```
 
@@ -1441,12 +847,7 @@ Authorization: Bearer <token>
 ```json
 {
   "success": true,
-  "data": [
-    "wave",
-    "orange_money",
-    "mtn_money",
-    "moov_money"
-  ]
+  "data": ["wave", "orange_money", "mtn_money", "moov_money"]
 }
 ```
 
@@ -1454,9 +855,83 @@ Authorization: Bearer <token>
 
 ### 2. Statuts de Paiement Disponibles
 
-**Endpoint:** `GET /api/payments/status`
+**Endpoint:** `GET /api/payments/statuses`
 
 **Description:** Récupère la liste des statuts de paiement possibles.
+
+**Niveau d'accès:** Authentifié
+
+#### Réponse en Cas de Succès (200)
+
+```json
+{
+  "success": true,
+  "data": ["pending", "success", "failed", "refunded"]
+}
+```
+
+---
+
+### 3. Initialiser un Paiement
+
+**Endpoint:** `POST /api/payments/initialize`
+
+**Description:** Initialise un paiement via Wave ou TouchPoint (MTN, Orange Money, Moov).
+
+**Niveau d'accès:** Public
+
+#### Données à Envoyer (JSON)
+
+```json
+{
+  "order_reference": "ORD-20250124-ABC12",
+  "amount": 1000.00,
+  "payment_phone": "0701020304",
+  "payment_method": "wave",
+  "otp": "123456"
+}
+```
+
+**Champs:**
+- `order_reference` (string, requis) - Référence de la commande
+- `amount` (number, requis) - Montant à payer
+- `payment_phone` (string, requis) - Numéro de téléphone pour le paiement
+- `payment_method` (string, requis) - Méthode de paiement
+- `otp` (string, optionnel) - Code OTP (requis pour Orange Money)
+
+#### Réponse en Cas de Succès - Wave (200)
+
+```json
+{
+  "success": true,
+  "payment_id": 45,
+  "transaction_id": "20250124123456ORD-20250124-ABC12",
+  "payment_method": "wave",
+  "checkout_url": "https://checkout.wave.com/...",
+  "message": "Veuillez compléter le paiement via Wave"
+}
+```
+
+#### Réponse en Cas de Succès - TouchPoint (200)
+
+```json
+{
+  "success": true,
+  "payment_id": 45,
+  "transaction_id": "20250124123456ORD-20250124-ABC12",
+  "payment_method": "orange_money",
+  "status": "INITIATED",
+  "message": "Transaction initiée"
+}
+```
+
+---
+
+### 4. Vérifier le Statut d'un Paiement
+
+**Endpoint:** `GET /api/payments/status/:order_reference`
+
+**Description:** Vérifie le statut d'un paiement par référence de commande.
 
 **Niveau d'accès:** Public
 
@@ -1465,30 +940,28 @@ Authorization: Bearer <token>
 ```json
 {
   "success": true,
-  "data": [
-    "pending",
-    "success",
-    "failed",
-    "refunded"
-  ]
+  "data": {
+    "payment_id": 45,
+    "order_reference": "ORD-20250124-ABC12",
+    "amount": 1000.00,
+    "payment_method": "wave",
+    "status": "success",
+    "order_status": "completed",
+    "created_at": "2025-01-24T16:30:00.000Z",
+    "updated_at": "2025-01-24T16:32:00.000Z"
+  }
 }
 ```
 
 ---
 
-### 3. Créer un Paiement
+### 5. Créer un Paiement
 
 **Endpoint:** `POST /api/payments`
 
 **Description:** Crée un nouveau paiement pour une commande.
 
 **Niveau d'accès:** Client
-
-#### Headers Requis
-
-```
-Authorization: Bearer <token>
-```
 
 #### Données à Envoyer (JSON)
 
@@ -1497,40 +970,12 @@ Authorization: Bearer <token>
   "order_id": 123,
   "amount": 5000.00,
   "payment_method": "wave",
-  "payment_reference": "PAY-20251008-ABC123",
+  "payment_phone": "0789062079",
+  "payment_reference": "PAY-20250124-ABC123",
   "external_reference": "WAVE-TXN-456789",
-  "status": "pending",
-  "callback_data": {
-    "transaction_id": "12345",
-    "customer_phone": "0789062079"
-  }
+  "status": "pending"
 }
 ```
-
-#### Règles de Validation
-
-- **order_id** (integer, requis):
-  - Doit être un ID de commande valide
-
-- **amount** (decimal, requis):
-  - Doit être positif
-  - Maximum 2 décimales
-
-- **payment_method** (string, requis):
-  - Valeurs acceptées: `wave`, `orange_money`, `mtn_money`, `moov_money`
-
-- **payment_reference** (string, requis):
-  - Référence unique du paiement
-
-- **external_reference** (string, optionnel):
-  - Référence externe du système de paiement
-
-- **status** (string, optionnel):
-  - Valeurs acceptées: `pending`, `success`, `failed`, `refunded`
-  - Par défaut: `pending`
-
-- **callback_data** (object, optionnel):
-  - Données additionnelles du callback
 
 #### Réponse en Cas de Succès (201)
 
@@ -1543,22 +988,18 @@ Authorization: Bearer <token>
     "order_id": 123,
     "amount": 5000.00,
     "payment_method": "wave",
-    "payment_reference": "PAY-20251008-ABC123",
+    "payment_phone": "0789062079",
+    "payment_reference": "PAY-20250124-ABC123",
     "external_reference": "WAVE-TXN-456789",
     "status": "pending",
-    "callback_data": {
-      "transaction_id": "12345",
-      "customer_phone": "0789062079"
-    },
-    "created_at": "2025-10-08T10:30:00.000Z",
-    "updated_at": "2025-10-08T10:30:00.000Z"
+    "created_at": "2025-01-24T10:30:00.000Z"
   }
 }
 ```
 
 ---
 
-### 4. Liste des Paiements avec Filtres
+### 6. Liste des Paiements avec Filtres
 
 **Endpoint:** `GET /api/payments`
 
@@ -1566,13 +1007,7 @@ Authorization: Bearer <token>
 
 **Niveau d'accès:** Staff / Admin
 
-#### Headers Requis
-
-```
-Authorization: Bearer <token>
-```
-
-#### Paramètres de Requête (Query Params)
+#### Paramètres de Requête
 
 | Paramètre | Type | Défaut | Description |
 |-----------|------|--------|-------------|
@@ -1582,8 +1017,8 @@ Authorization: Bearer <token>
 | `payment_method` | string | - | Filtrer par méthode de paiement |
 | `start_date` | date | - | Date de début (ISO 8601) |
 | `end_date` | date | - | Date de fin (ISO 8601) |
-
-**Exemple:** `GET /api/payments?page=1&limit=20&status=success&payment_method=wave`
+| `order_id` | integer | - | Filtrer par commande |
+| `user_id` | integer | - | Filtrer par utilisateur |
 
 #### Réponse en Cas de Succès (200)
 
@@ -1596,17 +1031,10 @@ Authorization: Bearer <token>
       "order_id": 123,
       "amount": 5000.00,
       "payment_method": "wave",
-      "payment_reference": "PAY-20251008-ABC123",
-      "external_reference": "WAVE-TXN-456789",
+      "payment_phone": "0789062079",
+      "payment_reference": "PAY-20250124-ABC123",
       "status": "success",
-      "callback_data": {
-        "transaction_id": "12345",
-        "notes": "Paiement validé"
-      },
-      "phone_number": "0789062079",
-      "order_amount": 5000.00,
-      "created_at": "2025-10-08T10:30:00.000Z",
-      "updated_at": "2025-10-08T10:35:00.000Z"
+      "created_at": "2025-01-24T10:30:00.000Z"
     }
   ],
   "pagination": {
@@ -1622,52 +1050,7 @@ Authorization: Bearer <token>
 
 ---
 
-### 5. Détails d'un Paiement
-
-**Endpoint:** `GET /api/payments/:id`
-
-**Description:** Récupère les détails d'un paiement spécifique.
-
-**Niveau d'accès:** Client (propriétaire) / Staff / Admin
-
-#### Headers Requis
-
-```
-Authorization: Bearer <token>
-```
-
-#### Paramètres d'URL
-
-- **id** (integer, requis): ID du paiement
-
-#### Réponse en Cas de Succès (200)
-
-```json
-{
-  "success": true,
-  "data": {
-    "id": 45,
-    "order_id": 123,
-    "amount": 5000.00,
-    "payment_method": "wave",
-    "payment_reference": "PAY-20251008-ABC123",
-    "external_reference": "WAVE-TXN-456789",
-    "status": "success",
-    "callback_data": {
-      "transaction_id": "12345",
-      "notes": "Paiement validé"
-    },
-    "phone_number": "0789062079",
-    "order_amount": 5000.00,
-    "created_at": "2025-10-08T10:30:00.000Z",
-    "updated_at": "2025-10-08T10:35:00.000Z"
-  }
-}
-```
-
----
-
-### 6. Mettre à Jour un Paiement
+### 7. Mettre à Jour un Paiement
 
 **Endpoint:** `PUT /api/payments/:id`
 
@@ -1675,28 +1058,13 @@ Authorization: Bearer <token>
 
 **Niveau d'accès:** Admin
 
-#### Headers Requis
-
-```
-Authorization: Bearer <token>
-```
-
-#### Paramètres d'URL
-
-- **id** (integer, requis): ID du paiement
-
 #### Données à Envoyer (JSON)
-
-Au moins un champ doit être fourni:
 
 ```json
 {
   "amount": 5500.00,
-  "status": "success",
-  "callback_data": {
-    "transaction_id": "12345",
-    "validation_code": "OK-123"
-  }
+  "payment_phone": "0789062080",
+  "status": "success"
 }
 ```
 
@@ -1710,520 +1078,13 @@ Au moins un champ doit être fourni:
     "id": 45,
     "order_id": 123,
     "amount": 5500.00,
-    "payment_method": "wave",
-    "payment_reference": "PAY-20251008-ABC123",
+    "payment_phone": "0789062080",
     "status": "success",
-    "callback_data": {
-      "transaction_id": "12345",
-      "validation_code": "OK-123"
-    },
-    "created_at": "2025-10-08T10:30:00.000Z",
-    "updated_at": "2025-10-08T11:00:00.000Z"
+    "updated_at": "2025-01-24T11:00:00.000Z"
   }
 }
 ```
 
 ---
 
-### 7. Mettre à Jour le Statut d'un Paiement
-
-**Endpoint:** `PATCH /api/payments/:id/status`
-
-**Description:** Met à jour uniquement le statut d'un paiement.
-
-**Niveau d'accès:** Staff / Admin
-
-#### Headers Requis
-
-```
-Authorization: Bearer <token>
-```
-
-#### Paramètres d'URL
-
-- **id** (integer, requis): ID du paiement
-
-#### Données à Envoyer (JSON)
-
-```json
-{
-  "status": "success",
-  "notes": "Paiement vérifié et validé manuellement"
-}
-```
-
-#### Règles de Validation
-
-- **status** (string, requis):
-  - Valeurs acceptées: `pending`, `success`, `failed`, `refunded`
-
-- **notes** (string, optionnel):
-  - Notes explicatives
-
-#### Réponse en Cas de Succès (200)
-
-```json
-{
-  "success": true,
-  "message": "Statut du paiement mis à jour avec succès",
-  "data": {
-    "id": 45,
-    "order_id": 123,
-    "amount": 5000.00,
-    "payment_method": "wave",
-    "status": "success",
-    "callback_data": {
-      "notes": "Paiement vérifié et validé manuellement",
-      "last_update": "2025-10-08T11:15:00.000Z"
-    },
-    "created_at": "2025-10-08T10:30:00.000Z",
-    "updated_at": "2025-10-08T11:15:00.000Z"
-  }
-}
-```
-
----
-
-### 8. Supprimer un Paiement
-
-**Endpoint:** `DELETE /api/payments/:id`
-
-**Description:** Supprime un paiement (soft delete).
-
-**Niveau d'accès:** Admin
-
-#### Headers Requis
-
-```
-Authorization: Bearer <token>
-```
-
-#### Paramètres d'URL
-
-- **id** (integer, requis): ID du paiement
-
-#### Réponse en Cas de Succès (200)
-
-```json
-{
-  "success": true,
-  "message": "Paiement supprimé avec succès"
-}
-```
-
----
-
-### 9. Rembourser un Paiement
-
-**Endpoint:** `POST /api/payments/:id/refund`
-
-**Description:** Initie un remboursement pour un paiement.
-
-**Niveau d'accès:** Admin
-
-#### Headers Requis
-
-```
-Authorization: Bearer <token>
-```
-
-#### Paramètres d'URL
-
-- **id** (integer, requis): ID du paiement
-
-#### Données à Envoyer (JSON)
-
-```json
-{
-  "reason": "Erreur de transaction - Crédit non reçu"
-}
-```
-
-#### Règles de Validation
-
-- **reason** (string, requis):
-  - Raison du remboursement
-
-#### Réponse en Cas de Succès (200)
-
-```json
-{
-  "success": true,
-  "message": "Remboursement initié avec succès",
-  "data": {
-    "id": 45,
-    "status": "refunded",
-    "callback_data": {
-      "refund_reason": "Erreur de transaction - Crédit non reçu",
-      "refund_date": "2025-10-08T12:00:00.000Z"
-    },
-    "updated_at": "2025-10-08T12:00:00.000Z"
-  }
-}
-```
-
----
-
-## Codes d'Erreur
-
-### Codes HTTP Standards
-
-| Code | Signification | Description |
-|------|---------------|-------------|
-| 200 | OK | Requête réussie |
-| 201 | Created | Ressource créée avec succès |
-| 400 | Bad Request | Données invalides ou manquantes |
-| 401 | Unauthorized | Token manquant, invalide ou expiré |
-| 403 | Forbidden | Permissions insuffisantes pour cette action |
-| 404 | Not Found | Ressource non trouvée |
-| 409 | Conflict | Conflit (ex: doublon, contrainte unique) |
-| 429 | Too Many Requests | Limite de requêtes dépassée (rate limiting) |
-| 500 | Internal Server Error | Erreur serveur interne |
-
-### Format des Erreurs de Validation
-
-```json
-{
-  "success": false,
-  "error": "Données invalides",
-  "details": [
-    {
-      "field": "phone_number",
-      "message": "Le numéro de téléphone doit être un numéro ivoirien valide",
-      "type": "string.pattern.base"
-    },
-    {
-      "field": "amount",
-      "message": "Le montant doit être un nombre positif",
-      "type": "number.positive"
-    }
-  ]
-}
-```
-
-### Codes d'Erreur Métier
-
-| Code | Description |
-|------|-------------|
-| `PHONE_NUMBER_EXISTS` | Le numéro de téléphone est déjà utilisé |
-| `DUPLICATE_ENTRY` | Entrée en double dans la base de données |
-| `INSUFFICIENT_PERMISSIONS` | Permissions insuffisantes |
-| `INVALID_TOKEN` | Token invalide ou expiré |
-| `RESOURCE_NOT_FOUND` | Ressource demandée non trouvée |
-
----
-
-## Formats de Données
-
-### Date et Heure
-
-Toutes les dates sont au format ISO 8601 avec timezone UTC:
-
-```
-2025-01-15T16:30:00.000Z
-```
-
-### Montants
-
-Les montants sont en FCFA avec maximum 2 décimales:
-
-```json
-{
-  "amount": 1000.00,
-  "price": 5000.50
-}
-```
-
-### Numéros de Téléphone
-
-Format stocké (normalisé):
-```
-0701020304
-```
-
-Formats acceptés en entrée:
-- `0701020304` (recommandé)
-- `07 01 02 03 04`
-- `+225 0701020304`
-- `00225 0701020304`
-
-### Booléens
-
-```json
-{
-  "active": true,
-  "includeInactive": false
-}
-```
-
-### Tableaux
-
-```json
-{
-  "prefixes": ["07", "17", "27"],
-  "roles": ["client", "staff", "admin"]
-}
-```
-
-### Objets Imbriqués
-
-```json
-{
-  "callback_data": {
-    "transaction_id": "12345",
-    "customer_phone": "0789062079",
-    "notes": "Paiement validé"
-  }
-}
-```
-
----
-
-## Sécurité
-
-### Authentification JWT
-
-Tous les endpoints protégés nécessitent un token JWT valide:
-
-```
-Authorization: Bearer eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9...
-```
-
-**Durée de validité:**
-- Access Token: 24 heures
-- Refresh Token: 7 jours
-
-### Rate Limiting
-
-| Endpoint | Limite |
-|----------|--------|
-| Global | 100 requêtes / 15 minutes par IP |
-| `/auth/login` | 5 tentatives / 15 minutes par IP |
-
-En cas de dépassement:
-
-```json
-{
-  "error": "Too Many Requests",
-  "message": "Trop de requêtes, veuillez réessayer plus tard",
-  "retryAfter": 900
-}
-```
-
-### Headers de Sécurité
-
-Tous les endpoints incluent:
-- `X-Content-Type-Options: nosniff`
-- `X-Frame-Options: DENY`
-- `X-XSS-Protection: 1; mode=block`
-- `Strict-Transport-Security: max-age=31536000`
-
-### CORS
-
-Les requêtes cross-origin sont autorisées avec les headers appropriés.
-
----
-
-## Exemples Complets
-
-### Exemple 1: Créer un Utilisateur et Passer une Commande
-
-```bash
-# 1. Connexion
-curl -X POST http://localhost:3000/api/auth/login \
-  -H "Content-Type: application/json" \
-  -d '{"phoneNumber":"0701020304"}'
-
-# Réponse:
-# {
-#   "token": "eyJhbGc...",
-#   "user": {"id": 1, "phoneNumber": "0701020304", "role": "client"}
-# }
-
-# 2. Récupérer les plans pour le numéro
-curl -X GET http://localhost:3000/api/plans/phone/0701020304
-
-# 3. Créer une commande
-curl -X POST http://localhost:3000/api/orders \
-  -H "Content-Type: application/json" \
-  -H "Authorization: Bearer eyJhbGc..." \
-  -d '{
-    "plan_id": 1,
-    "phone_number": "0701020304",
-    "amount": 1000.00,
-    "payment_method": "wave"
-  }'
-
-# 4. Créer le paiement
-curl -X POST http://localhost:3000/api/payments \
-  -H "Content-Type: application/json" \
-  -H "Authorization: Bearer eyJhbGc..." \
-  -d '{
-    "order_id": 125,
-    "amount": 1000.00,
-    "payment_method": "wave",
-    "payment_reference": "PAY-123456"
-  }'
-```
-
-### Exemple 2: Gestion des Commandes par un Staff
-
-```bash
-# 1. Connexion en tant que staff
-curl -X POST http://localhost:3000/api/auth/login \
-  -H "Content-Type: application/json" \
-  -d '{"phoneNumber":"0566955943"}'
-
-# 2. Récupérer toutes les commandes en attente
-curl -X GET "http://localhost:3000/api/orders?status=pending" \
-  -H "Authorization: Bearer eyJhbGc..."
-
-# 3. S'assigner une commande
-curl -X POST http://localhost:3000/api/orders/125/assign \
-  -H "Content-Type: application/json" \
-  -H "Authorization: Bearer eyJhbGc..." \
-  -d '{}'
-
-# 4. Mettre à jour le statut
-curl -X PATCH http://localhost:3000/api/orders/125/status \
-  -H "Content-Type: application/json" \
-  -H "Authorization: Bearer eyJhbGc..." \
-  -d '{"status": "processing"}'
-
-# 5. Finaliser la commande
-curl -X PATCH http://localhost:3000/api/orders/125/status \
-  -H "Content-Type: application/json" \
-  -H "Authorization: Bearer eyJhbGc..." \
-  -d '{"status": "completed"}'
-```
-
-### Exemple 3: JavaScript (Fetch API)
-
-```javascript
-// Classe API Helper
-class KbineAPI {
-  constructor(baseURL = 'http://localhost:3000/api') {
-    this.baseURL = baseURL;
-    this.token = null;
-  }
-
-  setToken(token) {
-    this.token = token;
-  }
-
-  async request(endpoint, options = {}) {
-    const url = `${this.baseURL}${endpoint}`;
-    const headers = {
-      'Content-Type': 'application/json',
-      ...options.headers,
-    };
-
-    if (this.token) {
-      headers['Authorization'] = `Bearer ${this.token}`;
-    }
-
-    const response = await fetch(url, {
-      ...options,
-      headers,
-    });
-
-    const data = await response.json();
-
-    if (!response.ok) {
-      throw new Error(data.error || 'Erreur API');
-    }
-
-    return data;
-  }
-
-  // Authentification
-  async login(phoneNumber) {
-    const data = await this.request('/auth/login', {
-      method: 'POST',
-      body: JSON.stringify({ phoneNumber }),
-    });
-    this.setToken(data.token);
-    return data;
-  }
-
-  // Plans
-  async getPlansByPhone(phoneNumber) {
-    return this.request(`/plans/phone/${phoneNumber}`);
-  }
-
-  // Commandes
-  async createOrder(orderData) {
-    return this.request('/orders', {
-      method: 'POST',
-      body: JSON.stringify(orderData),
-    });
-  }
-
-  async getOrders(filters = {}) {
-    const params = new URLSearchParams(filters);
-    return this.request(`/orders?${params}`);
-  }
-
-  // Paiements
-  async createPayment(paymentData) {
-    return this.request('/payments', {
-      method: 'POST',
-      body: JSON.stringify(paymentData),
-    });
-  }
-}
-
-// Utilisation
-const api = new KbineAPI();
-
-async function passerCommande() {
-  try {
-    // 1. Connexion
-    const authData = await api.login('0701020304');
-    console.log('Connecté:', authData.user);
-
-    // 2. Récupérer les plans
-    const plansData = await api.getPlansByPhone('0701020304');
-    console.log('Plans disponibles:', plansData.plans);
-
-    // 3. Créer une commande
-    const order = await api.createOrder({
-      plan_id: plansData.plans[0].id,
-      phone_number: '0701020304',
-      amount: plansData.plans[0].price,
-      payment_method: 'wave'
-    });
-    console.log('Commande créée:', order.data);
-
-    // 4. Créer le paiement
-    const payment = await api.createPayment({
-      order_id: order.data.id,
-      amount: order.data.amount,
-      payment_method: 'wave',
-      payment_reference: `PAY-${Date.now()}`
-    });
-    console.log('Paiement créé:', payment.data);
-
-  } catch (error) {
-    console.error('Erreur:', error.message);
-  }
-}
-
-passerCommande();
-```
-
----
-
-## Support et Contact
-
-**Version de l'API:** 1.0.0
-
-**Dernière mise à jour:** 9 Octobre 2025
-
-Pour toute question technique ou assistance:
-- Documentation: Voir ce fichier
-- Support: Contactez l'équipe technique Kbine
-
----
-
-**Note:** Cette documentation est exhaustive et couvre tous les endpoints, filtres, validations et formats de données de l'API Kbine Backend.
+### 8. Mettre à Jour le Statut d'un Paiement
