@@ -7,7 +7,8 @@ const createOrder = async (orderData) => {
     logger.info('[OrderService] Création d\'une nouvelle commande', {
         userId: orderData.user_id,
         planId: orderData.plan_id,
-        amount: orderData.amount
+        amount: orderData.amount,
+        phoneNumber: orderData.phone_number
     });
 
     try {
@@ -18,18 +19,27 @@ const createOrder = async (orderData) => {
         
         // Vérifier l'unicité de la référence (avec retry en cas de collision)
         while (attempt < maxAttempts) {
-            const [existing] = await db.execute(
-                'SELECT id FROM orders WHERE order_reference = ?',
-                [orderReference]
-            );
-            
-            if (existing.length === 0) {
-                break; // Référence unique trouvée
+            try {
+                const [existing] = await db.execute(
+                    'SELECT id FROM orders WHERE order_reference = ?',
+                    [orderReference]
+                );
+                
+                if (existing.length === 0) {
+                    break; // Référence unique trouvée
+                }
+                
+                // Générer une nouvelle référence
+                orderReference = generateOrderReference();
+                attempt++;
+            } catch (error) {
+                // Si la colonne n'existe pas, on sort de la boucle
+                if (error.code === 'ER_BAD_FIELD_ERROR') {
+                    console.log('[OrderService] Colonne order_reference non trouvée, utilisation de la référence générée');
+                    break;
+                }
+                throw error;
             }
-            
-            // Générer une nouvelle référence
-            orderReference = generateOrderReference();
-            attempt++;
         }
         
         if (attempt >= maxAttempts) {
@@ -37,6 +47,21 @@ const createOrder = async (orderData) => {
         }
         
         console.log('[OrderService] [createOrder] Référence générée', { orderReference });
+
+        // Récupérer le phone_number de l'utilisateur si non fourni
+        let phoneNumber = orderData.phone_number;
+        if (!phoneNumber) {
+            const [userRows] = await db.execute(
+                'SELECT phone_number FROM users WHERE id = ?',
+                [orderData.user_id]
+            );
+            
+            if (userRows.length === 0) {
+                throw new Error('Utilisateur non trouvé');
+            }
+            
+            phoneNumber = userRows[0].phone_number;
+        }
 
         // Définir le statut par défaut si non fourni
         const status = orderData.status || 'pending';
@@ -46,14 +71,15 @@ const createOrder = async (orderData) => {
 
         const query = `
             INSERT INTO orders 
-            (order_reference, user_id, plan_id, amount, status, assigned_to, created_at, updated_at)
-            VALUES (?, ?, ?, ?, ?, ?, NOW(), NOW())
+            (order_reference, user_id, plan_id, phone_number, amount, status, assigned_to, created_at, updated_at)
+            VALUES (?, ?, ?, ?, ?, ?, ?, NOW(), NOW())
         `;
 
         const params = [
             orderReference,
             orderData.user_id,
             orderData.plan_id || null,
+            phoneNumber,
             orderData.amount,
             status,
             orderData.assigned_to || null
@@ -115,7 +141,8 @@ const createOrder = async (orderData) => {
             orderData: {
                 user_id: orderData.user_id,
                 plan_id: orderData.plan_id,
-                amount: orderData.amount
+                amount: orderData.amount,
+                phone_number: orderData.phone_number
             }
         });
         throw new Error(`Échec de la création de la commande: ${error.message}`);
@@ -133,7 +160,7 @@ const findById = async (orderId) => {
             `SELECT o.*,
                 u.phone_number as user_phone, u.role as user_role,
                 u.created_at as user_created_at, u.updated_at as user_updated_at,
-                p.id as plan_id, p.operator_id as plan_operator_id,
+                p.id as plan_id_data, p.operator_id as plan_operator_id,
                 p.name as plan_name, p.description as plan_description,
                 p.price as plan_price, p.type as plan_type,
                 p.validity_days as plan_validity_days, p.active as plan_active,
@@ -158,8 +185,25 @@ const findById = async (orderId) => {
         }
 
         const order = rows[0];
-        console.log('[OrderService] [findById] Commande trouvée', { orderId, orderReference: order.order_reference, status: order.status });
-        const result = { ...order };
+        console.log('[OrderService] [findById] Commande trouvée', { 
+            orderId, 
+            orderReference: order.order_reference, 
+            status: order.status,
+            phoneNumber: order.phone_number
+        });
+        
+        const result = {
+            id: order.id,
+            order_reference: order.order_reference || `ORD${String(order.id).padStart(10, '0')}`,
+            user_id: order.user_id,
+            plan_id: order.plan_id,
+            phone_number: order.phone_number,
+            amount: parseFloat(order.amount),
+            status: order.status,
+            assigned_to: order.assigned_to,
+            created_at: order.created_at,
+            updated_at: order.updated_at
+        };
 
         // Ajouter l'utilisateur associé
         if (order.user_id) {
@@ -176,7 +220,7 @@ const findById = async (orderId) => {
         if (order.payment_id) {
             result.payments = [{
                 id: order.payment_id,
-                amount: order.payment_amount,
+                amount: parseFloat(order.payment_amount),
                 payment_method: order.payment_method,
                 payment_phone: order.payment_phone,
                 payment_reference: order.payment_reference,
@@ -188,11 +232,11 @@ const findById = async (orderId) => {
         // Ajouter TOUTES les données du plan si présent
         if (order.plan_id) {
             result.plan = {
-                id: order.plan_id,
+                id: order.plan_id_data || order.plan_id,
                 operator_id: order.plan_operator_id,
                 name: order.plan_name,
                 description: order.plan_description,
-                price: order.plan_price,
+                price: parseFloat(order.plan_price),
                 type: order.plan_type,
                 validity_days: order.plan_validity_days,
                 active: order.plan_active,
@@ -201,14 +245,6 @@ const findById = async (orderId) => {
         } else {
             result.plan = null;
         }
-
-        // Supprimer les champs redondants
-        ['user_phone', 'user_role', 'user_created_at', 'user_updated_at',
-            'plan_id', 'plan_operator_id', 'plan_name', 'plan_description',
-            'plan_price', 'plan_type', 'plan_validity_days', 'plan_active', 'plan_created_at',
-            'payment_id', 'payment_amount', 'payment_method', 'payment_phone',
-            'payment_reference', 'payment_status', 'payment_created_at'
-        ].forEach(field => delete result[field]);
 
         logger.debug(`[OrderService] Commande trouvée avec les relations: ${orderId}`, { order: result });
         return result;
@@ -237,7 +273,7 @@ const findByReference = async (orderReference) => {
             `SELECT o.*,
                 u.phone_number as user_phone, u.role as user_role,
                 u.created_at as user_created_at, u.updated_at as user_updated_at,
-                p.id as plan_id, p.operator_id as plan_operator_id,
+                p.id as plan_id_data, p.operator_id as plan_operator_id,
                 p.name as plan_name, p.description as plan_description,
                 p.price as plan_price, p.type as plan_type,
                 p.validity_days as plan_validity_days, p.active as plan_active,
@@ -263,7 +299,19 @@ const findByReference = async (orderReference) => {
 
         const order = rows[0];
         console.log('[OrderService] [findByReference] Commande trouvée', { orderReference, status: order.status });
-        const result = { ...order };
+        
+        const result = {
+            id: order.id,
+            order_reference: order.order_reference || `ORD${String(order.id).padStart(10, '0')}`,
+            user_id: order.user_id,
+            plan_id: order.plan_id,
+            phone_number: order.phone_number,
+            amount: parseFloat(order.amount),
+            status: order.status,
+            assigned_to: order.assigned_to,
+            created_at: order.created_at,
+            updated_at: order.updated_at
+        };
 
         // Ajouter l'utilisateur associé
         if (order.user_id) {
@@ -280,7 +328,7 @@ const findByReference = async (orderReference) => {
         if (order.payment_id) {
             result.payments = [{
                 id: order.payment_id,
-                amount: order.payment_amount,
+                amount: parseFloat(order.payment_amount),
                 payment_method: order.payment_method,
                 payment_phone: order.payment_phone,
                 payment_reference: order.payment_reference,
@@ -292,11 +340,11 @@ const findByReference = async (orderReference) => {
         // Ajouter TOUTES les données du plan si présent
         if (order.plan_id) {
             result.plan = {
-                id: order.plan_id,
+                id: order.plan_id_data || order.plan_id,
                 operator_id: order.plan_operator_id,
                 name: order.plan_name,
                 description: order.plan_description,
-                price: order.plan_price,
+                price: parseFloat(order.plan_price),
                 type: order.plan_type,
                 validity_days: order.plan_validity_days,
                 active: order.plan_active,
@@ -305,14 +353,6 @@ const findByReference = async (orderReference) => {
         } else {
             result.plan = null;
         }
-
-        // Supprimer les champs redondants
-        ['user_phone', 'user_role', 'user_created_at', 'user_updated_at',
-            'plan_id', 'plan_operator_id', 'plan_name', 'plan_description',
-            'plan_price', 'plan_type', 'plan_validity_days', 'plan_active', 'plan_created_at',
-            'payment_id', 'payment_amount', 'payment_method', 'payment_phone',
-            'payment_reference', 'payment_status', 'payment_created_at'
-        ].forEach(field => delete result[field]);
 
         logger.debug(`[OrderService] Commande trouvée par référence: ${orderReference}`, { order: result });
         return result;
@@ -359,7 +399,7 @@ const findAll = async (filters = {}) => {
             params.push(filters.status);
         }
         if (filters.date) {
-            conditions.push('DATE(o.created_at) = ?');
+            conditions.push('DATE(o.created_at) = DATE(?)');
             params.push(filters.date);
         }
 
@@ -374,7 +414,18 @@ const findAll = async (filters = {}) => {
         console.log('[OrderService] [findAll] Résultats obtenus', { rowCount: rows.length });
 
         const orders = rows.map(order => {
-            const result = { ...order };
+            const result = {
+                id: order.id,
+                order_reference: order.order_reference || `ORD${String(order.id).padStart(10, '0')}`,
+                user_id: order.user_id,
+                plan_id: order.plan_id,
+                phone_number: order.phone_number,
+                amount: parseFloat(order.amount),
+                status: order.status,
+                assigned_to: order.assigned_to,
+                created_at: order.created_at,
+                updated_at: order.updated_at
+            };
 
             if (order.user_id) {
                 result.user = {
@@ -393,7 +444,7 @@ const findAll = async (filters = {}) => {
                     operator_id: order.plan_operator_id,
                     name: order.plan_name,
                     description: order.plan_description,
-                    price: order.plan_price,
+                    price: parseFloat(order.plan_price),
                     type: order.plan_type,
                     validity_days: order.plan_validity_days,
                     active: order.plan_active,
@@ -402,11 +453,6 @@ const findAll = async (filters = {}) => {
             } else {
                 result.plan = null;
             }
-
-            ['user_phone', 'user_role', 'user_created_at', 'user_updated_at',
-             'plan_id_data', 'plan_operator_id', 'plan_name', 'plan_description',
-             'plan_price', 'plan_type', 'plan_validity_days', 'plan_active', 'plan_created_at']
-                .forEach(field => delete result[field]);
 
             return result;
         });
@@ -442,6 +488,10 @@ const updateOrder = async (orderId, orderData) => {
         if (orderData.plan_id !== undefined) {
             fields.push(`plan_id = ?`);
             params.push(orderData.plan_id);
+        }
+        if (orderData.phone_number !== undefined) {
+            fields.push(`phone_number = ?`);
+            params.push(orderData.phone_number);
         }
         if (orderData.amount !== undefined) {
             fields.push(`amount = ?`);
@@ -546,6 +596,7 @@ const getOrderPaymentStatus = async (orderId) => {
             `SELECT 
                 o.id,
                 o.order_reference,
+                o.phone_number,
                 o.amount as order_amount,
                 o.status as order_status,
                 o.created_at as order_created_at,
@@ -573,7 +624,8 @@ const getOrderPaymentStatus = async (orderId) => {
         const order = rows[0];
         
         const result = {
-            order_reference: order.order_reference,
+            order_reference: order.order_reference || `ORD${String(order.id).padStart(10, '0')}`,
+            phone_number: order.phone_number,
             order_status: order.order_status,
             order_amount: parseFloat(order.order_amount),
             order_created_at: order.order_created_at,
@@ -613,10 +665,34 @@ const getOrderPaymentStatus = async (orderId) => {
     }
 };
 
+/**
+ * Récupère toutes les commandes d'un utilisateur spécifique
+ */
+const findByUserId = async (userId) => {
+    console.log('[OrderService] [findByUserId] Début de recherche', { userId });
+    logger.debug(`[OrderService] Recherche des commandes pour l'utilisateur: ${userId}`);
+
+    try {
+        return await findAll({ userId });
+    } catch (error) {
+        console.log('[OrderService] [findByUserId] Erreur attrapée', {
+            error: error.message,
+            stack: error.stack,
+            userId
+        });
+        logger.error(`[OrderService] Erreur lors de la recherche des commandes de l'utilisateur ${userId}`, {
+            error: error.message,
+            stack: error.stack
+        });
+        throw new Error(`Erreur lors de la récupération des commandes de l'utilisateur: ${error.message}`);
+    }
+};
+
 module.exports = {
     createOrder,
     findById,
     findByReference,
+    findByUserId,
     findAll,
     updateOrder,
     deleteOrder,

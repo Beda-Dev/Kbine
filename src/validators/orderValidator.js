@@ -6,18 +6,29 @@ const Joi = require('joi');
 // Constantes de validation
 const ORDER_STATUS = ['pending', 'assigned', 'processing', 'completed', 'cancelled'];
 
+// Regex pour valider les numéros de téléphone ivoiriens
+const PHONE_REGEX = /^(07|05|01)\d{8}$/;
+
 // Schéma de base pour une commande
-// ✅ MODIFICATION: plan_id devient optionnel
 const orderSchema = Joi.object({
     plan_id: Joi.number()
         .integer()
         .positive()
-        .allow(null)  // ✅ Permet NULL
-        .optional()    // ✅ Rend le champ optionnel
+        .allow(null)
+        .optional()
         .messages({
             'number.base': "L'ID du forfait doit être un nombre",
             'number.integer': "L'ID du forfait doit être un entier",
             'number.positive': "L'ID du forfait doit être un nombre positif"
+        }),
+    
+    phone_number: Joi.string()
+        .pattern(PHONE_REGEX)
+        .required()
+        .messages({
+            'string.base': 'Le numéro de téléphone doit être une chaîne de caractères',
+            'string.pattern.base': 'Le numéro de téléphone doit être un numéro ivoirien valide (07, 05 ou 01 suivi de 8 chiffres)',
+            'any.required': 'Le numéro de téléphone est obligatoire'
         }),
         
     amount: Joi.number()
@@ -50,11 +61,18 @@ const updateOrderValidation = (data) => {
         plan_id: Joi.number()
             .integer()
             .positive()
-            .allow(null)  // ✅ Permet NULL
+            .allow(null)
             .messages({
                 'number.base': "L'ID du forfait doit être un nombre",
                 'number.integer': "L'ID du forfait doit être un entier",
                 'number.positive': "L'ID du forfait doit être un nombre positif"
+            }),
+        
+        phone_number: Joi.string()
+            .pattern(PHONE_REGEX)
+            .messages({
+                'string.base': 'Le numéro de téléphone doit être une chaîne de caractères',
+                'string.pattern.base': 'Le numéro de téléphone doit être un numéro ivoirien valide (07, 05 ou 01 suivi de 8 chiffres)'
             }),
         
         amount: Joi.number()
@@ -167,10 +185,12 @@ const listOrdersValidation = (query) => {
                 'number.integer': "L'ID utilisateur doit être un entier",
                 'number.positive': "L'ID utilisateur doit être un nombre positif"
             }),
-        date: Joi.date().iso().messages({
-            'date.base': 'La date doit être au format ISO (YYYY-MM-DD)',
-            'date.format': 'Format de date invalide'
-        })
+        date: Joi.date()
+            .iso()
+            .messages({
+                'date.base': 'La date doit être au format ISO (YYYY-MM-DD)',
+                'date.format': 'Format de date invalide'
+            })
     });
 
     return schema.validate(query, {
@@ -185,5 +205,6 @@ module.exports = {
     orderIdValidation,
     orderStatusValidation,
     listOrdersValidation,
-    ORDER_STATUS
+    ORDER_STATUS,
+    PHONE_REGEX
 };

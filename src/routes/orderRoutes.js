@@ -1,5 +1,5 @@
 // ==========================================
-// FILE: orderRoutes.js (CORRIGÉ)
+// FILE: orderRoutes.js (AVEC ROUTE USER)
 // ==========================================
 const express = require('express');
 const router = express.Router();
@@ -31,7 +31,6 @@ router.use(authenticateToken);
 // ROUTES POUR LES COMMANDES
 // ==========================================
 
-
 /**
  * Récupère le statut de paiement d'une commande par son ID
  * GET /api/orders/payment-status/:id
@@ -50,6 +49,37 @@ router.get('/payment-status/:id',
         next();
     },
     orderController.getPaymentStatus
+);
+
+/**
+ * Récupère toutes les commandes d'un utilisateur spécifique
+ * GET /api/orders/user/:userId
+ * Accessible aux admins/staff pour n'importe quel utilisateur
+ * Les clients ne peuvent voir que leurs propres commandes
+ */
+router.get('/user/:userId',
+    (req, res, next) => {
+        const userId = parseInt(req.params.userId);
+        const { error } = orderIdValidation(userId);
+        if (error) {
+            return res.status(400).json({
+                success: false,
+                error: 'ID utilisateur invalide',
+                details: error.details.map(d => d.message)
+            });
+        }
+
+        // Vérification de l'autorisation
+        if (req.user.role === 'client' && req.user.id !== userId) {
+            return res.status(403).json({
+                success: false,
+                error: 'Accès non autorisé - vous ne pouvez voir que vos propres commandes'
+            });
+        }
+
+        next();
+    },
+    orderController.getUserOrders
 );
 
 /**
@@ -216,4 +246,3 @@ router.post('/:id/assign',
 );
 
 module.exports = router;
-

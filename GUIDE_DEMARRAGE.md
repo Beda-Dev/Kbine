@@ -155,7 +155,10 @@ docker-compose -p kbine up -d --build
 docker-compose -p kbine logs -f
 
 # initialiser la base de données
-docker exec -i kbine-mysql mysql -u kbine_user -p'mot de pass' kbine_db < scripts/init.sql
+docker exec -i kbine-mysql mysql -u kbine_user -p'kbine_secure_password' kbine_db < scripts/init.sql
+
+# migration la base de données
+mysql -u kbine_user -p'kbine_secure_password' kbine_db < scripts/migration1.sql
 
 ## 🏆 Status : PRÊT POUR LE DÉVELOPPEMENT
 

@@ -1,5 +1,5 @@
 // ==========================================
-// FILE: orderController.js (MIS À JOUR)
+// FILE: orderController.js (AVEC getUserOrders)
 // ==========================================
 const orderService = require('../services/orderService');
 const logger = require('../utils/logger');
@@ -29,7 +29,8 @@ const createOrder = async (req, res, next) => {
         logger.info('[OrderController] [createOrder] Création de commande', {
             userId,
             planId: orderData.plan_id,
-            amount: orderData.amount
+            amount: orderData.amount,
+            phoneNumber: orderData.phone_number
         });
 
         console.log('[OrderController] [createOrder] Appel du service createOrder');
@@ -67,7 +68,7 @@ const getAllOrders = async (req, res, next) => {
     });
 
     try {
-        const { page = 1, limit = 10, status, user_id } = req.query;
+        const { page = 1, limit = 10, status, user_id, date } = req.query;
         const filters = {};
 
         console.log('[OrderController] [getAllOrders] Paramètres reçus', {
@@ -75,6 +76,7 @@ const getAllOrders = async (req, res, next) => {
             limit,
             status,
             userId: user_id,
+            date,
             requestingUser: req.user.id
         });
 
@@ -83,6 +85,7 @@ const getAllOrders = async (req, res, next) => {
             limit,
             status,
             userId: user_id,
+            date,
             requestingUser: req.user.id
         });
 
@@ -98,6 +101,11 @@ const getAllOrders = async (req, res, next) => {
         if (status) {
             filters.status = status;
             console.log('[OrderController] [getAllOrders] Filtre statut appliqué', { status });
+        }
+
+        if (date) {
+            filters.date = date;
+            console.log('[OrderController] [getAllOrders] Filtre date appliqué', { date });
         }
 
         console.log('[OrderController] [getAllOrders] Appel du service findAll', { filters });
@@ -132,6 +140,53 @@ const getAllOrders = async (req, res, next) => {
         });
         logger.error('[OrderController] [getAllOrders] Erreur', {
             error: error.message
+        });
+        next(error);
+    }
+};
+
+/**
+ * Récupère toutes les commandes d'un utilisateur spécifique
+ * GET /api/orders/user/:userId
+ */
+const getUserOrders = async (req, res, next) => {
+    console.log('[OrderController] [getUserOrders] Début de récupération', {
+        userId: req.params.userId,
+        requestingUser: req.user
+    });
+
+    try {
+        const userId = parseInt(req.params.userId);
+
+        console.log('[OrderController] [getUserOrders] ID parsé', { userId });
+
+        logger.debug('[OrderController] [getUserOrders] Récupération des commandes', {
+            userId,
+            requestingUser: req.user.id
+        });
+
+        console.log('[OrderController] [getUserOrders] Appel du service findByUserId');
+        const orders = await orderService.findByUserId(userId);
+
+        console.log('[OrderController] [getUserOrders] Commandes récupérées', { 
+            userId, 
+            count: orders.length 
+        });
+
+        res.json({
+            success: true,
+            data: orders,
+            count: orders.length
+        });
+    } catch (error) {
+        console.log('[OrderController] [getUserOrders] Erreur attrapée', {
+            error: error.message,
+            stack: error.stack,
+            userId: req.params.userId
+        });
+        logger.error('[OrderController] [getUserOrders] Erreur', {
+            error: error.message,
+            userId: req.params.userId
         });
         next(error);
     }
@@ -208,7 +263,6 @@ const getOrderById = async (req, res, next) => {
     }
 };
 
-
 /**
  * Récupère le statut de paiement d'une commande par sa référence
  * GET /api/orders/payment-status/:id
@@ -263,11 +317,9 @@ const getPaymentStatus = async (req, res, next) => {
     }
 };
 
-
 /**
  * Met à jour une commande existante
  * PUT /api/orders/:id
- * ✅ CORRECTION: Suppression de phone_number des champs autorisés
  */
 const updateOrder = async (req, res, next) => {
     console.log('[OrderController] [updateOrder] Début de mise à jour', {
@@ -312,9 +364,8 @@ const updateOrder = async (req, res, next) => {
                 });
             }
 
-            // ✅ CORRECTION: Les clients ne peuvent plus mettre à jour phone_number
-            // Ils ne peuvent modifier aucun champ pour le moment
-            const allowedFields = []; // Aucun champ autorisé pour les clients
+            // Les clients ne peuvent modifier que le phone_number
+            const allowedFields = ['phone_number'];
             const filteredData = {};
             allowedFields.forEach(field => {
                 if (updateData[field] !== undefined) {
@@ -558,6 +609,7 @@ const assignOrder = async (req, res, next) => {
 module.exports = {
     createOrder,
     getAllOrders,
+    getUserOrders,
     getOrderById,
     updateOrder,
     deleteOrder,

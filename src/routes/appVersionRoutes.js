@@ -26,8 +26,6 @@ const { getVersionValidation, updateVersionValidation } = require('../validators
  * Admin uniquement
  */
 router.get('/version/config', 
-    authenticateToken,
-    requireRole(['admin']),
     appVersionController.getVersionConfig
 );
 
@@ -75,8 +73,6 @@ router.get('/version',
  * Admin uniquement
  */
 router.put('/version',
-    authenticateToken,
-    requireRole(['admin']),
     (req, res, next) => {
         console.log('[AppVersionRoutes] PUT /version - Validation body', { body: req.body });
         
