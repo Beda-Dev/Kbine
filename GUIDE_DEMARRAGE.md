@@ -154,6 +154,9 @@ docker-compose -p kbine up -d --build
 # lancer les logs
 docker-compose -p kbine logs -f
 
+# initialiser la base de données
+docker exec -i kbine-mysql mysql -u kbine_user -p'mot de pass' kbine_db < scripts/init.sql
+
 ## 🏆 Status : PRÊT POUR LE DÉVELOPPEMENT
 
 Le backend Kbine dispose maintenant d'une base solide avec :

@@ -52,6 +52,7 @@ CREATE TABLE IF NOT EXISTS orders (
     order_reference VARCHAR(20) UNIQUE NOT NULL,
     user_id INT NOT NULL,
     plan_id INT DEFAULT NULL,
+    phone_number VARCHAR(15) NOT NULL,
     amount DECIMAL(10,2) NOT NULL,
     status ENUM('pending', 'assigned', 'processing', 'completed', 'cancelled') DEFAULT 'pending',
     assigned_to INT DEFAULT NULL,
