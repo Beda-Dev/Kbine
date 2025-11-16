@@ -1,7 +1,11 @@
+/**
+ * Contrôleur de gestion des paiements
+ * ✅ VERSION CORRIGÉE - TOUS LES PAIEMENTS PASSENT PAR TOUCHPOINT
+ */
+
 const logger = require('../utils/logger');
 const paymentService = require('../services/paymentService');
 const { PAYMENT_METHODS, PAYMENT_STATUS } = paymentService;
-const paymentConfig = require('../config/payment');
 
 /**
  * @route   POST /api/payments
@@ -148,7 +152,6 @@ const getPaymentById = async (req, res, next) => {
  * @route   PUT /api/payments/:id
  * @desc    Mettre à jour un paiement
  * @access  Private/Admin
- * 🔧 CORRECTION: Ajout de logs détaillés et meilleure gestion des erreurs
  */
 const updatePayment = async (req, res, next) => {
     try {
@@ -160,7 +163,6 @@ const updatePayment = async (req, res, next) => {
             userId: req.user?.id
         });
         
-        // Validation de l'ID
         const paymentId = parseInt(id);
         if (isNaN(paymentId)) {
             console.log('[PaymentController] [updatePayment] ID invalide');
@@ -170,8 +172,6 @@ const updatePayment = async (req, res, next) => {
             });
         }
         
-        // Appel du service
-        console.log('[PaymentController] [updatePayment] Appel du service');
         const payment = await paymentService.updatePayment(paymentId, req.body);
         
         console.log('[PaymentController] [updatePayment] Succès', { paymentId: id });
@@ -226,7 +226,6 @@ const updatePayment = async (req, res, next) => {
  * @route   DELETE /api/payments/:id
  * @desc    Supprimer un paiement (soft delete)
  * @access  Private/Admin
- * 🔧 CORRECTION: Ajout de logs détaillés et meilleure gestion des erreurs
  */
 const deletePayment = async (req, res, next) => {
     try {
@@ -238,7 +237,6 @@ const deletePayment = async (req, res, next) => {
             userRole: req.user?.role
         });
         
-        // Validation de l'ID
         const paymentId = parseInt(id);
         if (isNaN(paymentId)) {
             console.log('[PaymentController] [deletePayment] ID invalide');
@@ -248,8 +246,6 @@ const deletePayment = async (req, res, next) => {
             });
         }
         
-        // Appel du service
-        console.log('[PaymentController] [deletePayment] Appel du service');
         await paymentService.deletePayment(paymentId);
         
         console.log('[PaymentController] [deletePayment] Succès', { paymentId: id });
@@ -259,7 +255,6 @@ const deletePayment = async (req, res, next) => {
             deletedBy: req.user?.id
         });
         
-        // 204 No Content - pas de body dans la réponse
         res.status(204).send();
     } catch (error) {
         console.error('[PaymentController] [deletePayment] Erreur', {
@@ -408,106 +403,71 @@ const refundPayment = async (req, res, next) => {
     }
 };
 
-
-
-
-
 /**
  * @route   POST /api/payments/initialize
- * @desc    Initialiser un paiement (Wave ou TouchPoint)
+ * @desc    Initialiser un paiement via TouchPoint (Wave, MTN, Orange, Moov)
  * @access  Public
  */
 const initializePayment = async (req, res) => {
-  try {
-    console.log('[PaymentController] [initializePayment] Début', JSON.stringify(req.body, null, 2))
-    const result = await paymentService.initializePayment(req.body)
-    console.log('[PaymentController] [initializePayment] Succès', { payment_id: result?.payment_id, transaction_id: result?.transaction_id })
+    try {
+        console.log('[PaymentController] [initializePayment] Début', JSON.stringify(req.body, null, 2));
+        const result = await paymentService.initializePayment(req.body);
+        console.log('[PaymentController] [initializePayment] Succès', { 
+            payment_id: result?.payment_id, 
+            transaction_id: result?.transaction_id 
+        });
 
-    logger.info("Paiement initialisé avec succès", {
-      paymentId: result.payment_id,
-      transactionId: result.transaction_id,
-    })
+        logger.info("Paiement initialisé avec succès", {
+            paymentId: result.payment_id,
+            transactionId: result.transaction_id,
+            paymentMethod: result.payment_method,
+        });
 
-    res.status(200).json({
-      success: true,
-      message: "Paiement initialisé avec succès",
-      data: result,
-    })
-  } catch (error) {
-    console.log('[PaymentController] [initializePayment] Erreur', { message: error.message })
-    logger.error("Erreur lors de l'initialisation du paiement", {
-      error: error.message,
-      body: req.body,
-    })
+        res.status(200).json({
+            success: true,
+            message: "Paiement initialisé avec succès",
+            data: result,
+        });
+    } catch (error) {
+        console.log('[PaymentController] [initializePayment] Erreur', { message: error.message });
+        logger.error("Erreur lors de l'initialisation du paiement", {
+            error: error.message,
+            body: req.body,
+        });
 
-    if (error.message.includes("non trouvée")) {
-      return res.status(404).json({
-        success: false,
-        error: error.message,
-      })
+        if (error.message.includes("non trouvée")) {
+            return res.status(404).json({
+                success: false,
+                error: error.message,
+            });
+        }
+
+        if (error.message.includes("déjà été payée")) {
+            return res.status(409).json({
+                success: false,
+                error: error.message,
+            });
+        }
+
+        if (error.message.includes("ne correspond pas") || error.message.includes("OTP")) {
+            return res.status(400).json({
+                success: false,
+                error: error.message,
+            });
+        }
+
+        res.status(500).json({
+            success: false,
+            error: "Erreur lors de l'initialisation du paiement",
+            details: error.message,
+        });
     }
-
-    if (error.message.includes("déjà été payée")) {
-      return res.status(409).json({
-        success: false,
-        error: error.message,
-      })
-    }
-
-    if (error.message.includes("ne correspond pas")) {
-      return res.status(400).json({
-        success: false,
-        error: error.message,
-      })
-    }
-
-    res.status(500).json({
-      success: false,
-      error: "Erreur lors de l'initialisation du paiement",
-      details: error.message,
-    })
-  }
-}
+};
 
 /**
- * @route   POST /api/payments/webhook/wave
- * @desc    Webhook Wave pour notification de paiement
- * @access  Public (avec vérification signature)
+ * ✅ SUPPRIMÉ: waveWebhook - Wave passe maintenant par TouchPoint
+ * Tous les webhooks passent par TouchPoint
  */
-const waveWebhook = async (req, res) => {
-  try {
-    console.log('[PaymentController] [waveWebhook] Début', { signature: req.headers["wave-signature"]?.length || 0 })
-    const signature = req.headers["wave-signature"]
-    const body = JSON.stringify(req.body)
-
-    if (!signature) {
-      return res.status(400).json({
-        success: false,
-        error: "Signature manquante",
-      })
-    }
-
-    const result = await paymentService.processWaveWebhook(signature, body)
-
-    logger.info("Webhook Wave traité avec succès", { result })
-    console.log('[PaymentController] [waveWebhook] Succès')
-
-    res.status(200).json({
-      success: true,
-      message: "Webhook traité avec succès",
-    })
-  } catch (error) {
-    console.log('[PaymentController] [waveWebhook] Erreur', { message: error.message })
-    logger.error("Erreur traitement webhook Wave", {
-      error: error.message,
-    })
-
-    res.status(400).json({
-      success: false,
-      error: error.message,
-    })
-  }
-}
 
 /**
  * @route   POST /api/payments/webhook/touchpoint
@@ -515,29 +475,29 @@ const waveWebhook = async (req, res) => {
  * @access  Public
  */
 const touchpointWebhook = async (req, res) => {
-  try {
-    console.log('[PaymentController] [touchpointWebhook] Début', JSON.stringify(req.body, null, 2))
-    const result = await paymentService.processTouchPointWebhook(req.body)
+    try {
+        console.log('[PaymentController] [touchpointWebhook] Début', JSON.stringify(req.body, null, 2));
+        const result = await paymentService.processTouchPointWebhook(req.body);
 
-    logger.info("Webhook TouchPoint traité avec succès", { result })
-    console.log('[PaymentController] [touchpointWebhook] Succès')
+        logger.info("Webhook TouchPoint traité avec succès", { result });
+        console.log('[PaymentController] [touchpointWebhook] Succès');
 
-    res.status(200).json({
-      success: true,
-      message: "Webhook traité avec succès",
-    })
-  } catch (error) {
-    console.log('[PaymentController] [touchpointWebhook] Erreur', { message: error.message })
-    logger.error("Erreur traitement webhook TouchPoint", {
-      error: error.message,
-    })
+        res.status(200).json({
+            success: true,
+            message: "Webhook traité avec succès",
+        });
+    } catch (error) {
+        console.log('[PaymentController] [touchpointWebhook] Erreur', { message: error.message });
+        logger.error("Erreur traitement webhook TouchPoint", {
+            error: error.message,
+        });
 
-    res.status(400).json({
-      success: false,
-      error: error.message,
-    })
-  }
-}
+        res.status(400).json({
+            success: false,
+            error: error.message,
+        });
+    }
+};
 
 /**
  * @route   GET /api/payments/status/:order_reference
@@ -545,46 +505,48 @@ const touchpointWebhook = async (req, res) => {
  * @access  Public
  */
 const checkPaymentStatus = async (req, res) => {
-  try {
-    console.log('[PaymentController] [checkPaymentStatus] Début', { order_reference: req.params.order_reference })
-    const { order_reference } = req.params
+    try {
+        console.log('[PaymentController] [checkPaymentStatus] Début', { 
+            order_reference: req.params.order_reference 
+        });
+        const { order_reference } = req.params;
 
-    const result = await paymentService.checkPaymentStatus(order_reference)
-    console.log('[PaymentController] [checkPaymentStatus] Succès')
+        const result = await paymentService.checkPaymentStatus(order_reference);
+        console.log('[PaymentController] [checkPaymentStatus] Succès');
 
-    res.status(200).json({
-      success: true,
-      data: result,
-    })
-  } catch (error) {
-    console.log('[PaymentController] [checkPaymentStatus] Erreur', { message: error.message })
-    logger.error("Erreur vérification statut paiement", {
-      error: error.message,
-      orderReference: req.params.order_reference,
-    })
+        res.status(200).json({
+            success: true,
+            data: result,
+        });
+    } catch (error) {
+        console.log('[PaymentController] [checkPaymentStatus] Erreur', { message: error.message });
+        logger.error("Erreur vérification statut paiement", {
+            error: error.message,
+            orderReference: req.params.order_reference,
+        });
 
-    if (error.message.includes("Aucun paiement trouvé")) {
-      return res.status(404).json({
-        success: false,
-        error: error.message,
-      })
+        if (error.message.includes("Aucun paiement trouvé")) {
+            return res.status(404).json({
+                success: false,
+                error: error.message,
+            });
+        }
+
+        res.status(500).json({
+            success: false,
+            error: "Erreur lors de la vérification du statut",
+            details: error.message,
+        });
     }
+};
 
-    res.status(500).json({
-      success: false,
-      error: "Erreur lors de la vérification du statut",
-      details: error.message,
-    })
-  }
-}
-
-// Export des constantes pour utilisation dans les routes
+// Export des constantes et contrôleurs
 module.exports = {
     // Constantes
     PAYMENT_METHODS,
     PAYMENT_STATUS,
     
-    // Contrôleurs
+    // Contrôleurs CRUD basiques
     createPayment,
     getPayments,
     getPaymentById,
@@ -592,8 +554,9 @@ module.exports = {
     deletePayment,
     updatePaymentStatus,
     refundPayment,
-    waveWebhook,
+    
+    // Contrôleurs spécifiques TouchPoint
+    initializePayment,
     touchpointWebhook,
     checkPaymentStatus,
-    initializePayment,
 };

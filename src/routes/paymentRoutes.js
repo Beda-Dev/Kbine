@@ -1,6 +1,15 @@
-// ==========================================
-// FILE: paymentRoutes.js (CORRIGÉ)
-// ==========================================
+/**
+ * Routes pour la gestion des paiements
+ * ✅ VERSION CORRIGÉE - TOUS LES PAIEMENTS PASSENT PAR TOUCHPOINT
+ * 
+ * ORDRE CRITIQUE:
+ * 1. Routes publiques (webhooks, status checks)
+ * 2. Routes statiques (/methods, /statuses)
+ * 3. Middleware d'authentification
+ * 4. Routes protégées statiques
+ * 5. Routes avec paramètres dynamiques (/:id)
+ */
+
 const express = require('express');
 const router = express.Router();
 const paymentController = require('../controllers/paymentController');
@@ -16,46 +25,25 @@ const {
 } = require('../validators/paymentValidator');
 const { authenticateToken, requireRole } = require('../middlewares/auth');
 
-/**
- * Routes pour la gestion des paiements
- * 
- * ORDRE CRITIQUE:
- * 1. Routes publiques (webhooks, status checks)
- * 2. Routes statiques (/methods, /status)
- * 3. Middleware d'authentification
- * 4. Routes protégées statiques
- * 5. Routes avec paramètres dynamiques (/:id)
- */
-
 // ==========================================
 // SECTION 1: ROUTES PUBLIQUES (sans authentification)
 // ==========================================
 
 /**
- * Webhooks - DOIVENT être publics pour recevoir les callbacks
- */
-
-/**
- * @route   POST /api/payments/webhook/wave
- * @desc    Webhook Wave pour notification de paiement
- * @access  Public (avec vérification signature côté contrôleur)
- */
-router.post('/webhook/wave', paymentController.waveWebhook);
-
-/**
  * @route   POST /api/payments/webhook/touchpoint
- * @desc    Webhook TouchPoint pour notification de paiement
+ * @desc    Webhook TouchPoint pour tous les paiements (Wave, MTN, Orange, Moov)
  * @access  Public
  */
 router.post('/webhook/touchpoint', paymentController.touchpointWebhook);
 
 /**
- * Routes publiques de consultation
+ * ✅ SUPPRIMÉ: /webhook/wave - Wave passe maintenant par TouchPoint
+ * router.post('/webhook/wave', paymentController.waveWebhook);
  */
 
 /**
  * @route   POST /api/payments/initialize
- * @desc    Initialiser un paiement (Wave ou TouchPoint)
+ * @desc    Initialiser un paiement (tous passent par TouchPoint)
  * @access  Public
  */
 router.post('/initialize',
@@ -99,7 +87,8 @@ router.get('/methods', (req, res) => {
     console.log('[PaymentRoutes] GET /methods');
     res.json({
         success: true,
-        data: PAYMENT_METHODS
+        data: PAYMENT_METHODS,
+        message: 'Tous les paiements passent par TouchPoint'
     });
 });
 
@@ -223,7 +212,6 @@ router.put('/:id',
             body: req.body
         });
         
-        // Validation de l'ID
         const paymentId = parseInt(req.params.id, 10);
         if (isNaN(paymentId)) {
             console.log('[PaymentRoutes] ID invalide');
@@ -233,7 +221,6 @@ router.put('/:id',
             });
         }
         
-        // Validation des données de mise à jour
         const { error, value } = updatePaymentValidation(req.body);
         if (error) {
             console.log('[PaymentRoutes] Erreur validation update', {
@@ -293,7 +280,6 @@ router.patch('/:id/status',
             body: req.body
         });
         
-        // Validation de l'ID
         const paymentId = parseInt(req.params.id, 10);
         
         if (isNaN(paymentId)) {
@@ -317,7 +303,6 @@ router.patch('/:id/status',
             });
         }
         
-        // Validation des données de statut
         const { error, value } = updatePaymentStatusValidation(req.body);
         if (error) {
             console.log('[PaymentRoutes] Erreur validation status', {
@@ -352,7 +337,6 @@ router.post('/:id/refund',
             body: req.body
         });
         
-        // Validation de l'ID
         const paymentId = parseInt(req.params.id, 10);
         
         if (isNaN(paymentId)) {
@@ -376,7 +360,6 @@ router.post('/:id/refund',
             });
         }
         
-        // Validation des données de remboursement
         const { error, value } = refundPaymentValidation(req.body);
         if (error) {
             console.log('[PaymentRoutes] Erreur validation refund', {

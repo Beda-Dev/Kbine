@@ -36,6 +36,7 @@
     "joi": "^17.13.3",
     "jsonwebtoken": "^9.0.2",
     "mysql2": "^3.11.3",
+    "ngrok": "5.0.0-beta.2",
     "node-cron": "^3.0.3",
     "rate-limiter-flexible": "^5.0.3",
     "socket.io": "^4.8.0",

@@ -16,6 +16,8 @@ Dockerfile
 .docker-compose.yml
 .docker-compose.override.yml
 Dockerfile
+guide ngrok.md
+GUIDE_DEMARRAGE.md
 
 # ===============================
 # ENVIRONMENT VARIABLES

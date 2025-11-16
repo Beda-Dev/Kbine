@@ -864,7 +864,7 @@ Authorization: Bearer <token>
 
 #### Réponse en Cas de Succès (200)
 
-```json
+```json 
 {
   "success": true,
   "data": ["pending", "success", "failed", "refunded"]

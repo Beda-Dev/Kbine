@@ -145,11 +145,13 @@ docker-compose -p kbine down --remove-orphans --volumes --rmi all --build # Arr�
 # Arrêter les conteneurs
 docker-compose -p kbine down
 
+
 # Supprimer l'image existante
 docker rmi kbine-kbine
 
 # Reconstruire et relancer les conteneurs
 docker-compose -p kbine up -d --build
+
 
 # lancer les logs
 docker-compose -p kbine logs -f
@@ -159,6 +161,8 @@ docker exec -i kbine-mysql mysql -u kbine_user -p'kbine_secure_password' kbine_d
 
 # migration la base de données
 mysql -u kbine_user -p'kbine_secure_password' kbine_db < scripts/migration1.sql
+
+
 
 ## 🏆 Status : PRÊT POUR LE DÉVELOPPEMENT
 

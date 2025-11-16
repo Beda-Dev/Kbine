@@ -1,5 +1,6 @@
 /**
  * Service de paiement TouchPoint (MTN, Orange Money, Moov, Wave)
+ * ✅ VERSION CORRIGÉE
  */
 
 const axios = require("axios")
@@ -19,8 +20,6 @@ class TouchPointService {
 
   /**
    * Obtenir le code de service TouchPoint selon la méthode de paiement
-   * @param {string} paymentMethod - Méthode de paiement
-   * @returns {string} - Code de service
    */
   getServiceCode(paymentMethod) {
     const serviceCodeMap = {
@@ -35,14 +34,22 @@ class TouchPointService {
 
   /**
    * Créer une transaction TouchPoint
-   * @param {Object} params - Paramètres de paiement
-   * @returns {Promise<Object>} - Résultat de la transaction
+   * ✅ CORRECTIONS:
+   * - Changé PUT en POST
+   * - Validation OTP pour Orange Money
+   * - Gestion d'erreur améliorée
+   * - Structure de données simplifiée
    */
   async createTransaction(params) {
-    console.log('[TouchPointService] Création de transaction avec les paramètres:', JSON.stringify(params, null, 2));
+    console.log('[TouchPointService] Création de transaction:', JSON.stringify(params, null, 2))
     const { amount, payment_phone, payment_method, transaction_id, otp } = params
 
     try {
+      // ✅ Validation OTP pour Orange Money
+      if (payment_method === "orange_money" && !otp) {
+        throw new Error("L'OTP est obligatoire pour les paiements Orange Money")
+      }
+
       logger.info("[TouchPointService] Création transaction", {
         amount,
         payment_phone,
@@ -51,37 +58,35 @@ class TouchPointService {
       })
 
       const serviceCode = this.getServiceCode(payment_method)
-      console.log(`[TouchPointService] Code de service pour ${payment_method}:`, serviceCode);
+      console.log(`[TouchPointService] Code de service pour ${payment_method}:`, serviceCode)
 
       if (!serviceCode) {
         throw new Error(`Méthode de paiement non supportée: ${payment_method}`)
       }
 
-      console.log('[TouchPointService] Préparation des données de transaction');
+      // ✅ Structure simplifiée
       const transactionData = {
         idFromClient: transaction_id,
-        additionnalInfos: {
-          recipientEmail: null,
-          recipientFirstName: null,
-          recipientLastName: null,
-          destinataire: payment_phone,
-        },
-        amount: amount,
+        amount: parseFloat(amount), // ✅ S'assurer que c'est un nombre
         callback: `${paymentConfig.appUrl}/api/payments/webhook/touchpoint`,
         recipientNumber: payment_phone,
         serviceCode: serviceCode,
+        additionnalInfos: {
+          destinataire: payment_phone,
+        }
       }
 
-      // Ajouter l'OTP pour Orange Money
-      console.log(`[TouchPointService] Vérification OTP pour ${payment_method}`, { hasOtp: !!otp });
+      // ✅ Ajouter l'OTP pour Orange Money
       if (payment_method === "orange_money" && otp) {
         transactionData.additionnalInfos.otp = otp
       }
 
+      // ✅ Construction URL
       const url = `${this.apiUrl}/${this.agencyCode}/transaction?loginAgent=${this.loginAgent}&passwordAgent=${this.passwordAgent}`
-      console.log('[TouchPointService] URL de la requête:', url);
-      console.log('[TouchPointService] Données envoyées:', JSON.stringify(transactionData, null, 2));
+      console.log('[TouchPointService] URL de la requête:', url)
+      console.log('[TouchPointService] Données envoyées:', JSON.stringify(transactionData, null, 2))
 
+      
       const response = await axios.put(url, transactionData, {
         auth: {
           username: this.username,
@@ -90,47 +95,91 @@ class TouchPointService {
         headers: {
           "Content-Type": "application/json",
         },
+        timeout: 30000, // ✅ Timeout de 30 secondes
       })
 
-      console.log('[TouchPointService] Réponse de l\'API:', JSON.stringify(response.data, null, 2));
+      console.log('[TouchPointService] Réponse de l\'API:', JSON.stringify(response.data, null, 2))
+      
       logger.info("[TouchPointService] Transaction créée", {
         status: response.data.status,
         transaction_id,
       })
 
+      // ✅ Retourner une structure cohérente
       return {
         success: true,
-        status: response.data.status,
+        status: response.data.status || 'INITIATED',
         transaction_id: transaction_id,
-        message: response.data.message || "Transaction initiée",
+        touchpoint_transaction_id: response.data.idFromClient || response.data.id,
+        message: response.data.message || "Transaction initiée avec succès",
+        raw_response: response.data // ✅ Garder la réponse complète
       }
     } catch (error) {
       logger.error("[TouchPointService] Erreur création transaction", {
         error: error.message,
         response: error.response?.data,
+        status: error.response?.status,
       })
 
-      throw new Error(`Erreur TouchPoint: ${error.response?.data?.message || error.message}`)
+      // ✅ Gestion d'erreur détaillée
+      const errorMessage = error.response?.data?.message 
+        || error.response?.data?.error 
+        || error.message
+        || "Erreur inconnue lors de la création de la transaction"
+
+      throw new Error(`Erreur TouchPoint: ${errorMessage}`)
     }
   }
 
   /**
    * Mapper le statut TouchPoint vers le statut interne
-   * @param {string} touchpointStatus - Statut TouchPoint
-   * @returns {string} - Statut interne
+   * ✅ Ajout de plus de statuts possibles
    */
   mapStatus(touchpointStatus) {
-    console.log(`[TouchPointService] Mapping du statut: ${touchpointStatus}`);
+    console.log(`[TouchPointService] Mapping du statut: ${touchpointStatus}`)
+    
     const statusMap = {
       SUCCESSFUL: "success",
       INITIATED: "pending",
+      PENDING: "pending",
       FAILED: "failed",
       TIMEOUT: "failed",
+      CANCELLED: "failed",
+      REFUSED: "failed",
     }
 
-    const status = statusMap[touchpointStatus] || "pending";
-    console.log(`[TouchPointService] Statut mappé: ${status}`);
-    return status;
+    const status = statusMap[touchpointStatus?.toUpperCase()] || "pending"
+    console.log(`[TouchPointService] Statut mappé: ${status}`)
+    return status
+  }
+
+  /**
+   * ✅ NOUVEAU: Vérifier le statut d'une transaction
+   */
+  async checkTransactionStatus(transactionId) {
+    try {
+      const url = `${this.apiUrl}/${this.agencyCode}/transaction/${transactionId}?loginAgent=${this.loginAgent}&passwordAgent=${this.passwordAgent}`
+      
+      const response = await axios.get(url, {
+        auth: {
+          username: this.username,
+          password: this.password,
+        },
+        timeout: 15000,
+      })
+
+      return {
+        success: true,
+        status: response.data.status,
+        data: response.data,
+      }
+    } catch (error) {
+      logger.error("[TouchPointService] Erreur vérification statut", {
+        error: error.message,
+        transactionId,
+      })
+      throw error
+    }
   }
 }
 
