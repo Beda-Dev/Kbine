@@ -24,7 +24,7 @@ const paymentConfig = {
   },
 
   // URL de l'application pour les callbacks
-  appUrl: process.env.APP_URL || "http://localhost:3000",
+  appUrl: process.env.APP_URL,
 
   // Statuts de paiement
   paymentStatus: {
