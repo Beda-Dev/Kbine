@@ -747,7 +747,7 @@ const initializePayment = async (paymentData) => {
  */
 
 /**
- * Traiter le webhook TouchPoint
+ * Traiter le webhook TouchPoint - VERSION CORRIGÉE
  */
 const processTouchPointWebhook = async (webhookData) => {
     try {
@@ -790,6 +790,33 @@ const processTouchPointWebhook = async (webhookData) => {
         const newStatus = touchpointService.mapStatus(status);
         console.log('[PaymentService] processTouchPointWebhook - Nouveau statut', { newStatus });
 
+        // ✅ CORRECTION: Gérer callback_data correctement
+        let currentCallbackData = {};
+        
+        if (payment.callback_data) {
+            // Si c'est déjà un objet, l'utiliser directement
+            if (typeof payment.callback_data === 'object') {
+                currentCallbackData = payment.callback_data;
+            } 
+            // Si c'est une chaîne, la parser
+            else if (typeof payment.callback_data === 'string') {
+                try {
+                    currentCallbackData = JSON.parse(payment.callback_data);
+                } catch (e) {
+                    console.log('[PaymentService] Erreur parsing callback_data, utilisation objet vide', e.message);
+                    currentCallbackData = {};
+                }
+            }
+        }
+
+        // Créer le nouvel objet callback_data
+        const updatedCallbackData = {
+            ...currentCallbackData,
+            touchpoint_status: status,
+            webhook_data: webhookData,
+            webhook_received_at: new Date().toISOString(),
+        };
+
         // Mettre à jour le paiement
         await db.execute(
             `UPDATE payments 
@@ -797,12 +824,7 @@ const processTouchPointWebhook = async (webhookData) => {
              WHERE id = ?`,
             [
                 newStatus,
-                JSON.stringify({
-                    ...JSON.parse(payment.callback_data || "{}"),
-                    touchpoint_status: status,
-                    webhook_data: webhookData,
-                    webhook_received_at: new Date().toISOString(),
-                }),
+                JSON.stringify(updatedCallbackData),
                 payment.id,
             ]
         );
@@ -830,6 +852,7 @@ const processTouchPointWebhook = async (webhookData) => {
     } catch (error) {
         logger.error("[PaymentService] Erreur traitement webhook TouchPoint", {
             error: error.message,
+            stack: error.stack,
         });
         console.log('[PaymentService] processTouchPointWebhook - Erreur', { message: error.message });
         throw error;

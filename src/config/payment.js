@@ -24,7 +24,7 @@ const paymentConfig = {
   },
 
   // URL de l'application pour les callbacks
-  appUrl: process.env.APP_URL,
+  appUrl: process.env.APP_URL || "https://www.kbine-mobile.com",
 
   // Statuts de paiement
   paymentStatus: {
