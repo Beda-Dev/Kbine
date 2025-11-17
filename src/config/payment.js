@@ -3,13 +3,7 @@
  */
 
 const paymentConfig = {
-  // Configuration Wave
-  wave: {
-    apiUrl: process.env.WAVE_API_URL || 'https://api.wavepayments.com',
-    apiToken: process.env.WAVE_API_TOKEN || 'your_api_token',
-    webhookSecret: process.env.WAVE_WEBHOOK_SECRET || 'your_webhook_secret',
-    currency: "XOF",
-  },
+
 
   // Configuration TouchPoint
   touchpoint: {
@@ -43,12 +37,7 @@ const paymentConfig = {
 }
 
 console.log('[PaymentConfig] Chargement configuration', {
-  wave: {
-    apiUrl: paymentConfig.wave.apiUrl,
-    currency: paymentConfig.wave.currency,
-    apiToken_len: process.env.WAVE_API_TOKEN ? process.env.WAVE_API_TOKEN.length : 0,
-    webhookSecret_len: process.env.WAVE_WEBHOOK_SECRET ? process.env.WAVE_WEBHOOK_SECRET.length : 0,
-  },
+
   touchpoint: {
     apiUrl: paymentConfig.touchpoint.apiUrl,
     username: paymentConfig.touchpoint.username,
