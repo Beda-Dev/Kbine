@@ -261,11 +261,11 @@ const createPaymentValidation = (data) => {
     }),
 
     otp: Joi.string()
-      .pattern(/^[0-9]{6}$/)
+      .pattern(/^[0-9]{4}$/)
       .optional()
       .messages({
         "string.base": "L'OTP doit être une chaîne de caractères",
-        "string.pattern.base": "L'OTP doit être un code à 6 chiffres",
+        "string.pattern.base": "L'OTP doit être un code à 4 chiffres",
       }),
   })
 
@@ -395,11 +395,11 @@ const initializePaymentValidation = (data) => {
     }),
 
     otp: Joi.string()
-      .pattern(/^[0-9]{6}$/)
+      .pattern(/^[0-9]{4}$/)
       .optional()
       .messages({
         "string.base": "L'OTP doit être une chaîne de caractères",
-        "string.pattern.base": "L'OTP doit être un code à 6 chiffres",
+        "string.pattern.base": "L'OTP doit être un code à 4 chiffres",
       }),
   })
 

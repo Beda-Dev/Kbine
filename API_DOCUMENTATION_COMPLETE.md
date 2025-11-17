@@ -889,7 +889,7 @@ Authorization: Bearer <token>
   "amount": 1000.00,
   "payment_phone": "0701020304",
   "payment_method": "wave",
-  "otp": "123456"
+  "otp": "1234"
 }
 ```
 
