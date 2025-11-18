@@ -30,6 +30,7 @@
 4. [Opérateurs](#opérateurs)
 5. [Plans / Forfaits](#plans--forfaits)
 6. [Commandes](#commandes)
+   - 6.1 [Vérifier le Statut de Paiement](#7-vérifier-le-statut-de-paiement-dune-commande)
 7. [Paiements](#paiements)
 8. [Versions d'Application](#10-versions-dapplication)
 9. [Codes d'Erreur](#11-codes-derreur)
@@ -853,6 +854,169 @@ Authorization: Bearer <token>
     "updated_at": "2025-01-15T16:31:00.000Z"
   }
 }
+```
+
+---
+
+### 7. Vérifier le Statut de Paiement d'une Commande
+
+**Endpoint:** `GET /api/orders/:id/payment-status`
+
+**Description:** Récupère le statut de paiement complet d'une commande avec TOUS les détails du paiement, du plan et les statuts booléens.
+
+**Niveau d'accès:** Public
+
+#### Réponse en Cas de Succès (200)
+
+```json
+{
+  "success": true,
+  "data": {
+    "order": {
+      "id": 45,
+      "reference": "ORD-20250124-ABC12",
+      "phone_number": "0701020304",
+      "amount": 1000.00,
+      "status": "completed",
+      "created_at": "2025-01-24T16:30:00.000Z",
+      "updated_at": "2025-01-24T16:32:00.000Z"
+    },
+    "plan": {
+      "id": 5,
+      "name": "Plan Orange 1000 FCFA",
+      "price": 1000.00,
+      "operator_id": 1
+    },
+    "payment": {
+      "id": 45,
+      "method": "wave",
+      "phone": "0701020304",
+      "reference": "PAY-20250124-ABC12",
+      "external_reference": "20250124123456ORD-20250124-ABC12",
+      "amount": 1000.00,
+      "status": "success",
+      "callback_data": {
+        "initiated_at": "2025-01-24T16:30:00.000Z",
+        "touchpoint_status": "SUCCESSFUL",
+        "touchpoint_response": {
+          "fees": 2,
+          "amount": 1000,
+          "status": "SUCCESSFUL",
+          "numTransaction": "WAVE250124.1630.ABC12"
+        },
+        "webhook_data": {
+          "status": "SUCCESSFUL",
+          "service_id": "CI_PAIEMENTWAVE_TP"
+        },
+        "webhook_received_at": "2025-01-24T16:30:02.000Z",
+        "touchpoint_transaction_id": "20250124123456ORD-20250124-ABC12"
+      },
+      "created_at": "2025-01-24T16:30:00.000Z",
+      "updated_at": "2025-01-24T16:30:02.000Z"
+    },
+    "status_flags": {
+      "is_paid": true,
+      "is_pending": false,
+      "is_failed": false,
+      "is_refunded": false,
+      "has_payment": true
+    },
+    "summary": {
+      "status": "PAYÉ",
+      "payment_method": "wave",
+      "amount": 1000.00,
+      "payment_amount": 1000.00
+    }
+  }
+}
+```
+
+**Champs de réponse:**
+
+**order:**
+- `id` (integer) - ID de la commande
+- `reference` (string) - Référence de la commande
+- `phone_number` (string) - Numéro de téléphone
+- `amount` (number) - Montant de la commande
+- `status` (string) - Statut de la commande
+- `created_at` (datetime) - Date de création
+- `updated_at` (datetime) - Date de mise à jour
+
+**plan:** (null si pas de plan)
+- `id` (integer) - ID du plan
+- `name` (string) - Nom du plan
+- `price` (number) - Prix du plan
+- `operator_id` (integer) - ID de l'opérateur
+
+**payment:** (null si pas de paiement)
+- `id` (integer) - ID du paiement
+- `method` (string) - Méthode de paiement
+- `phone` (string) - Numéro de téléphone utilisé
+- `reference` (string) - Référence du paiement
+- `external_reference` (string) - Référence externe TouchPoint
+- `amount` (number) - Montant du paiement
+- `status` (string) - Statut du paiement
+- `callback_data` (object) - **Données complètes du webhook et TouchPoint**
+- `created_at` (datetime) - Date de création
+- `updated_at` (datetime) - Date de mise à jour
+
+**status_flags:** (Booléens pour faciliter le traitement)
+- `is_paid` (boolean) - Paiement réussi
+- `is_pending` (boolean) - Paiement en attente
+- `is_failed` (boolean) - Paiement échoué
+- `is_refunded` (boolean) - Paiement remboursé
+- `has_payment` (boolean) - Paiement existe
+
+**summary:** (Résumé lisible)
+- `status` (string) - Statut lisible: "PAYÉ", "ÉCHOUÉ", "EN ATTENTE", "REMBOURSÉ", "AUCUN PAIEMENT"
+- `payment_method` (string) - Méthode de paiement
+- `amount` (number) - Montant de la commande
+- `payment_amount` (number) - Montant du paiement (null si pas de paiement)
+
+#### Réponses d'Erreur
+
+**404 - Commande Non Trouvée**
+```json
+{
+  "success": false,
+  "error": "Commande non trouvée"
+}
+```
+
+**500 - Erreur Serveur**
+```json
+{
+  "success": false,
+  "error": "Erreur lors de la récupération du statut de paiement: [message]"
+}
+```
+
+#### Cas d'Utilisation
+
+**1. Vérifier si une commande est payée**
+```javascript
+const response = await fetch('/api/orders/45/payment-status');
+const data = await response.json();
+
+if (data.data.status_flags.is_paid) {
+    console.log('Paiement réussi!');
+    console.log(`Montant: ${data.data.payment.amount}`);
+}
+```
+
+**2. Afficher le statut lisible**
+```javascript
+const status = data.data.summary.status; // "PAYÉ", "EN ATTENTE", etc.
+const method = data.data.summary.payment_method; // "wave", "orange_money", etc.
+console.log(`Statut: ${status} via ${method}`);
+```
+
+**3. Accéder aux données du webhook**
+```javascript
+const callbackData = data.data.payment.callback_data;
+console.log(`Transaction TouchPoint: ${callbackData.touchpoint_transaction_id}`);
+console.log(`Statut TouchPoint: ${callbackData.touchpoint_status}`);
+console.log(`Frais: ${callbackData.touchpoint_response.fees}`);
 ```
 
 ---

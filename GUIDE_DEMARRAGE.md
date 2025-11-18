@@ -166,6 +166,9 @@ mysql -u kbine_user -p'kbine_secure_password' kbine_db < scripts/migration1.sql
 
 sur le serveur 
 
+git pull origin main
+
+
 docker compose up -d --build
 
 docker logs -f kbine-app

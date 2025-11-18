@@ -220,7 +220,7 @@ const findById = async (orderId) => {
 
         // Ajouter le paiement si présent (TOUS les champs)
         if (order.payment_id) {
-            result.payments = [{
+            result.payments = {
                 id: order.payment_id,
                 amount: parseFloat(order.payment_amount),
                 payment_method: order.payment_method,
@@ -231,7 +231,7 @@ const findById = async (orderId) => {
                 callback_data: order.callback_data ? (typeof order.callback_data === 'string' ? JSON.parse(order.callback_data) : order.callback_data) : null,
                 created_at: order.payment_created_at,
                 updated_at: order.payment_updated_at
-            }];
+            };
         }
 
         // Ajouter TOUTES les données du plan si présent
@@ -333,7 +333,7 @@ const findByReference = async (orderReference) => {
 
         // Ajouter le paiement si présent (TOUS les champs)
         if (order.payment_id) {
-            result.payments = [{
+            result.payments = {
                 id: order.payment_id,
                 amount: parseFloat(order.payment_amount),
                 payment_method: order.payment_method,
@@ -344,7 +344,7 @@ const findByReference = async (orderReference) => {
                 callback_data: order.callback_data ? (typeof order.callback_data === 'string' ? JSON.parse(order.callback_data) : order.callback_data) : null,
                 created_at: order.payment_created_at,
                 updated_at: order.payment_updated_at
-            }];
+            };
         }
 
         // Ajouter TOUTES les données du plan si présent
@@ -595,7 +595,7 @@ const deleteOrder = async (orderId) => {
 };
 
 /**
- * Récupère le statut de paiement d'une commande
+ * Récupère le statut de paiement d'une commande avec TOUS les détails
  */
 const getOrderPaymentStatus = async (orderId) => {
     console.log('[OrderService] [getOrderPaymentStatus] Début', { orderId });
@@ -610,13 +610,19 @@ const getOrderPaymentStatus = async (orderId) => {
                 o.amount as order_amount,
                 o.status as order_status,
                 o.created_at as order_created_at,
+                o.updated_at as order_updated_at,
                 p.id as plan_id,
                 p.name as plan_name,
+                p.price as plan_price,
+                p.operator_id as plan_operator_id,
                 pay.id as payment_id,
                 pay.status as payment_status,
                 pay.payment_method,
+                pay.payment_phone,
                 pay.payment_reference,
+                pay.external_reference,
                 pay.amount as payment_amount,
+                pay.callback_data,
                 pay.created_at as payment_created_at,
                 pay.updated_at as payment_updated_at
             FROM orders o
@@ -633,31 +639,69 @@ const getOrderPaymentStatus = async (orderId) => {
 
         const order = rows[0];
         
+        // Déterminer les statuts
+        const paymentStatus = order.payment_status || 'no_payment';
+        const isPaid = paymentStatus === 'success';
+        const isFailed = paymentStatus === 'failed';
+        const isPending = paymentStatus === 'pending' || !order.payment_id;
+        const isRefunded = paymentStatus === 'refunded';
+        
         const result = {
-            order_reference: order.order_reference || `ORD${String(order.id).padStart(10, '0')}`,
-            phone_number: order.phone_number,
-            order_status: order.order_status,
-            order_amount: parseFloat(order.order_amount),
-            order_created_at: order.order_created_at,
+            // Informations de la commande
+            order: {
+                id: order.id,
+                reference: order.order_reference || `ORD${String(order.id).padStart(10, '0')}`,
+                phone_number: order.phone_number,
+                amount: parseFloat(order.order_amount),
+                status: order.order_status,
+                created_at: order.order_created_at,
+                updated_at: order.order_updated_at
+            },
+            
+            // Informations du plan
             plan: order.plan_id ? {
                 id: order.plan_id,
-                name: order.plan_name
+                name: order.plan_name,
+                price: parseFloat(order.plan_price),
+                operator_id: order.plan_operator_id
             } : null,
+            
+            // Informations complètes du paiement
             payment: order.payment_id ? {
-                status: order.payment_status,
+                id: order.payment_id,
                 method: order.payment_method,
+                phone: order.payment_phone,
                 reference: order.payment_reference,
+                external_reference: order.external_reference,
                 amount: parseFloat(order.payment_amount),
+                status: paymentStatus,
+                callback_data: order.callback_data ? (typeof order.callback_data === 'string' ? JSON.parse(order.callback_data) : order.callback_data) : null,
                 created_at: order.payment_created_at,
                 updated_at: order.payment_updated_at
             } : null,
-            is_paid: order.payment_status === 'success',
-            is_pending: order.payment_status === 'pending' || !order.payment_id
+            
+            // Statuts booléens pour faciliter le traitement
+            status_flags: {
+                is_paid: isPaid,
+                is_pending: isPending,
+                is_failed: isFailed,
+                is_refunded: isRefunded,
+                has_payment: !!order.payment_id
+            },
+            
+            // Résumé pour affichage rapide
+            summary: {
+                status: isPaid ? 'PAYÉ' : isFailed ? 'ÉCHOUÉ' : isPending ? 'EN ATTENTE' : isRefunded ? 'REMBOURSÉ' : 'AUCUN PAIEMENT',
+                payment_method: order.payment_method || 'N/A',
+                amount: parseFloat(order.order_amount),
+                payment_amount: order.payment_amount ? parseFloat(order.payment_amount) : null
+            }
         };
 
         console.log('[OrderService] [getOrderPaymentStatus] Statut récupéré', { 
             orderId, 
-            isPaid: result.is_paid 
+            isPaid: result.status_flags.is_paid,
+            status: result.summary.status
         });
 
         return result;
