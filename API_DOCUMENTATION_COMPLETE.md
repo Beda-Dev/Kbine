@@ -1126,29 +1126,14 @@ Le webhook effectue les actions suivantes:
 {
   "success": true,
   "data": {
-    "payment_id": 45,
-    "order_reference": "ORD-20250124-ABC12",
-    "amount": 1000.00,
-    "payment_method": "wave",
-    "payment_phone": "0701020304",
-    "status": "success",
-    "order_status": "completed",
-    "created_at": "2025-01-24T16:30:00.000Z",
-    "updated_at": "2025-01-24T16:32:00.000Z"
+    "status": "success"
   }
 }
 ```
 
 **Champs de réponse:**
-- `payment_id` (integer) - ID du paiement
-- `order_reference` (string) - Référence de la commande
-- `amount` (number) - Montant du paiement
-- `payment_method` (string) - Méthode de paiement utilisée
-- `payment_phone` (string) - Numéro de téléphone utilisé
 - `status` (string) - Statut du paiement: `pending`, `success`, `failed`, `refunded`
-- `order_status` (string) - Statut de la commande associée
-- `created_at` (datetime) - Date de création du paiement
-- `updated_at` (datetime) - Date de dernière mise à jour
+
 
 #### Réponses d'Erreur
 
