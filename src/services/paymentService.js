@@ -884,7 +884,6 @@ const checkPaymentStatus = async (orderReference) => {
         console.log('[PaymentService] checkPaymentStatus - Paiement', JSON.stringify(payment, null, 2));
 
         const response = {
-            success: true,
             // payment_id: payment.id,
             // order_reference: payment.order_reference,
             // amount: payment.amount,

@@ -164,6 +164,12 @@ mysql -u kbine_user -p'kbine_secure_password' kbine_db < scripts/migration1.sql
 
 
 
+sur le serveur 
+
+docker compose up -d --build
+
+docker logs -f kbine-app
+
 ## 🏆 Status : PRÊT POUR LE DÉVELOPPEMENT
 
 Le backend Kbine dispose maintenant d'une base solide avec :
