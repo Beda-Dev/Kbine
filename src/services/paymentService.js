@@ -885,15 +885,15 @@ const checkPaymentStatus = async (orderReference) => {
 
         const response = {
             success: true,
-            payment_id: payment.id,
-            order_reference: payment.order_reference,
-            amount: payment.amount,
-            payment_method: payment.payment_method,
-            payment_phone: payment.payment_phone,
-            status: payment.status,
-            order_status: payment.order_status,
-            created_at: payment.created_at,
-            updated_at: payment.updated_at,
+            // payment_id: payment.id,
+            // order_reference: payment.order_reference,
+            // amount: payment.amount,
+            // payment_method: payment.payment_method,
+            // payment_phone: payment.payment_phone,
+            status: payment.status
+            // order_status: payment.order_status,
+            // created_at: payment.created_at,
+            // updated_at: payment.updated_at,
         };
         console.log('[PaymentService] checkPaymentStatus - Réponse', JSON.stringify(response, null, 2));
         return response;

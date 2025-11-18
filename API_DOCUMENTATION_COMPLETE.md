@@ -1,5 +1,27 @@
 # Documentation Complète de l'API Kbine Backend
 
+## ✅ Mise à Jour Importante - Version TouchPoint
+
+**Date:** Janvier 2025
+
+**Changement Principal:** Tous les paiements passent maintenant par **TouchPoint** (Wave, MTN Money, Orange Money, Moov Money).
+
+### Résumé des Changements
+
+- ✅ **Wave** passe maintenant par TouchPoint (plus de webhook Wave direct)
+- ✅ **MTN Money**, **Orange Money**, **Moov Money** via TouchPoint
+- ✅ **Webhook unifié** pour tous les paiements: `POST /api/payments/webhook/touchpoint`
+- ✅ **Initialisation simplifiée** via `POST /api/payments/initialize`
+- ✅ **Flux complet de paiement** documenté avec diagramme
+
+### Endpoints Clés
+
+- `POST /api/payments/initialize` - Initialiser un paiement (tous les types)
+- `POST /api/payments/webhook/touchpoint` - Webhook pour toutes les notifications
+- `GET /api/payments/status/:order_reference` - Vérifier le statut
+
+---
+
 ## Table des Matières
 
 1. [Informations Générales](#informations-générales)
@@ -9,10 +31,12 @@
 5. [Plans / Forfaits](#plans--forfaits)
 6. [Commandes](#commandes)
 7. [Paiements](#paiements)
-8. [Versions d'Application](#9-versions-dapplication)
-9. [Codes d'Erreur](#10-codes-derreur)
-10. [Exemples d'Utilisation](#11-exemples-dutilisation)
-11. [Bonnes Pratiques](#12-bonnes-pratiques)
+8. [Versions d'Application](#10-versions-dapplication)
+9. [Codes d'Erreur](#11-codes-derreur)
+10. [Exemples d'Utilisation](#12-exemples-dutilisation)
+11. [Bonnes Pratiques](#13-bonnes-pratiques)
+12. [Structure du callback_data](#15-structure-du-callback_data)
+13. [Variables d'Environnement](#14-variables-denvironnement)
 
 ---
 
@@ -839,7 +863,7 @@ Authorization: Bearer <token>
 
 **Endpoint:** `GET /api/payments/methods`
 
-**Description:** Récupère la liste des méthodes de paiement disponibles.
+**Description:** Récupère la liste des méthodes de paiement disponibles. ✅ **TOUS LES PAIEMENTS PASSENT PAR TOUCHPOINT**
 
 **Niveau d'accès:** Public
 
@@ -848,9 +872,16 @@ Authorization: Bearer <token>
 ```json
 {
   "success": true,
-  "data": ["wave", "orange_money", "mtn_money", "moov_money"]
+  "data": ["wave", "orange_money", "mtn_money", "moov_money"],
+  "message": "Tous les paiements passent par TouchPoint"
 }
 ```
+
+**Méthodes supportées:**
+- `wave` - Wave Money (via TouchPoint)
+- `orange_money` - Orange Money (via TouchPoint)
+- `mtn_money` - MTN Money (via TouchPoint)
+- `moov_money` - Moov Money (via TouchPoint)
 
 ---
 
@@ -877,7 +908,7 @@ Authorization: Bearer <token>
 
 **Endpoint:** `POST /api/payments/initialize`
 
-**Description:** Initialise un paiement via Wave ou TouchPoint (MTN, Orange Money, Moov).
+**Description:** Initialise un paiement via TouchPoint pour tous les paiements (Wave, MTN Money, Orange Money, Moov Money). ✅ **TOUS LES PAIEMENTS PASSENT PAR TOUCHPOINT**
 
 **Niveau d'accès:** Public
 
@@ -894,13 +925,21 @@ Authorization: Bearer <token>
 ```
 
 **Champs:**
-- `order_reference` (string, requis) - Référence de la commande
-- `amount` (number, requis) - Montant à payer
-- `payment_phone` (string, requis) - Numéro de téléphone pour le paiement
-- `payment_method` (string, requis) - Méthode de paiement
-- `otp` (string, optionnel) - Code OTP (requis pour Orange Money)
+- `order_reference` (string, requis) - Référence de la commande (format: ORD-YYYYMMDD-XXXXX)
+- `amount` (number, requis) - Montant à payer (positif, max 2 décimales)
+- `payment_phone` (string, requis) - Numéro de téléphone pour le paiement (format ivoirien: 10 chiffres commençant par 0)
+- `payment_method` (string, requis) - Méthode de paiement: `wave`, `orange_money`, `mtn_money`, `moov_money`
+- `otp` (string, optionnel) - Code OTP à 4 chiffres (obligatoire pour `orange_money`, optionnel pour les autres)
 
-#### Réponse en Cas de Succès - Wave (200)
+#### Validations
+
+- **order_reference**: Doit correspondre à une commande existante et non payée
+- **amount**: Doit correspondre exactement au montant de la commande
+- **payment_phone**: Format ivoirien valide (0XXXXXXXXX)
+- **payment_method**: Doit être l'une des 4 méthodes supportées
+- **otp**: Requis pour Orange Money, ignoré pour les autres méthodes
+
+#### Réponse en Cas de Succès (200)
 
 ```json
 {
@@ -908,27 +947,172 @@ Authorization: Bearer <token>
   "payment_id": 45,
   "transaction_id": "20250124123456ORD-20250124-ABC12",
   "payment_method": "wave",
-  "checkout_url": "https://checkout.wave.com/...",
-  "message": "Veuillez compléter le paiement via Wave"
+  "status": "INITIATED",
+  "message": "Transaction initiée avec succès"
 }
 ```
 
-#### Réponse en Cas de Succès - TouchPoint (200)
+**Champs de réponse:**
+- `payment_id` (integer) - ID du paiement créé en base de données
+- `transaction_id` (string) - ID unique de la transaction (timestamp + order_reference)
+- `payment_method` (string) - Méthode de paiement utilisée
+- `status` (string) - Statut initial de la transaction (généralement "INITIATED" ou "PENDING")
+- `message` (string) - Message descriptif
 
+**Note:** Pour Wave via TouchPoint, l'utilisateur reçoit une notification USSD. Pas de `checkout_url` direct.
+
+#### Réponses d'Erreur
+
+**400 - Données Invalides**
 ```json
 {
-  "success": true,
-  "payment_id": 45,
-  "transaction_id": "20250124123456ORD-20250124-ABC12",
-  "payment_method": "orange_money",
-  "status": "INITIATED",
-  "message": "Transaction initiée"
+  "success": false,
+  "error": "Données de paiement invalides",
+  "details": [
+    "La référence de commande doit être au format ORD-YYYYMMDD-XXXXX",
+    "Le numéro de téléphone doit être un numéro ivoirien valide (10 chiffres commençant par 0)"
+  ]
+}
+```
+
+**404 - Commande Non Trouvée**
+```json
+{
+  "success": false,
+  "error": "Commande non trouvée"
+}
+```
+
+**409 - Commande Déjà Payée**
+```json
+{
+  "success": false,
+  "error": "Cette commande a déjà été payée"
+}
+```
+
+**400 - Montant Incorrect**
+```json
+{
+  "success": false,
+  "error": "Le montant ne correspond pas à la commande"
+}
+```
+
+**400 - OTP Manquant (Orange Money)**
+```json
+{
+  "success": false,
+  "error": "L'OTP est obligatoire pour les paiements Orange Money"
+}
+```
+
+**500 - Erreur TouchPoint**
+```json
+{
+  "success": false,
+  "error": "Erreur lors de l'initialisation du paiement",
+  "details": "Erreur TouchPoint: [message d'erreur détaillé]"
 }
 ```
 
 ---
 
-### 4. Vérifier le Statut d'un Paiement
+### 4. Webhook TouchPoint - Notification de Paiement
+
+**Endpoint:** `POST /api/payments/webhook/touchpoint`
+
+**Description:** Webhook public pour recevoir les notifications de paiement de TouchPoint. Traite les paiements pour Wave, MTN Money, Orange Money et Moov Money.
+
+**Niveau d'accès:** Public (Webhook)
+
+**Authentification:** Aucune (endpoint public pour les webhooks)
+
+#### Données Reçues du Webhook (JSON)
+
+```json
+{
+  "partner_transaction_id": "20250124123456ORD-20250124-ABC12",
+  "idFromClient": "20250124123456ORD-20250124-ABC12",
+  "status": "SUCCESSFUL",
+  "amount": 1000.00,
+  "recipientNumber": "0701020304",
+  "serviceCode": "WAVE",
+  "timestamp": "2025-01-24T16:32:00.000Z"
+}
+```
+
+**Champs du webhook:**
+- `partner_transaction_id` ou `idFromClient` (string) - ID unique de la transaction (généré lors de l'initialisation)
+- `status` (string) - Statut de la transaction: `SUCCESSFUL`, `INITIATED`, `PENDING`, `FAILED`, `TIMEOUT`, `CANCELLED`, `REFUSED`
+- `amount` (number) - Montant de la transaction
+- `recipientNumber` (string) - Numéro de téléphone du destinataire
+- `serviceCode` (string) - Code du service: `WAVE`, `ORANGE_MONEY`, `MTN_MONEY`, `MOOV_MONEY`
+
+#### Traitement du Webhook
+
+Le webhook effectue les actions suivantes:
+
+1. **Récupère le paiement** via `external_reference` (transaction_id)
+2. **Mappe le statut** TouchPoint vers le statut interne:
+   - `SUCCESSFUL` → `success`
+   - `INITIATED`, `PENDING` → `pending`
+   - `FAILED`, `TIMEOUT`, `CANCELLED`, `REFUSED` → `failed`
+3. **Met à jour le paiement** en base de données avec le nouveau statut
+4. **Met à jour la commande** associée:
+   - Si statut = `success`: met à jour la commande à `completed`
+5. **Stocke les données** du webhook dans `callback_data` pour audit
+
+#### Réponse Attendue (200)
+
+```json
+{
+  "success": true,
+  "message": "Webhook traité avec succès"
+}
+```
+
+#### Cas d'Erreur
+
+**400 - Données Manquantes**
+```json
+{
+  "success": false,
+  "error": "ID de transaction manquant dans le webhook"
+}
+```
+
+**404 - Paiement Non Trouvé**
+```json
+{
+  "success": false,
+  "error": "Paiement non trouvé"
+}
+```
+
+#### Flux Complet de Paiement
+
+```
+1. Client appelle POST /api/payments/initialize
+   ↓
+2. Paiement créé en base (status: pending)
+   ↓
+3. Requête envoyée à TouchPoint
+   ↓
+4. TouchPoint retourne INITIATED
+   ↓
+5. Utilisateur complète le paiement (USSD, app, etc.)
+   ↓
+6. TouchPoint envoie webhook avec statut final
+   ↓
+7. Webhook met à jour paiement et commande
+   ↓
+8. Client peut vérifier le statut via GET /api/payments/status/:order_reference
+```
+
+---
+
+### 5. Vérifier le Statut d'un Paiement
 
 **Endpoint:** `GET /api/payments/status/:order_reference`
 
@@ -946,6 +1130,7 @@ Authorization: Bearer <token>
     "order_reference": "ORD-20250124-ABC12",
     "amount": 1000.00,
     "payment_method": "wave",
+    "payment_phone": "0701020304",
     "status": "success",
     "order_status": "completed",
     "created_at": "2025-01-24T16:30:00.000Z",
@@ -954,13 +1139,34 @@ Authorization: Bearer <token>
 }
 ```
 
+**Champs de réponse:**
+- `payment_id` (integer) - ID du paiement
+- `order_reference` (string) - Référence de la commande
+- `amount` (number) - Montant du paiement
+- `payment_method` (string) - Méthode de paiement utilisée
+- `payment_phone` (string) - Numéro de téléphone utilisé
+- `status` (string) - Statut du paiement: `pending`, `success`, `failed`, `refunded`
+- `order_status` (string) - Statut de la commande associée
+- `created_at` (datetime) - Date de création du paiement
+- `updated_at` (datetime) - Date de dernière mise à jour
+
+#### Réponses d'Erreur
+
+**404 - Aucun Paiement Trouvé**
+```json
+{
+  "success": false,
+  "error": "Aucun paiement trouvé pour cette commande"
+}
+```
+
 ---
 
-### 5. Créer un Paiement
+### 6. Créer un Paiement
 
 **Endpoint:** `POST /api/payments`
 
-**Description:** Crée un nouveau paiement pour une commande.
+**Description:** Crée un nouveau paiement pour une commande (route protégée pour les clients).
 
 **Niveau d'accès:** Client
 
@@ -977,6 +1183,15 @@ Authorization: Bearer <token>
   "status": "pending"
 }
 ```
+
+**Champs:**
+- `order_id` (integer, requis) - ID de la commande
+- `amount` (number, requis) - Montant du paiement
+- `payment_method` (string, requis) - Méthode de paiement
+- `payment_phone` (string, optionnel) - Numéro de téléphone
+- `payment_reference` (string, requis) - Référence unique du paiement
+- `external_reference` (string, optionnel) - Référence externe (ex: ID TouchPoint)
+- `status` (string, optionnel) - Statut initial (défaut: `pending`)
 
 #### Réponse en Cas de Succès (201)
 
@@ -1000,7 +1215,7 @@ Authorization: Bearer <token>
 
 ---
 
-### 6. Liste des Paiements avec Filtres
+### 7. Liste des Paiements avec Filtres
 
 **Endpoint:** `GET /api/payments`
 
@@ -1051,7 +1266,7 @@ Authorization: Bearer <token>
 
 ---
 
-### 7. Mettre à Jour un Paiement
+### 8. Mettre à Jour un Paiement
 
 **Endpoint:** `PUT /api/payments/:id`
 
@@ -1088,9 +1303,9 @@ Authorization: Bearer <token>
 
 ---
 
-### 8. Mettre à Jour le Statut d'un Paiement
+### 9. Mettre à Jour le Statut d'un Paiement
 
-### 8.1 Mettre à Jour le Statut d'un Paiement
+### 9.1 Mettre à Jour le Statut d'un Paiement
 **Endpoint:** `PATCH /api/payments/:id/status`
 
 **Description:** Met à jour uniquement le statut d'un paiement existant.
@@ -1123,7 +1338,7 @@ Authorization: Bearer <token>
 
 ---
 
-### 8.2 Rembourser un Paiement
+### 9.2 Rembourser un Paiement
 **Endpoint:** `POST /api/payments/:id/refund`
 
 **Description:** Effectue le remboursement d'un paiement réussi.
@@ -1155,9 +1370,9 @@ Authorization: Bearer <token>
 
 ---
 
-## 9. Versions d'Application
+## 10. Versions d'Application
 
-### 9.1 Obtenir la Version par Plateforme
+### 10.1 Obtenir la Version par Plateforme
 **Endpoint:** `GET /api/app/version?platform={platform}`
 
 **Description:** Récupère les informations de version pour une plateforme donnée (iOS ou Android).
@@ -1184,7 +1399,7 @@ Authorization: Bearer <token>
 
 ---
 
-### 9.2 Mettre à Jour les Versions
+### 10.2 Mettre à Jour les Versions
 **Endpoint:** `PUT /api/app/version`
 
 **Description:** Met à jour les versions de l'application pour toutes les plateformes.
@@ -1219,7 +1434,7 @@ Authorization: Bearer <token>
 
 ---
 
-### 9.3 Obtenir la Configuration Complète
+### 10.3 Obtenir la Configuration Complète
 **Endpoint:** `GET /api/app/version/config`
 
 **Description:** Récupère la configuration complète des versions (toutes plateformes).
@@ -1244,7 +1459,7 @@ Authorization: Bearer <token>
 
 ---
 
-## 10. codes-d'erreur
+## 11. Codes d'Erreur
 
 ### Codes HTTP Utilisés
 
@@ -1297,9 +1512,9 @@ Authorization: Bearer <token>
 
 ---
 
-## 11. Exemples d'Utilisation
+## 12. Exemples d'Utilisation
 
-### 11.1 Workflow Complet: Commande et Paiement
+### 12.1 Workflow Complet: Commande et Paiement
 
 #### Étape 1: Authentification
 ```bash
@@ -1416,9 +1631,9 @@ GET /api/payments/status/ORD-20250124-ABC12
 
 ---
 
-## 12. Bonnes Pratiques
+## 13. Bonnes Pratiques
 
-### 12.1 Sécurité
+### 13.1 Sécurité
 
 1. **Toujours utiliser HTTPS** en production
 2. **Stocker les tokens JWT de manière sécurisée** (jamais en localStorage pour les données sensibles)
@@ -1426,14 +1641,14 @@ GET /api/payments/status/ORD-20250124-ABC12
 4. **Valider toutes les entrées** côté client ET serveur
 5. **Ne jamais exposer les clés secrètes** dans le code client
 
-### 12.2 Gestion des Erreurs
+### 13.2 Gestion des Erreurs
 
 1. **Toujours vérifier le code de statut HTTP**
 2. **Afficher des messages d'erreur clairs** à l'utilisateur
 3. **Logger les erreurs** pour le debugging
 4. **Implémenter des retry** pour les erreurs temporaires (503, timeout)
 
-### 12.3 Performance
+### 13.3 Performance
 
 1. **Mettre en cache les données statiques** (opérateurs, plans)
 2. **Utiliser la pagination** pour les listes longues
@@ -1442,45 +1657,293 @@ GET /api/payments/status/ORD-20250124-ABC12
 
 ---
 
-## 13. Webhooks
+## 15. Structure du callback_data
 
-### 13.1 Webhook Wave
-**Endpoint:** `POST /api/payments/webhook/wave`
+### Vue d'Ensemble
 
-**Description:** Reçoit les notifications de paiement de Wave.
+Le champ `callback_data` est un objet JSON qui stocke toutes les informations détaillées du paiement, notamment les réponses de TouchPoint et les données des webhooks. Il permet un audit complet et le debugging des transactions.
 
-**Headers requis:**
-- `wave-signature`: Signature HMAC pour vérifier l'authenticité
+### Structure Générale
 
-**Format des données:**
 ```json
 {
-  "type": "payment.successful",
-  "data": {
-    "transaction_id": "20250124123456ORD-20250124-ABC12",
-    "payment_status": "succeeded",
-    "amount": 1000.00,
-    "currency": "XOF",
-    "when_completed": "2025-01-24T12:00:00.000Z"
-  }
+  "initiated_at": "2025-11-18T14:38:39.741Z",
+  "touchpoint_status": "SUCCESSFUL",
+  "touchpoint_response": { /* Réponse complète de TouchPoint */ },
+  "touchpoint_transaction_id": "20251118143839ORD-20251117-70954",
+  "webhook_data": { /* Données du webhook reçu */ },
+  "webhook_received_at": "2025-11-18T14:38:41.827Z"
 }
 ```
 
----
+### Champs Principaux
 
-### 13.2 Webhook TouchPoint
-**Endpoint:** `POST /api/payments/webhook/touchpoint`
+#### 1. **initiated_at** (datetime)
+- **Type:** ISO 8601 datetime string
+- **Description:** Date et heure exactes de l'initialisation du paiement
+- **Exemple:** `"2025-11-18T14:38:39.741Z"`
+- **Utilité:** Tracer le moment du démarrage de la transaction
 
-**Description:** Reçoit les notifications de paiement de TouchPoint (MTN, Orange Money, Moov).
+#### 2. **touchpoint_status** (string)
+- **Type:** String (enum)
+- **Valeurs possibles:** `INITIATED`, `SUCCESSFUL`, `FAILED`, `PENDING`, `TIMEOUT`, `CANCELLED`, `REFUSED`
+- **Description:** Statut retourné par TouchPoint lors de l'initialisation
+- **Exemple:** `"SUCCESSFUL"` ou `"INITIATED"`
+- **Utilité:** Connaître le statut initial avant le webhook
 
-**Format des données:**
+#### 3. **touchpoint_response** (object)
+- **Type:** Object
+- **Description:** Réponse complète retournée par l'API TouchPoint lors de l'initialisation
+- **Contient:**
+  - `status` - Statut de la transaction
+  - `amount` - Montant de la transaction
+  - `fees` - Frais appliqués
+  - `serviceCode` - Code du service (PAIEMENTMARCHANDOMPAYCIDIRECT, PAIEMENTMARCHAND_MTN_CI, etc.)
+  - `idFromClient` - ID envoyé par le client (transaction_id)
+  - `idFromGU` - ID généré par TouchPoint
+  - `numTransaction` - Numéro de transaction formaté
+  - `recipientNumber` - Numéro de téléphone du destinataire
+  - `dateTime` - Timestamp de la transaction
+
+**Exemple complet:**
 ```json
 {
-  "partner_transaction_id": "20250124123456ORD-20250124-ABC12",
+  "fees": 2,
+  "amount": 100,
   "status": "SUCCESSFUL",
-  "amount": 1000.00,
-  "customer_number": "0701020304"
+  "dateTime": 1763386115698,
+  "idFromGU": "1763386115698",
+  "serviceCode": "PAIEMENTMARCHANDOMPAYCIDIRECT",
+  "idFromClient": "20251117132835ORD-20251113-77283",
+  "numTransaction": "MP251117.1328.A58986",
+  "recipientNumber": "0749793994"
 }
+```
+
+#### 4. **touchpoint_transaction_id** (string)
+- **Type:** String
+- **Description:** ID unique de la transaction dans TouchPoint (généralement identique à `external_reference`)
+- **Exemple:** `"20251117132835ORD-20251113-77283"`
+- **Utilité:** Référencer la transaction dans TouchPoint
+
+#### 5. **webhook_data** (object)
+- **Type:** Object
+- **Description:** Données complètes reçues du webhook TouchPoint
+- **Contient:**
+  - `status` - Statut final de la transaction
+  - `message` - Message descriptif (erreur ou succès)
+  - `service_id` - ID du service
+  - `call_back_url` - URL de callback utilisée
+  - `gu_transaction_id` - ID de transaction TouchPoint
+  - `partner_transaction_id` - ID du partenaire (notre transaction_id)
+
+**Exemple pour paiement réussi:**
+```json
+{
+  "status": "SUCCESSFUL",
+  "service_id": "PAIEMENTMARCHANDOMPAYCIDIRECT",
+  "call_back_url": "https://www.kbine-mobile.com/api/payments/webhook/touchpoint",
+  "gu_transaction_id": "1763386115698",
+  "partner_transaction_id": "20251117132835ORD-20251113-77283"
+}
+```
+
+**Exemple pour paiement échoué:**
+```json
+{
+  "status": "FAILED",
+  "message": "[22] Invalid transaction. Please try again.",
+  "commission": 0,
+  "service_id": "CI_PAIEMENTWAVE_TP",
+  "call_back_url": "https://www.kbine-mobile.com/api/payments/webhook/touchpoint",
+  "gu_transaction_id": "1763476720407",
+  "partner_transaction_id": "20251118143839ORD-20251117-70954"
+}
+```
+
+#### 6. **webhook_received_at** (datetime)
+- **Type:** ISO 8601 datetime string
+- **Description:** Date et heure de réception du webhook
+- **Exemple:** `"2025-11-18T14:38:41.827Z"`
+- **Utilité:** Tracer le délai entre initialisation et notification
+
+#### 7. **deleted** (boolean) - *Optionnel*
+- **Type:** Boolean
+- **Description:** Indique si le paiement a été supprimé (soft delete)
+- **Valeur:** `true` si supprimé
+- **Utilité:** Identifier les paiements annulés
+
+#### 8. **deleted_at** (datetime) - *Optionnel*
+- **Type:** ISO 8601 datetime string
+- **Description:** Date et heure de la suppression
+- **Exemple:** `"2025-11-17T13:42:06.456Z"`
+- **Utilité:** Tracer quand le paiement a été annulé
+
+#### 9. **notes** (string) - *Optionnel*
+- **Type:** String
+- **Description:** Notes ajoutées lors de la suppression ou mise à jour
+- **Exemple:** `"Paiement annulé/supprimé le 2025-11-17T13:42:06.456Z"`
+- **Utilité:** Audit et traçabilité
+
+### Cas d'Utilisation Réels
+
+#### Cas 1: Paiement Réussi avec Webhook
+```json
+{
+  "initiated_at": "2025-11-17T13:28:37.854Z",
+  "webhook_data": {
+    "status": "SUCCESSFUL",
+    "service_id": "PAIEMENTMARCHANDOMPAYCIDIRECT",
+    "call_back_url": "https://www.kbine-mobile.com/api/payments/webhook/touchpoint",
+    "gu_transaction_id": "1763386115698",
+    "partner_transaction_id": "20251117132835ORD-20251113-77283"
+  },
+  "touchpoint_status": "SUCCESSFUL",
+  "touchpoint_response": {
+    "fees": 2,
+    "amount": 100,
+    "status": "SUCCESSFUL",
+    "dateTime": 1763386115698,
+    "idFromGU": "1763386115698",
+    "serviceCode": "PAIEMENTMARCHANDOMPAYCIDIRECT",
+    "idFromClient": "20251117132835ORD-20251113-77283",
+    "numTransaction": "MP251117.1328.A58986",
+    "recipientNumber": "0749793994"
+  },
+  "webhook_received_at": "2025-11-17T13:28:38.222Z",
+  "touchpoint_transaction_id": "20251117132835ORD-20251113-77283"
+}
+```
+
+**Interprétation:**
+- ✅ Paiement initialisé à 13:28:37
+- ✅ TouchPoint a retourné SUCCESSFUL
+- ✅ Webhook reçu à 13:28:38 (1 seconde plus tard)
+- ✅ Montant: 100 FCFA avec 2 FCFA de frais
+- ✅ Numéro de transaction: MP251117.1328.A58986
+
+#### Cas 2: Paiement Échoué
+```json
+{
+  "initiated_at": "2025-11-18T14:38:39.741Z",
+  "webhook_data": {
+    "status": "FAILED",
+    "message": "[22] Invalid transaction. Please try again.",
+    "commission": 0,
+    "service_id": "CI_PAIEMENTWAVE_TP",
+    "call_back_url": "https://www.kbine-mobile.com/api/payments/webhook/touchpoint",
+    "gu_transaction_id": "1763476720407",
+    "partner_transaction_id": "20251118143839ORD-20251117-70954"
+  },
+  "touchpoint_status": "FAILED",
+  "webhook_received_at": "2025-11-18T14:38:41.827Z"
+}
+```
+
+**Interprétation:**
+- ❌ Paiement échoué
+- ❌ Erreur: "[22] Invalid transaction. Please try again."
+- ❌ Aucuns frais appliqués (commission: 0)
+- ⏱️ Webhook reçu 2 secondes après initialisation
+
+#### Cas 3: Paiement En Attente (Pas de Webhook)
+```json
+{
+  "initiated_at": "2025-11-17T12:49:08.292Z",
+  "touchpoint_status": "INITIATED",
+  "touchpoint_response": {
+    "fees": 2,
+    "amount": 100,
+    "status": "INITIATED",
+    "dateTime": 1763383746775,
+    "idFromGU": "1763383746775",
+    "serviceCode": "PAIEMENTMARCHAND_MTN_CI",
+    "idFromClient": "20251117124906ORD-20251113-77283",
+    "numTransaction": "1763383746775",
+    "recipientNumber": "0566955943"
+  },
+  "touchpoint_transaction_id": "20251117124906ORD-20251113-77283"
+}
+```
+
+**Interprétation:**
+- ⏳ Paiement en attente (INITIATED)
+- ⏳ Aucun webhook reçu encore
+- 📱 Utilisateur doit compléter le paiement via USSD/App
+- 🔄 Statut peut changer quand le webhook arrive
+
+#### Cas 4: Paiement Supprimé (Soft Delete)
+```json
+{
+  "notes": "\nPaiement annulé/supprimé le 2025-11-17T13:42:06.456Z",
+  "deleted": true,
+  "deleted_at": "2025-11-17T13:42:06.456Z",
+  "initiated_at": "2025-11-17T12:00:35.837Z",
+  "touchpoint_status": "SUCCESSFUL",
+  "touchpoint_response": {
+    "fees": 2,
+    "amount": 100,
+    "status": "SUCCESSFUL",
+    "dateTime": 1763380833411,
+    "idFromGU": "1763380833411",
+    "serviceCode": "PAIEMENTMARCHANDOMPAYCIDIRECT",
+    "idFromClient": "20251117120032ORD-20251113-77283",
+    "numTransaction": "MP251117.1200.D16237",
+    "recipientNumber": "0749793994"
+  },
+  "touchpoint_transaction_id": "20251117120032ORD-20251113-77283"
+}
+```
+
+**Interprétation:**
+- 🗑️ Paiement supprimé (soft delete)
+- 📝 Raison: "Paiement annulé/supprimé le 2025-11-17T13:42:06.456Z"
+- ⚠️ Statut du paiement: `failed` (marqué comme échoué)
+- 📊 Les données originales sont conservées pour audit
+
+### Codes d'Erreur TouchPoint
+
+| Code | Message | Cause |
+|------|---------|-------|
+| [22] | Invalid transaction. Please try again. | Transaction invalide ou numéro incorrect |
+| [1] | Insufficient funds | Solde insuffisant |
+| [2] | Transaction timeout | Timeout de la transaction |
+| [3] | Invalid phone number | Numéro de téléphone invalide |
+| [4] | Service not available | Service indisponible |
+
+### Utilisation du callback_data
+
+#### Pour le Debugging
+```javascript
+// Vérifier le message d'erreur exact
+const errorMessage = payment.callback_data.webhook_data?.message;
+console.log('Erreur:', errorMessage);
+```
+
+#### Pour l'Audit
+```javascript
+// Tracer le flux complet
+const timeline = {
+  initiated: payment.callback_data.initiated_at,
+  webhook_received: payment.callback_data.webhook_received_at,
+  duration_ms: new Date(payment.callback_data.webhook_received_at) - 
+               new Date(payment.callback_data.initiated_at)
+};
+```
+
+#### Pour la Réconciliation
+```javascript
+// Vérifier les montants et frais
+const amount = payment.callback_data.touchpoint_response?.amount;
+const fees = payment.callback_data.touchpoint_response?.fees;
+const total = amount + fees;
+```
+
+#### Pour le Suivi Client
+```javascript
+// Obtenir le numéro de transaction formaté
+const transactionNumber = payment.callback_data.touchpoint_response?.numTransaction;
+// Exemple: "MP251117.1328.A58986"
 ```
 
 ---
