@@ -1126,13 +1126,61 @@ Le webhook effectue les actions suivantes:
 {
   "success": true,
   "data": {
-    "status": "success"
+    "status": "success",
+    "payments": [
+      {
+        "id": 45,
+        "amount": 1000.00,
+        "payment_method": "wave",
+        "payment_phone": "0701020304",
+        "payment_reference": "PAY-20250124-ABC12",
+        "external_reference": "20250124123456ORD-20250124-ABC12",
+        "status": "success",
+        "callback_data": {
+          "initiated_at": "2025-01-24T16:30:00.000Z",
+          "touchpoint_status": "SUCCESSFUL",
+          "touchpoint_response": {
+            "fees": 2,
+            "amount": 1000,
+            "status": "SUCCESSFUL",
+            "dateTime": 1737723000000,
+            "idFromGU": "1737723000000",
+            "serviceCode": "CI_PAIEMENTWAVE_TP",
+            "idFromClient": "20250124123456ORD-20250124-ABC12",
+            "numTransaction": "WAVE250124.1630.ABC12",
+            "recipientNumber": "0701020304"
+          },
+          "webhook_data": {
+            "status": "SUCCESSFUL",
+            "service_id": "CI_PAIEMENTWAVE_TP",
+            "call_back_url": "https://www.kbine-mobile.com/api/payments/webhook/touchpoint",
+            "gu_transaction_id": "1737723000000",
+            "partner_transaction_id": "20250124123456ORD-20250124-ABC12"
+          },
+          "webhook_received_at": "2025-01-24T16:30:02.000Z",
+          "touchpoint_transaction_id": "20250124123456ORD-20250124-ABC12"
+        },
+        "created_at": "2025-01-24T16:30:00.000Z",
+        "updated_at": "2025-01-24T16:30:02.000Z"
+      }
+    ]
   }
 }
 ```
 
 **Champs de réponse:**
-- `status` (string) - Statut du paiement: `pending`, `success`, `failed`, `refunded`
+ - `status` (string) - Statut du paiement: `pending`, `success`, `failed`, `refunded`
+ - `payments` (array) - Tableau contenant TOUS les détails du paiement:
+   - `id` (integer) - ID du paiement
+   - `amount` (number) - Montant du paiement
+   - `payment_method` (string) - Méthode utilisée
+   - `payment_phone` (string) - Numéro de téléphone
+   - `payment_reference` (string) - Référence du paiement
+   - `external_reference` (string) - Référence externe TouchPoint
+   - `status` (string) - Statut du paiement
+   - `callback_data` (object) - **Données complètes du webhook et de TouchPoint** (voir section "Structure du callback_data")
+   - `created_at` (datetime) - Date de création
+   - `updated_at` (datetime) - Date de dernière mise à jour
 
 
 #### Réponses d'Erreur

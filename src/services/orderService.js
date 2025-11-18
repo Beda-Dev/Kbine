@@ -167,7 +167,9 @@ const findById = async (orderId) => {
                 p.created_at as plan_created_at,
                 pay.id as payment_id, pay.amount as payment_amount,
                 pay.payment_method, pay.payment_phone, pay.payment_reference,
-                pay.status as payment_status, pay.created_at as payment_created_at
+                pay.external_reference, pay.status as payment_status, 
+                pay.callback_data, pay.created_at as payment_created_at,
+                pay.updated_at as payment_updated_at
             FROM orders o
             LEFT JOIN users u ON o.user_id = u.id
             LEFT JOIN plans p ON o.plan_id = p.id
@@ -216,7 +218,7 @@ const findById = async (orderId) => {
             };
         }
 
-        // Ajouter le paiement si présent
+        // Ajouter le paiement si présent (TOUS les champs)
         if (order.payment_id) {
             result.payments = [{
                 id: order.payment_id,
@@ -224,8 +226,11 @@ const findById = async (orderId) => {
                 payment_method: order.payment_method,
                 payment_phone: order.payment_phone,
                 payment_reference: order.payment_reference,
+                external_reference: order.external_reference,
                 status: order.payment_status,
-                created_at: order.payment_created_at
+                callback_data: order.callback_data ? (typeof order.callback_data === 'string' ? JSON.parse(order.callback_data) : order.callback_data) : null,
+                created_at: order.payment_created_at,
+                updated_at: order.payment_updated_at
             }];
         }
 
@@ -280,7 +285,9 @@ const findByReference = async (orderReference) => {
                 p.created_at as plan_created_at,
                 pay.id as payment_id, pay.amount as payment_amount,
                 pay.payment_method, pay.payment_phone, pay.payment_reference,
-                pay.status as payment_status, pay.created_at as payment_created_at
+                pay.external_reference, pay.status as payment_status, 
+                pay.callback_data, pay.created_at as payment_created_at,
+                pay.updated_at as payment_updated_at
             FROM orders o
             LEFT JOIN users u ON o.user_id = u.id
             LEFT JOIN plans p ON o.plan_id = p.id
@@ -324,7 +331,7 @@ const findByReference = async (orderReference) => {
             };
         }
 
-        // Ajouter le paiement si présent
+        // Ajouter le paiement si présent (TOUS les champs)
         if (order.payment_id) {
             result.payments = [{
                 id: order.payment_id,
@@ -332,8 +339,11 @@ const findByReference = async (orderReference) => {
                 payment_method: order.payment_method,
                 payment_phone: order.payment_phone,
                 payment_reference: order.payment_reference,
+                external_reference: order.external_reference,
                 status: order.payment_status,
-                created_at: order.payment_created_at
+                callback_data: order.callback_data ? (typeof order.callback_data === 'string' ? JSON.parse(order.callback_data) : order.callback_data) : null,
+                created_at: order.payment_created_at,
+                updated_at: order.payment_updated_at
             }];
         }
 
