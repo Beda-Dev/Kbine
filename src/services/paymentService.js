@@ -1,6 +1,6 @@
 /**
  * Service de gestion des paiements
- * ✅ VERSION CORRIGÉE - TOUS LES PAIEMENTS PASSENT PAR TOUCHPOINT
+ * ✅ VERSION AMÉLIORÉE - Support complet Wave avec return_url, cancel_url, partner_name
  */
 
 const db = require('../config/database');
@@ -166,7 +166,7 @@ const updatePayment = async (id, updateData) => {
         // Valider payment_phone si fourni
         if (updateData.payment_phone) {
             const phoneRegex = /^0[0-9]{9}$/;
-            if (!phoneRegex.test(updateData.payment_phone.replace(/[\s\-\+]/g, ''))) {
+            if (!updateData.payment_phone.replace(/[\s\-\+]/g, '').match(phoneRegex)) {
                 throw new Error('Numéro de téléphone de paiement invalide');
             }
         }
@@ -625,10 +625,20 @@ const generateTransactionId = (orderReference) => {
 };
 
 /**
- * ✅ CORRIGÉ: Initialiser un paiement - TOUS PASSENT PAR TOUCHPOINT
+ * ✅ AMÉLIORÉ: Initialiser un paiement avec support complet Wave (return_url, cancel_url, partner_name)
  */
 const initializePayment = async (paymentData) => {
-    const { order_reference, amount, payment_phone, payment_method, otp } = paymentData;
+    const { 
+        order_reference, 
+        amount, 
+        payment_phone, 
+        payment_method, 
+        otp,
+        return_url,
+        cancel_url,
+        error_url
+    } = paymentData;
+    
     console.log('[PaymentService] initializePayment - Début', JSON.stringify(paymentData, null, 2));
 
     try {
@@ -636,6 +646,8 @@ const initializePayment = async (paymentData) => {
             order_reference,
             amount,
             payment_method,
+            has_return_url: !!return_url,
+            has_cancel_url: !!cancel_url
         });
 
         // 1. Vérifier que la commande existe
@@ -680,7 +692,12 @@ const initializePayment = async (paymentData) => {
                 payment_reference,
                 transaction_id,
                 "pending",
-                JSON.stringify({ initiated_at: new Date().toISOString() }),
+                JSON.stringify({ 
+                    initiated_at: new Date().toISOString(),
+                    return_url: return_url || null,
+                    cancel_url: cancel_url || null,
+                    error_url: error_url || null
+                }),
             ]
         );
         console.log('[PaymentService] initializePayment - Insertion paiement ID', result?.insertId);
@@ -692,45 +709,77 @@ const initializePayment = async (paymentData) => {
             transaction_id,
         });
 
-        // ✅ 6. TOUS LES PAIEMENTS PASSENT PAR TOUCHPOINT (incluant Wave)
+        // 6. Appeler TouchPoint avec les paramètres appropriés selon la méthode
         console.log('[PaymentService] initializePayment - Appel TouchPoint pour', { payment_method });
         
-        const paymentResult = await touchpointService.createTransaction({
+        const touchpointParams = {
             amount,
             payment_phone,
             payment_method,
             transaction_id,
-            otp, // OTP requis uniquement pour Orange Money
-        });
+            order_reference,
+            otp // OTP requis uniquement pour Orange Money
+        };
+
+        // ✅ Pour Wave, ajouter les URLs de callback (comme dans PHP)
+        if (payment_method === 'wave') {
+            touchpointParams.return_url = return_url;
+            touchpointParams.cancel_url = cancel_url;
+            touchpointParams.error_url = error_url || cancel_url;
+            
+            console.log('[PaymentService] initializePayment - Wave avec URLs de callback', {
+                return_url: touchpointParams.return_url,
+                cancel_url: touchpointParams.cancel_url
+            });
+        }
+        
+        const paymentResult = await touchpointService.createTransaction(touchpointParams);
         
         console.log('[PaymentService] initializePayment - Résultat TouchPoint', JSON.stringify(paymentResult, null, 2));
 
         // 7. Mettre à jour avec les données TouchPoint
+        const callbackData = {
+            initiated_at: new Date().toISOString(),
+            touchpoint_transaction_id: paymentResult.touchpoint_transaction_id,
+            touchpoint_status: paymentResult.status,
+            touchpoint_response: paymentResult.raw_response,
+        };
+
+        // ✅ Conserver les URLs pour Wave
+        if (payment_method === 'wave') {
+            callbackData.return_url = return_url;
+            callbackData.cancel_url = cancel_url;
+            callbackData.error_url = error_url;
+        }
+
         await db.execute(
             `UPDATE payments SET callback_data = ? WHERE id = ?`,
-            [
-                JSON.stringify({
-                    initiated_at: new Date().toISOString(),
-                    touchpoint_transaction_id: paymentResult.touchpoint_transaction_id,
-                    touchpoint_status: paymentResult.status,
-                    touchpoint_response: paymentResult.raw_response,
-                }),
-                paymentId,
-            ]
+            [JSON.stringify(callbackData), paymentId]
         );
         console.log('[PaymentService] initializePayment - Update callback TouchPoint OK');
 
-        // 8. Retourner la réponse
-        return {
+        // 8. Retourner la réponse enrichie
+        const response = {
             success: true,
             payment_id: paymentId,
             transaction_id,
             payment_method,
             status: paymentResult.status,
             message: paymentResult.message,
-            // Pour Wave via TouchPoint, pas de checkout_url direct
-            // L'utilisateur reçoit une notification USSD
         };
+
+        // ✅ Pour Wave, inclure les URLs de retour dans la réponse
+        if (payment_method === 'wave') {
+            response.return_url = paymentResult.return_url || return_url;
+            response.cancel_url = paymentResult.cancel_url || cancel_url;
+            
+            // Ajouter les frais si présents
+            if (paymentResult.fees) {
+                response.fees = paymentResult.fees;
+            }
+        }
+
+        return response;
     } catch (error) {
         logger.error("[PaymentService] Erreur initialisation paiement", {
             error: error.message,
@@ -740,11 +789,6 @@ const initializePayment = async (paymentData) => {
         throw error;
     }
 };
-
-/**
- * ✅ SUPPRIMÉ: processWaveWebhook (Wave passe maintenant par TouchPoint)
- * Les webhooks Wave ne sont plus utilisés directement
- */
 
 /**
  * Traiter le webhook TouchPoint - VERSION CORRIGÉE
@@ -884,15 +928,7 @@ const checkPaymentStatus = async (orderReference) => {
         console.log('[PaymentService] checkPaymentStatus - Paiement', JSON.stringify(payment, null, 2));
 
         const response = {
-            // payment_id: payment.id,
-            // order_reference: payment.order_reference,
-            // amount: payment.amount,
-            // payment_method: payment.payment_method,
-            // payment_phone: payment.payment_phone,
             status: payment.status
-            // order_status: payment.order_status,
-            // created_at: payment.created_at,
-            // updated_at: payment.updated_at,
         };
         console.log('[PaymentService] checkPaymentStatus - Réponse', JSON.stringify(response, null, 2));
         return response;

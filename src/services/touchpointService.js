@@ -161,8 +161,7 @@ class TouchPointService {
         },
         headers: {
           "Content-Type": "application/json",
-        },
-        timeout: 30000 // 30 secondes comme dans PHP
+        }
       })
 
       console.log('[TouchPointService] Réponse de l\'API:', JSON.stringify(response.data, null, 2))
