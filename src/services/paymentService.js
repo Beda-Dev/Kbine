@@ -759,25 +759,21 @@ const initializePayment = async (paymentData) => {
         );
         console.log('[PaymentService] initializePayment - Update callback TouchPoint OK');
 
-        // 8. Retourner la réponse enrichie
+        // 8. Retourner la réponse enrichie avec TOUTES les données de paymentResult
         const response = {
             success: true,
             payment_id: paymentId,
             transaction_id,
             payment_method,
-            status: paymentResult.status,
-            message: paymentResult.message,
+            amount,
+            ...paymentResult,  // ✅ Inclure TOUTES les données de paymentResult
         };
 
-        // ✅ Pour Wave, inclure les URLs de retour dans la réponse
+        // ✅ Pour Wave, ajouter les URLs de retour si pas déjà présentes
         if (payment_method === 'wave') {
-            response.return_url = paymentResult.return_url || return_url;
-            response.cancel_url = paymentResult.cancel_url || cancel_url;
-            
-            // Ajouter les frais si présents
-            if (paymentResult.fees) {
-                response.fees = paymentResult.fees;
-            }
+            response.return_url = response.return_url || return_url;
+            response.cancel_url = response.cancel_url || cancel_url;
+            response.error_url = response.error_url || error_url || cancel_url;
         }
 
         return response;

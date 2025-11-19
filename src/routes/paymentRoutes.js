@@ -13,7 +13,6 @@
 const express = require('express');
 const router = express.Router();
 const paymentController = require('../controllers/paymentController');
-const paymentReturnController = require('../controllers/paymentReturnController');
 const { 
     createPaymentValidation,
     updatePaymentValidation,
@@ -92,20 +91,6 @@ router.get('/methods', (req, res) => {
         message: 'Tous les paiements passent par TouchPoint'
     });
 });
-
-/**
- * @route   GET /payments/return/:orderReference/successful
- * @desc    Page de succès du paiement Wave
- * @access  Public
- */
-router.get('/return/:orderReference/successful', paymentReturnController.paymentSuccessful);
-
-/**
- * @route   GET /payments/return/:orderReference/failed
- * @desc    Page d'échec du paiement Wave
- * @access  Public
- */
-router.get('/return/:orderReference/failed', paymentReturnController.paymentFailed);
 
 // ==========================================
 // SECTION 2: MIDDLEWARE D'AUTHENTIFICATION

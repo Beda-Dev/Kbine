@@ -204,6 +204,15 @@ app.get('/health', (req, res) => {
   });
 });
 
+/**
+ * Routes publiques de retour de paiement (Wave)
+ * Accessibles directement sans /api/
+ * Utilisees pour les redirections depuis TouchPoint
+ */
+const paymentReturnController = require('./controllers/paymentReturnController');
+app.get('/payments/return/:orderReference/successful', paymentReturnController.paymentSuccessful);
+app.get('/payments/return/:orderReference/failed', paymentReturnController.paymentFailed);
+
 // ===============================
 // GESTION DES ERREURS
 // ===============================
