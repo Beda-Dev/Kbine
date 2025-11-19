@@ -395,7 +395,9 @@ const findAll = async (filters = {}) => {
                     p.created_at as plan_created_at
              FROM orders o
              LEFT JOIN users u ON o.user_id = u.id
-             LEFT JOIN plans p ON o.plan_id = p.id`;
+             LEFT JOIN plans p ON o.plan_id = p.id
+             INNER JOIN payments pay ON o.id = pay.order_id
+             WHERE pay.status IN ('success', 'failed')`;
 
         const params = [];
         const conditions = [];
@@ -414,7 +416,7 @@ const findAll = async (filters = {}) => {
         }
 
         if (conditions.length > 0) {
-            query += ' WHERE ' + conditions.join(' AND ');
+            query += ' AND ' + conditions.join(' AND ');
         }
 
         query += ' ORDER BY o.created_at DESC';
