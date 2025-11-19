@@ -218,8 +218,8 @@ const findById = async (orderId) => {
             };
         }
 
-        // Ne pas retourner la commande si aucun paiement ou si le paiement est en attente/autre que success/failed
-        if (!order.payment_id || !['success','failed'].includes(order.payment_status)) {
+        // Ne pas retourner la commande si aucun paiement ou si le paiement est en attente/autre que success
+        if (!order.payment_id || !['success'].includes(order.payment_status)) {
             console.log('[OrderService] [findById] Paiement absent ou statut non autorisé', { orderId, payment_status: order.payment_status });
             return null;
         }
@@ -335,8 +335,8 @@ const findByReference = async (orderReference) => {
             };
         }
 
-        // Ne pas retourner la commande si aucun paiement ou si le paiement est en attente/autre que success/failed
-        if (!order.payment_id || !['success','failed'].includes(order.payment_status)) {
+        // Ne pas retourner la commande si aucun paiement ou si le paiement est en attente/autre que success
+        if (!order.payment_id || !['success'].includes(order.payment_status)) {
             console.log('[OrderService] [findByReference] Paiement absent ou statut non autorisé', { orderReference, payment_status: order.payment_status });
             return null;
         }
@@ -410,7 +410,7 @@ const findAll = async (filters = {}) => {
              LEFT JOIN users u ON o.user_id = u.id
              LEFT JOIN plans p ON o.plan_id = p.id
              INNER JOIN payments pay ON o.id = pay.order_id
-             WHERE pay.status IN ('success', 'failed')`;
+             WHERE pay.status IN ('success')`;
 
         const params = [];
         const conditions = [];
