@@ -10,22 +10,52 @@ const { getSuccessPage, getFailedPage } = require('../templates/paymentPages');
 
 /**
  * Récupérer les informations de paiement par order_reference
+ * Amélioration: Cherche d'abord via order_reference, puis avec retry si nécessaire
  */
 const getPaymentByOrderReference = async (orderReference) => {
     try {
+        console.log('[getPaymentByOrderReference] Recherche pour:', orderReference);
+        
         const [payments] = await db.execute(
-            `SELECT p.*, o.amount as order_amount 
+            `SELECT p.*, o.amount as order_amount, o.id as order_id
              FROM payments p
-             LEFT JOIN orders o ON p.order_id = o.id
+             INNER JOIN orders o ON p.order_id = o.id
              WHERE o.order_reference = ?
              ORDER BY p.created_at DESC
              LIMIT 1`,
             [orderReference]
         );
         
-        return payments.length > 0 ? payments[0] : null;
+        console.log('[getPaymentByOrderReference] Résultats trouvés:', payments?.length || 0);
+        if (payments && payments.length > 0) {
+            console.log('[getPaymentByOrderReference] Paiement trouvé:', {
+                id: payments[0].id,
+                status: payments[0].status,
+                amount: payments[0].amount
+            });
+            return payments[0];
+        }
+        
+        // Si aucun paiement trouvé, vérifier que la commande existe au moins
+        console.log('[getPaymentByOrderReference] Aucun paiement trouvé, vérification de la commande');
+        const [orders] = await db.execute(
+            `SELECT id, order_reference FROM orders WHERE order_reference = ?`,
+            [orderReference]
+        );
+        
+        if (orders && orders.length > 0) {
+            console.warn('[getPaymentByOrderReference] Commande existe mais pas de paiement trouvé:', orderReference);
+            return null; // Commande existe mais paiement not found
+        }
+        
+        console.warn('[getPaymentByOrderReference] Ni commande ni paiement trouvé pour:', orderReference);
+        return null;
     } catch (error) {
-        logger.error('Erreur récupération paiement', { error: error.message });
+        console.error('[getPaymentByOrderReference] Erreur SQL:', error);
+        logger.error('Erreur récupération paiement', { 
+            error: error.message,
+            orderReference 
+        });
         return null;
     }
 };
@@ -38,29 +68,73 @@ const getPaymentByOrderReference = async (orderReference) => {
 const paymentSuccessful = async (req, res) => {
     try {
         const { orderReference } = req.params;
-        console.log('[PaymentReturnController] Succès', { orderReference });
+        console.log('[PaymentReturnController] Succès - orderReference:', orderReference);
         
         const payment = await getPaymentByOrderReference(orderReference);
         
         if (!payment) {
-            return res.status(404).send(getErrorPage('Paiement non trouvé', 'Nous n\'avons pas pu trouver votre paiement.'));
+            console.warn('[PaymentReturnController] Paiement non trouvé pour:', orderReference);
+            
+            // Afficher la page de succès même si le paiement n'est pas encore trouvé
+            // (peut être un problème de timing avec le webhook)
+            return res.send(getSuccessPage({
+                orderReference,
+                amount: 0,
+                paymentMethod: 'unknown',
+                transactionId: 'En attente de confirmation',
+                fees: 0,
+                timestamp: new Date().toLocaleString('fr-CI')
+            }));
         }
         
-        const callbackData = payment.callback_data ? JSON.parse(payment.callback_data) : {};
+        console.log('[PaymentReturnController] Données du paiement:', {
+            id: payment.id,
+            payment_method: payment.payment_method,
+            amount: payment.amount,
+            status: payment.status,
+            order_amount: payment.order_amount,
+            has_callback: !!payment.callback_data
+        });
         
-        const html = getSuccessPage({
+        let callbackData = {};
+        try {
+            if (payment.callback_data) {
+                if (typeof payment.callback_data === 'string') {
+                    callbackData = JSON.parse(payment.callback_data);
+                } else {
+                    callbackData = payment.callback_data;
+                }
+            }
+        } catch (parseError) {
+            console.error('[PaymentReturnController] Erreur parsing callback_data:', parseError);
+            callbackData = {};
+        }
+        
+        const htmlData = {
             orderReference,
             amount: payment.order_amount || payment.amount,
-            paymentMethod: payment.payment_method,
-            transactionId: payment.external_reference,
-            fees: callbackData.touchpoint_response?.fees || 0,
-            timestamp: new Date(payment.created_at).toLocaleString('fr-CI')
-        });
+            paymentMethod: payment.payment_method || 'unknown',
+            transactionId: payment.external_reference || payment.id || 'unknown',
+            fees: callbackData?.touchpoint_response?.fees || callbackData?.fees || 0,
+            timestamp: payment.created_at 
+                ? new Date(payment.created_at).toLocaleString('fr-CI')
+                : new Date().toLocaleString('fr-CI')
+        };
+        
+        console.log('[PaymentReturnController] Données pour la page HTML:', htmlData);
+        
+        const html = getSuccessPage(htmlData);
         
         res.send(html);
     } catch (error) {
-        logger.error('Erreur page succès', { error: error.message });
-        res.status(500).send(getErrorPage('Erreur', 'Une erreur est survenue.'));
+        console.error('[PaymentReturnController] Erreur page succès:', error);
+        console.error('[PaymentReturnController] Stack:', error.stack);
+        logger.error('Erreur page succès', { 
+            error: error.message, 
+            stack: error.stack,
+            orderReference: req.params.orderReference 
+        });
+        res.status(500).send(getErrorPage('Erreur', 'Une erreur est survenue lors du traitement de votre paiement. Nous enquêtons sur cette situation.'));
     }
 };
 
@@ -187,7 +261,7 @@ const getErrorPage = (title, message) => {
         <div class="icon"><i class="fas fa-exclamation-triangle"></i></div>
         <h1>${title}</h1>
         <p>${message}</p>
-        <button class="btn" onclick="window.location.href='/'">Retour à l'accueil</button>
+        
     </div>
 </body>
 </html>

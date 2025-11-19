@@ -4,11 +4,23 @@
  */
 
 /**
+ * Obtenir le label de la méthode de paiement
+ */
+const getPaymentMethodLabel = (method) => {
+    const labels = {
+        wave: 'Wave',
+        orange_money: 'Orange Money',
+        mtn_money: 'MTN Money',
+        moov_money: 'Moov Money'
+    };
+    return labels[method] || (method === 'unknown' ? 'Paiement en cours de confirmation' : 'Paiement Mobile');
+};
+
+/**
  * Générer la page HTML de succès
  */
 const getSuccessPage = (data) => {
     const { orderReference, amount, paymentMethod, transactionId, fees, timestamp } = data;
-    const { getPaymentMethodIcon, getPaymentMethodLabel } = require('../controllers/paymentReturnController');
     
     return `
 <!DOCTYPE html>
@@ -254,11 +266,7 @@ const getSuccessPage = (data) => {
                 </div>
             </div>
         </div>
-        <div class="footer">
-            <p style="margin-top: 20px; color: #999; font-size: 12px;">
-                Un email de confirmation a été envoyé.
-            </p>
-        </div>
+
     </div>
 </body>
 </html>
@@ -270,7 +278,6 @@ const getSuccessPage = (data) => {
  */
 const getFailedPage = (data) => {
     const { orderReference, amount, paymentMethod, transactionId, reason, timestamp } = data;
-    const { getPaymentMethodLabel } = require('../controllers/paymentReturnController');
     
     return `
 <!DOCTYPE html>
