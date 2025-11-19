@@ -13,6 +13,7 @@ const paymentConfig = {
     agencyCode: process.env.TOUCHPOINT_AGENCY_CODE || 'your_agency_code',
     loginAgent: process.env.TOUCHPOINT_LOGIN_AGENT || 'your_login_agent',
     passwordAgent: process.env.TOUCHPOINT_PASSWORD_AGENT || 'your_password_agent',
+    partnerName: process.env.TOUCHPOINT_PARTNER_NAME || 'your_partner_name',
 
     // Codes de service TouchPoint
     serviceCodes: {
@@ -24,7 +25,7 @@ const paymentConfig = {
   },
 
   // URL de l'application pour les callbacks
-  appUrl: process.env.APP_URL || "https://www.kbine-mobile.com",
+  appUrl: process.env.APP_URL,
 
   // Statuts de paiement
   paymentStatus: {
@@ -45,6 +46,7 @@ console.log('[PaymentConfig] Chargement configuration', {
     loginAgent: paymentConfig.touchpoint.loginAgent,
     passwordAgent_len: process.env.TOUCHPOINT_PASSWORD_AGENT ? process.env.TOUCHPOINT_PASSWORD_AGENT.length : 0,
     agencyCode: paymentConfig.touchpoint.agencyCode,
+    partnerName: paymentConfig.touchpoint.partnerName,
     serviceCodes: paymentConfig.touchpoint.serviceCodes,
   },
   appUrl: paymentConfig.appUrl,
