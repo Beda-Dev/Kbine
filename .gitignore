@@ -18,6 +18,7 @@ Dockerfile
 Dockerfile
 guide ngrok.md
 GUIDE_DEMARRAGE.md
+test-touchpoint.js
 
 # ===============================
 # ENVIRONMENT VARIABLES

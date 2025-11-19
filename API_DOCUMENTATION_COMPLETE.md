@@ -1,18 +1,51 @@
 # Documentation Complète de l'API Kbine Backend
 
-## ✅ Mise à Jour Importante - Version TouchPoint
+## ✅ Mise à Jour Importante - Version TouchPoint Améliorée
 
 **Date:** Janvier 2025
 
-**Changement Principal:** Tous les paiements passent maintenant par **TouchPoint** (Wave, MTN Money, Orange Money, Moov Money).
+**Changement Principal:** Tous les paiements passent maintenant par **TouchPoint** (Wave, MTN Money, Orange Money, Moov Money) avec support complet des URLs de callback pour Wave.
 
 ### Résumé des Changements
 
 - ✅ **Wave** passe maintenant par TouchPoint (plus de webhook Wave direct)
+- ✅ **Support des URLs de callback** pour Wave: `return_url`, `cancel_url`, `error_url`
 - ✅ **MTN Money**, **Orange Money**, **Moov Money** via TouchPoint
 - ✅ **Webhook unifié** pour tous les paiements: `POST /api/payments/webhook/touchpoint`
 - ✅ **Initialisation simplifiée** via `POST /api/payments/initialize`
 - ✅ **Flux complet de paiement** documenté avec diagramme
+- ✅ **callback_data enrichi** avec toutes les données TouchPoint et webhook
+- ✅ **Validations Joi** complètes pour tous les paramètres
+- ✅ **Gestion d'erreurs** détaillée et cohérente
+- ✅ **Idempotence** du webhook (pas de doublon en cas de renvoi)
+
+### Améliorations Techniques
+
+#### 1. **Enrichissement du callback_data**
+Le champ `callback_data` inclut maintenant:
+- Toutes les données de `paymentResult` via spread operator
+- Réponse complète de TouchPoint
+- Données du webhook
+- URLs de callback (Wave)
+- Timestamps d'initialisation et de réception du webhook
+
+#### 2. **Validation Robuste**
+- Validation Joi pour tous les champs
+- Validation conditionnelle (OTP obligatoire pour Orange Money)
+- Validation URI pour les URLs de callback
+- Validation du format de la référence de commande
+
+#### 3. **Gestion des Erreurs Améliorée**
+- Messages d'erreur détaillés et localisés
+- Codes d'erreur HTTP appropriés
+- Gestion des erreurs TouchPoint avec contexte
+- Logging complet pour le débogage
+
+#### 4. **Sécurité et Idempotence**
+- Vérification que la commande n'est pas déjà payée
+- Vérification que le montant correspond
+- Idempotence du webhook (pas de modification si déjà `success`)
+- Préservation des données existantes lors des mises à jour
 
 ### Endpoints Clés
 
@@ -1084,7 +1117,10 @@ console.log(`Frais: ${callbackData.touchpoint_response.fees}`);
   "amount": 1000.00,
   "payment_phone": "0701020304",
   "payment_method": "wave",
-  "otp": "1234"
+  "otp": "1234",
+  "return_url": "https://app.example.com/payment/success",
+  "cancel_url": "https://app.example.com/payment/cancel",
+  "error_url": "https://app.example.com/payment/error"
 }
 ```
 
@@ -1094,6 +1130,9 @@ console.log(`Frais: ${callbackData.touchpoint_response.fees}`);
 - `payment_phone` (string, requis) - Numéro de téléphone pour le paiement (format ivoirien: 10 chiffres commençant par 0)
 - `payment_method` (string, requis) - Méthode de paiement: `wave`, `orange_money`, `mtn_money`, `moov_money`
 - `otp` (string, optionnel) - Code OTP à 4 chiffres (obligatoire pour `orange_money`, optionnel pour les autres)
+- `return_url` (string, optionnel) - URL de retour après paiement réussi (Wave uniquement)
+- `cancel_url` (string, optionnel) - URL en cas d'annulation (Wave uniquement)
+- `error_url` (string, optionnel) - URL en cas d'erreur (Wave uniquement)
 
 #### Validations
 
@@ -1102,6 +1141,7 @@ console.log(`Frais: ${callbackData.touchpoint_response.fees}`);
 - **payment_phone**: Format ivoirien valide (0XXXXXXXXX)
 - **payment_method**: Doit être l'une des 4 méthodes supportées
 - **otp**: Requis pour Orange Money, ignoré pour les autres méthodes
+- **URLs**: Doivent être des URLs valides (format URI)
 
 #### Réponse en Cas de Succès (200)
 
@@ -1112,7 +1152,10 @@ console.log(`Frais: ${callbackData.touchpoint_response.fees}`);
   "transaction_id": "20250124123456ORD-20250124-ABC12",
   "payment_method": "wave",
   "status": "INITIATED",
-  "message": "Transaction initiée avec succès"
+  "message": "Transaction initiée avec succès",
+  "return_url": "https://app.example.com/payment/success",
+  "cancel_url": "https://app.example.com/payment/cancel",
+  "fees": 2
 }
 ```
 
@@ -1122,8 +1165,11 @@ console.log(`Frais: ${callbackData.touchpoint_response.fees}`);
 - `payment_method` (string) - Méthode de paiement utilisée
 - `status` (string) - Statut initial de la transaction (généralement "INITIATED" ou "PENDING")
 - `message` (string) - Message descriptif
+- `return_url` (string, optionnel) - URL de retour pour Wave
+- `cancel_url` (string, optionnel) - URL d'annulation pour Wave
+- `fees` (number, optionnel) - Frais de transaction (si applicables)
 
-**Note:** Pour Wave via TouchPoint, l'utilisateur reçoit une notification USSD. Pas de `checkout_url` direct.
+**Note:** Pour Wave via TouchPoint, l'utilisateur reçoit une notification USSD. Les URLs de callback sont stockées pour redirection après paiement.
 
 #### Réponses d'Erreur
 
@@ -2187,7 +2233,244 @@ LOG_LEVEL=info
 
 ---
 
-## 15. Tests
+## 15. Structure du callback_data et Détails d'Implémentation
+
+### 15.1 Structure Complète du callback_data
+
+Le champ `callback_data` stocke toutes les informations relatives à la transaction TouchPoint. Voici sa structure complète:
+
+```json
+{
+  "initiated_at": "2025-01-24T16:30:00.000Z",
+  "touchpoint_transaction_id": "20250124123456ORD-20250124-ABC12",
+  "touchpoint_status": "SUCCESSFUL",
+  "touchpoint_response": {
+    "fees": 2,
+    "amount": 1000,
+    "status": "SUCCESSFUL",
+    "dateTime": 1737723000000,
+    "idFromGU": "1737723000000",
+    "serviceCode": "CI_PAIEMENTWAVE_TP",
+    "idFromClient": "20250124123456ORD-20250124-ABC12",
+    "numTransaction": "WAVE250124.1630.ABC12",
+    "recipientNumber": "0701020304"
+  },
+  "webhook_data": {
+    "status": "SUCCESSFUL",
+    "service_id": "CI_PAIEMENTWAVE_TP",
+    "call_back_url": "https://www.kbine-mobile.com/api/payments/webhook/touchpoint",
+    "gu_transaction_id": "1737723000000",
+    "partner_transaction_id": "20250124123456ORD-20250124-ABC12"
+  },
+  "webhook_received_at": "2025-01-24T16:30:02.000Z",
+  "return_url": "https://app.example.com/payment/success",
+  "cancel_url": "https://app.example.com/payment/cancel",
+  "error_url": "https://app.example.com/payment/error",
+  "notes": "Paiement confirmé",
+  "last_update": "2025-01-24T16:30:02.000Z"
+}
+```
+
+**Champs principaux:**
+- `initiated_at` (ISO 8601) - Timestamp d'initialisation du paiement
+- `touchpoint_transaction_id` (string) - ID unique de la transaction TouchPoint
+- `touchpoint_status` (string) - Statut TouchPoint actuel
+- `touchpoint_response` (object) - Réponse complète de TouchPoint lors de l'initialisation
+- `webhook_data` (object) - Données reçues du webhook TouchPoint
+- `webhook_received_at` (ISO 8601) - Timestamp de réception du webhook
+- `return_url`, `cancel_url`, `error_url` (strings) - URLs de callback (Wave)
+- `notes` (string) - Notes additionnelles
+- `last_update` (ISO 8601) - Timestamp de la dernière mise à jour
+
+### 15.2 Flux de Données - Initialisation du Paiement
+
+**Étapes dans `paymentService.initializePayment()`:**
+
+1. **Validation de la commande**
+   - Vérifier que la commande existe
+   - Vérifier qu'elle n'est pas déjà payée
+   - Vérifier que le montant correspond
+
+2. **Création du paiement en base**
+   - Générer `transaction_id` (format: timestamp + order_reference)
+   - Générer `payment_reference` (format: PAY-{transaction_id})
+   - Insérer en base avec statut `pending`
+   - Stocker les URLs initiales dans `callback_data`
+
+3. **Appel à TouchPoint**
+   - Construire les paramètres selon la méthode de paiement
+   - Pour Wave: ajouter `return_url`, `cancel_url`, `error_url`, `partner_name`
+   - Pour Orange Money: ajouter `otp`
+   - Envoyer la requête à TouchPoint
+
+4. **Mise à jour avec réponse TouchPoint**
+   - Enrichir `callback_data` avec:
+     - `touchpoint_transaction_id` (du numTransaction de TouchPoint)
+     - `touchpoint_status` (du status de TouchPoint)
+     - `touchpoint_response` (réponse complète)
+   - Inclure toutes les données de `paymentResult` via spread operator
+
+5. **Retour au client**
+   - Inclure `payment_id`, `transaction_id`, `status`
+   - Pour Wave: inclure `return_url`, `cancel_url`, `fees`
+
+### 15.3 Flux de Données - Webhook TouchPoint
+
+**Étapes dans `paymentService.processTouchPointWebhook()`:**
+
+1. **Réception du webhook**
+   - Récupérer `partner_transaction_id` ou `idFromClient`
+   - Valider que l'ID n'est pas vide
+
+2. **Recherche du paiement**
+   - Chercher via `external_reference` (qui contient le transaction_id)
+   - Vérifier que le paiement existe
+
+3. **Vérification du statut**
+   - Si déjà `success`, retourner sans modification (idempotence)
+
+4. **Mappage du statut**
+   - `SUCCESSFUL` → `success`
+   - `INITIATED`, `PENDING` → `pending`
+   - `FAILED`, `TIMEOUT`, `CANCELLED`, `REFUSED` → `failed`
+
+5. **Mise à jour du paiement**
+   - Mettre à jour le statut
+   - Enrichir `callback_data` avec:
+     - `touchpoint_status` (du webhook)
+     - `webhook_data` (données complètes du webhook)
+     - `webhook_received_at` (timestamp actuel)
+   - Préserver les données existantes via spread operator
+
+6. **Mise à jour de la commande**
+   - Si statut = `success`: mettre à jour la commande à `completed`
+
+### 15.4 Validations Implémentées
+
+**Dans `paymentValidator.initializePaymentValidation()`:**
+
+```javascript
+{
+  order_reference: Joi.string()
+    .pattern(/^ORD-\d{8}-[A-Z0-9]{5}$/)  // Format strict
+    .required(),
+  
+  amount: Joi.number()
+    .positive()
+    .precision(2)  // Max 2 décimales
+    .required(),
+  
+  payment_phone: Joi.string()
+    .pattern(/^0[0-9]{9}$/)  // Format ivoirien
+    .required(),
+  
+  payment_method: Joi.string()
+    .valid('wave', 'orange_money', 'mtn_money', 'moov_money')
+    .required(),
+  
+  otp: Joi.string()
+    .pattern(/^[0-9]{4}$/)  // 4 chiffres
+    .when('payment_method', {
+      is: 'orange_money',
+      then: Joi.required(),  // Obligatoire pour Orange Money
+      otherwise: Joi.optional()
+    }),
+  
+  return_url: Joi.string()
+    .uri()  // Validation URI
+    .optional(),
+  
+  cancel_url: Joi.string()
+    .uri()
+    .optional(),
+  
+  error_url: Joi.string()
+    .uri()
+    .optional()
+}
+```
+
+### 15.5 Gestion des Erreurs TouchPoint
+
+**Dans `touchpointService.createTransaction()`:**
+
+```javascript
+try {
+  // Validation OTP
+  if (payment_method === "orange_money" && !otp) {
+    throw new Error("L'OTP est obligatoire pour les paiements Orange Money")
+  }
+  
+  // Formatage du numéro
+  const formattedPhone = this.formatPhoneNumber(payment_phone)
+  
+  // Construction de la transaction
+  const transactionData = {
+    idFromClient: transaction_id,
+    amount: parseFloat(amount),
+    callback: `${this.appUrl}/api/payments/webhook/touchpoint`,
+    recipientNumber: formattedPhone,
+    serviceCode: serviceCode,
+    additionnalInfos: { /* ... */ }
+  }
+  
+  // Configuration spécifique par méthode
+  if (payment_method === "wave") {
+    transactionData.additionnalInfos.partner_name = this.partnerName
+    transactionData.additionnalInfos.return_url = callbackUrls.return_url
+    transactionData.additionnalInfos.cancel_url = callbackUrls.cancel_url
+  }
+  
+  // Appel API
+  const response = await axios.put(url, transactionData, { /* auth */ })
+  
+  // Retour enrichi
+  return {
+    success: true,
+    status: response.data.status,
+    transaction_id,
+    touchpoint_transaction_id: response.data.numTransaction,
+    message: response.data.message,
+    payment_method,
+    raw_response: response.data,
+    return_url: (Wave) ? callbackUrls.return_url : undefined,
+    cancel_url: (Wave) ? callbackUrls.cancel_url : undefined,
+    fees: response.data.fees
+  }
+} catch (error) {
+  // Gestion d'erreur détaillée
+  const errorMessage = error.response?.data?.message || error.message
+  throw new Error(`Erreur TouchPoint (${payment_method}): ${errorMessage}`)
+}
+```
+
+### 15.6 Routes et Middlewares
+
+**Ordre critique des routes (dans `paymentRoutes.js`):**
+
+1. **Routes publiques (sans auth)**
+   - `POST /webhook/touchpoint` - Webhook public
+   - `POST /initialize` - Initialisation publique
+   - `GET /status/:order_reference` - Vérification publique
+   - `GET /methods` - Méthodes disponibles
+
+2. **Middleware d'authentification**
+   - `router.use(authenticateToken)`
+
+3. **Routes protégées statiques**
+   - `GET /statuses` - Statuts disponibles
+   - `GET /` - Liste avec pagination
+
+4. **Routes avec paramètres dynamiques**
+   - `GET /:id` - Détails d'un paiement
+   - `PUT /:id` - Mise à jour
+   - `DELETE /:id` - Suppression
+   - `PATCH /:id/status` - Mise à jour du statut
+   - `POST /:id/refund` - Remboursement
+
+---
+
+## 16. Tests
 
 ### Exemple de Test avec cURL
 
@@ -2209,6 +2492,91 @@ curl -X POST http://localhost:3000/api/orders \
   -H "Content-Type: application/json" \
   -H "Authorization: Bearer {votre_token}" \
   -d '{"plan_id": 1, "amount": 1000.00}'
+```
+
+#### Test d'Initialisation de Paiement (Wave)
+```bash
+curl -X POST http://localhost:3000/api/payments/initialize \
+  -H "Content-Type: application/json" \
+  -d '{
+    "order_reference": "ORD-20250124-ABC12",
+    "amount": 1000.00,
+    "payment_phone": "0701020304",
+    "payment_method": "wave",
+    "return_url": "https://app.example.com/payment/success",
+    "cancel_url": "https://app.example.com/payment/cancel"
+  }'
+```
+
+#### Test d'Initialisation de Paiement (Orange Money)
+```bash
+curl -X POST http://localhost:3000/api/payments/initialize \
+  -H "Content-Type: application/json" \
+  -d '{
+    "order_reference": "ORD-20250124-ABC12",
+    "amount": 1000.00,
+    "payment_phone": "0701020304",
+    "payment_method": "orange_money",
+    "otp": "1234"
+  }'
+```
+
+#### Test de Vérification du Statut
+```bash
+curl -X GET http://localhost:3000/api/payments/status/ORD-20250124-ABC12
+```
+
+#### Test de Webhook TouchPoint (Simulation)
+```bash
+curl -X POST http://localhost:3000/api/payments/webhook/touchpoint \
+  -H "Content-Type: application/json" \
+  -d '{
+    "partner_transaction_id": "20250124123456ORD-20250124-ABC12",
+    "idFromClient": "20250124123456ORD-20250124-ABC12",
+    "status": "SUCCESSFUL",
+    "amount": 1000.00,
+    "recipientNumber": "0701020304",
+    "serviceCode": "WAVE",
+    "timestamp": "2025-01-24T16:32:00.000Z"
+  }'
+```
+
+#### Test de Récupération des Méthodes de Paiement
+```bash
+curl -X GET http://localhost:3000/api/payments/methods
+```
+
+#### Test de Récupération des Statuts (Authentifié)
+```bash
+curl -X GET http://localhost:3000/api/payments/statuses \
+  -H "Authorization: Bearer {votre_token}"
+```
+
+#### Test de Récupération des Paiements avec Filtres
+```bash
+curl -X GET "http://localhost:3000/api/payments?page=1&limit=10&status=success&payment_method=wave" \
+  -H "Authorization: Bearer {votre_token}"
+```
+
+#### Test de Mise à Jour du Statut d'un Paiement
+```bash
+curl -X PATCH http://localhost:3000/api/payments/45/status \
+  -H "Content-Type: application/json" \
+  -H "Authorization: Bearer {votre_token}" \
+  -d '{
+    "status": "success",
+    "notes": "Paiement confirmé manuellement"
+  }'
+```
+
+#### Test de Remboursement
+```bash
+curl -X POST http://localhost:3000/api/payments/45/refund \
+  -H "Content-Type: application/json" \
+  -H "Authorization: Bearer {votre_token}" \
+  -d '{
+    "reason": "Commande annulée par le client"
+  }'
 ```
 
 ---
@@ -2234,7 +2602,17 @@ curl -X POST http://localhost:3000/api/orders \
 
 ## 17. Changelog
 
-### Version 1.1.1 (Actuelle)
+### Version 1.2.0 (Actuelle - Janvier 2025)
+- ✅ **Support complet des URLs de callback pour Wave** (`return_url`, `cancel_url`, `error_url`)
+- ✅ **Enrichissement du callback_data** avec toutes les données TouchPoint et webhook
+- ✅ **Validation Joi complète** pour tous les paramètres de paiement
+- ✅ **Gestion d'erreurs améliorée** avec messages détaillés et contexte
+- ✅ **Idempotence du webhook** pour éviter les doublons
+- ✅ **Documentation complète** des flux de paiement et implémentation
+- ✅ **Tests cURL** pour tous les endpoints de paiement
+- ✅ **Spread operator** pour inclure toutes les données de paymentResult
+
+### Version 1.1.1
 - ✅ Ajout de la gestion des paiements Wave et TouchPoint
 - ✅ Implémentation des webhooks
 - ✅ Amélioration de la gestion des erreurs

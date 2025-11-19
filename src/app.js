@@ -108,6 +108,29 @@ app.use(express.urlencoded({ extended: true })); // Parse les formulaires
 app.use(rateLimiter); // Limite le nombre de requetes par IP
 
 // ===============================
+// CONFIGURATION DES FICHIERS STATIQUES
+// ===============================
+
+/**
+ * Servir les fichiers statiques (images, CSS, JS) depuis le dossier public
+
+ */
+const path = require('path');
+app.use(express.static(path.join(__dirname, '../public'), {
+  maxAge: '1d',           // Cache les fichiers 1 jour
+  etag: false,            // Desactiver ETag pour performance
+  lastModified: false     // Desactiver Last-Modified
+}));
+
+logger.info('Fichiers statiques configures', {
+  path: path.join(__dirname, '../public'),
+  urls: {
+    logo: `${process.env.APP_URL}/images/logo.png`,
+    images: `${process.env.APP_URL}/images/`
+  }
+});
+
+// ===============================
 // CONFIGURATION SOCKET.IO
 // ===============================
 

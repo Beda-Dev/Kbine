@@ -739,6 +739,7 @@ const initializePayment = async (paymentData) => {
 
         // 7. Mettre à jour avec les données TouchPoint
         const callbackData = {
+            ...paymentResult,
             initiated_at: new Date().toISOString(),
             touchpoint_transaction_id: paymentResult.touchpoint_transaction_id,
             touchpoint_status: paymentResult.status,
