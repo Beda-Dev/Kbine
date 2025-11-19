@@ -218,21 +218,25 @@ const findById = async (orderId) => {
             };
         }
 
-        // Ajouter le paiement si présent (TOUS les champs)
-        if (order.payment_id) {
-            result.payments = {
-                id: order.payment_id,
-                amount: parseFloat(order.payment_amount),
-                payment_method: order.payment_method,
-                payment_phone: order.payment_phone,
-                payment_reference: order.payment_reference,
-                external_reference: order.external_reference,
-                status: order.payment_status,
-                callback_data: order.callback_data ? (typeof order.callback_data === 'string' ? JSON.parse(order.callback_data) : order.callback_data) : null,
-                created_at: order.payment_created_at,
-                updated_at: order.payment_updated_at
-            };
+        // Ne pas retourner la commande si aucun paiement ou si le paiement est en attente/autre que success/failed
+        if (!order.payment_id || !['success','failed'].includes(order.payment_status)) {
+            console.log('[OrderService] [findById] Paiement absent ou statut non autorisé', { orderId, payment_status: order.payment_status });
+            return null;
         }
+
+        // Ajouter le paiement (TOUS les champs)
+        result.payment = {
+            id: order.payment_id,
+            amount: parseFloat(order.payment_amount),
+            payment_method: order.payment_method,
+            payment_phone: order.payment_phone,
+            payment_reference: order.payment_reference,
+            external_reference: order.external_reference,
+            status: order.payment_status,
+            callback_data: order.callback_data ? (typeof order.callback_data === 'string' ? JSON.parse(order.callback_data) : order.callback_data) : null,
+            created_at: order.payment_created_at,
+            updated_at: order.payment_updated_at
+        };
 
         // Ajouter TOUTES les données du plan si présent
         if (order.plan_id) {
@@ -331,21 +335,25 @@ const findByReference = async (orderReference) => {
             };
         }
 
-        // Ajouter le paiement si présent (TOUS les champs)
-        if (order.payment_id) {
-            result.payments = {
-                id: order.payment_id,
-                amount: parseFloat(order.payment_amount),
-                payment_method: order.payment_method,
-                payment_phone: order.payment_phone,
-                payment_reference: order.payment_reference,
-                external_reference: order.external_reference,
-                status: order.payment_status,
-                callback_data: order.callback_data ? (typeof order.callback_data === 'string' ? JSON.parse(order.callback_data) : order.callback_data) : null,
-                created_at: order.payment_created_at,
-                updated_at: order.payment_updated_at
-            };
+        // Ne pas retourner la commande si aucun paiement ou si le paiement est en attente/autre que success/failed
+        if (!order.payment_id || !['success','failed'].includes(order.payment_status)) {
+            console.log('[OrderService] [findByReference] Paiement absent ou statut non autorisé', { orderReference, payment_status: order.payment_status });
+            return null;
         }
+
+        // Ajouter le paiement (TOUS les champs)
+        result.payment = {
+            id: order.payment_id,
+            amount: parseFloat(order.payment_amount),
+            payment_method: order.payment_method,
+            payment_phone: order.payment_phone,
+            payment_reference: order.payment_reference,
+            external_reference: order.external_reference,
+            status: order.payment_status,
+            callback_data: order.callback_data ? (typeof order.callback_data === 'string' ? JSON.parse(order.callback_data) : order.callback_data) : null,
+            created_at: order.payment_created_at,
+            updated_at: order.payment_updated_at
+        };
 
         // Ajouter TOUTES les données du plan si présent
         if (order.plan_id) {
@@ -392,7 +400,12 @@ const findAll = async (filters = {}) => {
                     p.name as plan_name, p.description as plan_description,
                     p.price as plan_price, p.type as plan_type,
                     p.validity_days as plan_validity_days, p.active as plan_active,
-                    p.created_at as plan_created_at
+                    p.created_at as plan_created_at,
+                    pay.id as payment_id, pay.amount as payment_amount,
+                    pay.payment_method, pay.payment_phone, pay.payment_reference,
+                    pay.external_reference, pay.status as payment_status,
+                    pay.callback_data as payment_callback_data, pay.created_at as payment_created_at,
+                    pay.updated_at as payment_updated_at
              FROM orders o
              LEFT JOIN users u ON o.user_id = u.id
              LEFT JOIN plans p ON o.plan_id = p.id
@@ -447,6 +460,24 @@ const findAll = async (filters = {}) => {
                     created_at: order.user_created_at,
                     updated_at: order.user_updated_at
                 };
+            }
+
+            // Ajouter le paiement si présent (champ unique grâce à l'INNER JOIN)
+            if (order.payment_id) {
+                result.payment = {
+                    id: order.payment_id,
+                    amount: parseFloat(order.payment_amount),
+                    payment_method: order.payment_method,
+                    payment_phone: order.payment_phone,
+                    payment_reference: order.payment_reference,
+                    external_reference: order.external_reference,
+                    status: order.payment_status,
+                    callback_data: order.payment_callback_data ? (typeof order.payment_callback_data === 'string' ? JSON.parse(order.payment_callback_data) : order.payment_callback_data) : null,
+                    created_at: order.payment_created_at,
+                    updated_at: order.payment_updated_at
+                };
+            } else {
+                result.payment = null;
             }
 
             // Ajouter TOUTES les données du plan si présent
