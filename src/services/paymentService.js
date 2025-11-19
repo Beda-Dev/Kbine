@@ -668,10 +668,10 @@ const initializePayment = async (paymentData) => {
             throw new Error("Cette commande a déjà été payée");
         }
 
-        // 3. Vérifier que le montant correspond
-        if (parseFloat(amount) !== parseFloat(order.amount)) {
-            throw new Error("Le montant ne correspond pas à la commande");
-        }
+        // // 3. Vérifier que le montant correspond
+        // if (parseFloat(amount) !== parseFloat(order.amount)) {
+        //     throw new Error("Le montant ne correspond pas à la commande");
+        // }
 
         // 4. Générer un ID de transaction unique
         const transaction_id = generateTransactionId(order_reference);
