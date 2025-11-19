@@ -1226,6 +1226,123 @@ console.log(`Frais: ${callbackData.touchpoint_response.fees}`);
 }
 ```
 
+#### Exemples de Réponse Réelles
+
+**Exemple 1: Paiement Wave (avec URL de paiement)**
+
+Wave retourne une URL de paiement que l'utilisateur doit utiliser pour compléter la transaction.
+
+```json
+{
+  "success": true,
+  "message": "Paiement initialisé avec succès",
+  "data": {
+    "success": true,
+    "payment_id": 21,
+    "transaction_id": "20251119134055ORD-20251119-77058",
+    "payment_method": "wave",
+    "amount": 10,
+    "status": "INITIATED",
+    "touchpoint_transaction_id": "1763559655779",
+    "message": "Transaction initiée avec succès",
+    "raw_response": {
+      "idFromClient": "20251119134055ORD-20251119-77058",
+      "idFromGU": "1763559655779",
+      "amount": 10,
+      "fees": 0.2,
+      "serviceCode": "CI_PAIEMENTWAVE_TP",
+      "recipientNumber": "0566955943",
+      "dateTime": 1763559655779,
+      "status": "INITIATED",
+      "numTransaction": "1763559655779",
+      "payment_url": "https://pay.wave.com/c/cos-218m2pg9r22mc?a=10&c=XOF&m=BAPE%27S%20SERVICES%20%2A%20Touc"
+    },
+    "return_url": "https://www.kbine-mobile.com/payments/return/ORD-20251119-77058/successful",
+    "cancel_url": "https://www.kbine-mobile.com/payments/return/ORD-20251119-77058/failed",
+    "fees": 0.2
+  }
+}
+```
+
+**Points clés pour Wave:**
+- `payment_url`: URL à rediriger l'utilisateur pour effectuer le paiement
+- `return_url`: URL vers laquelle l'utilisateur sera redirigé après paiement réussi
+- `cancel_url`: URL vers laquelle l'utilisateur sera redirigé en cas d'annulation
+- `fees`: Frais de transaction (0.2 XOF dans cet exemple)
+- `touchpoint_transaction_id`: ID unique de la transaction chez TouchPoint
+
+**Exemple 2: Paiement MTN Money (pas d'URL de paiement)**
+
+MTN Money utilise des notifications USSD, donc il n'y a pas d'URL de paiement à retourner.
+
+```json
+{
+  "success": true,
+  "message": "Paiement initialisé avec succès",
+  "data": {
+    "success": true,
+    "payment_id": 19,
+    "transaction_id": "20251119133801ORD-20251119-77058",
+    "payment_method": "mtn_money",
+    "amount": 10,
+    "status": "INITIATED",
+    "touchpoint_transaction_id": "1763559482509",
+    "message": "Transaction initiée avec succès",
+    "raw_response": {
+      "idFromClient": "20251119133801ORD-20251119-77058",
+      "idFromGU": "1763559482509",
+      "amount": 10,
+      "fees": 0.2,
+      "serviceCode": "PAIEMENTMARCHAND_MTN_CI",
+      "recipientNumber": "0566955943",
+      "dateTime": 1763559482509,
+      "status": "INITIATED",
+      "numTransaction": "1763559482509"
+    },
+    "fees": 0.2
+  }
+}
+```
+
+**Points clés pour MTN Money (et autres non-Wave):**
+- Pas de `payment_url` - l'utilisateur recevra une notification USSD sur son téléphone
+- Pas de `return_url` ou `cancel_url` - la redirection se fait via webhook uniquement
+- `fees`: Frais de transaction
+- `touchpoint_transaction_id`: ID unique de la transaction chez TouchPoint
+
+**Exemple 3: Orange Money et Moov Money (structure identique à MTN)**
+
+Orange Money et Moov Money suivent le même pattern que MTN Money, sans URL de paiement.
+
+```json
+{
+  "success": true,
+  "message": "Paiement initialisé avec succès",
+  "data": {
+    "success": true,
+    "payment_id": 22,
+    "transaction_id": "20251119134500ORD-20251119-77059",
+    "payment_method": "orange_money",
+    "amount": 5000,
+    "status": "INITIATED",
+    "touchpoint_transaction_id": "1763559800000",
+    "message": "Transaction initiée avec succès",
+    "raw_response": {
+      "idFromClient": "20251119134500ORD-20251119-77059",
+      "idFromGU": "1763559800000",
+      "amount": 5000,
+      "fees": 10,
+      "serviceCode": "PAIEMENTMARCHAND_ORANGE_CI",
+      "recipientNumber": "0789062079",
+      "dateTime": 1763559800000,
+      "status": "INITIATED",
+      "numTransaction": "1763559800000"
+    },
+    "fees": 10
+  }
+}
+```
+
 ---
 
 ### 4. Webhook TouchPoint - Notification de Paiement
@@ -1486,26 +1603,242 @@ Le webhook effectue les actions suivantes:
   "success": true,
   "data": [
     {
-      "id": 45,
-      "order_id": 123,
-      "amount": 5000.00,
+      "id": 21,
+      "order_id": 50,
+      "amount": "10.00",
       "payment_method": "wave",
-      "payment_phone": "0789062079",
-      "payment_reference": "PAY-20250124-ABC123",
+      "payment_phone": "0566955943",
+      "payment_reference": "PAY-20251119134055ORD-20251119-77058",
+      "external_reference": "20251119134055ORD-20251119-77058",
+      "status": "pending",
+      "callback_data": {
+        "fees": 0.2,
+        "status": "INITIATED",
+        "message": "Transaction initiée avec succès",
+        "success": true,
+        "initiated_at": "2025-11-19T13:40:56.743Z",
+        "raw_response": {
+          "fees": 0.2,
+          "amount": 10,
+          "status": "INITIATED",
+          "dateTime": 1763559655779,
+          "idFromGU": "1763559655779",
+          "payment_url": "https://pay.wave.com/c/cos-218m2pg9r22mc?a=10&c=XOF&m=BAPE%27S%20SERVICES%20%2A%20Touc",
+          "serviceCode": "CI_PAIEMENTWAVE_TP",
+          "idFromClient": "20251119134055ORD-20251119-77058",
+          "numTransaction": "1763559655779",
+          "recipientNumber": "0566955943"
+        },
+        "payment_method": "wave",
+        "transaction_id": "20251119134055ORD-20251119-77058",
+        "touchpoint_status": "INITIATED",
+        "touchpoint_response": {
+          "fees": 0.2,
+          "amount": 10,
+          "status": "INITIATED",
+          "dateTime": 1763559655779,
+          "idFromGU": "1763559655779",
+          "payment_url": "https://pay.wave.com/c/cos-218m2pg9r22mc?a=10&c=XOF&m=BAPE%27S%20SERVICES%20%2A%20Touc",
+          "serviceCode": "CI_PAIEMENTWAVE_TP",
+          "idFromClient": "20251119134055ORD-20251119-77058",
+          "numTransaction": "1763559655779",
+          "recipientNumber": "0566955943"
+        },
+        "touchpoint_transaction_id": "1763559655779"
+      },
+      "created_at": "2025-11-19T13:40:55.000Z",
+      "updated_at": "2025-11-19T13:40:56.000Z",
+      "order_status": "pending",
+      "user_id": 2,
+      "order_reference": "ORD-20251119-77058",
+      "user_phone": "0566955943"
+    },
+    {
+      "id": 20,
+      "order_id": 50,
+      "amount": "10.00",
+      "payment_method": "orange_money",
+      "payment_phone": "0749793994",
+      "payment_reference": "PAY-20251119133929ORD-20251119-77058",
+      "external_reference": "20251119133929ORD-20251119-77058",
+      "status": "pending",
+      "callback_data": {
+        "error_url": null,
+        "cancel_url": null,
+        "return_url": null,
+        "initiated_at": "2025-11-19T13:39:29.770Z"
+      },
+      "created_at": "2025-11-19T13:39:29.000Z",
+      "updated_at": "2025-11-19T13:39:29.000Z",
+      "order_status": "pending",
+      "user_id": 2,
+      "order_reference": "ORD-20251119-77058",
+      "user_phone": "0566955943"
+    },
+    {
+      "id": 19,
+      "order_id": 50,
+      "amount": "10.00",
+      "payment_method": "mtn_money",
+      "payment_phone": "0566955943",
+      "payment_reference": "PAY-20251119133801ORD-20251119-77058",
+      "external_reference": "20251119133801ORD-20251119-77058",
+      "status": "failed",
+      "callback_data": {
+        "fees": 0.2,
+        "status": "INITIATED",
+        "message": "Transaction initiée avec succès",
+        "success": true,
+        "initiated_at": "2025-11-19T13:38:04.242Z",
+        "raw_response": {
+          "fees": 0.2,
+          "amount": 10,
+          "status": "INITIATED",
+          "dateTime": 1763559482509,
+          "idFromGU": "1763559482509",
+          "serviceCode": "PAIEMENTMARCHAND_MTN_CI",
+          "idFromClient": "20251119133801ORD-20251119-77058",
+          "numTransaction": "1763559482509",
+          "recipientNumber": "0566955943"
+        },
+        "webhook_data": {
+          "status": "FAILED",
+          "message": "FAILED",
+          "commission": 0,
+          "service_id": "PAIEMENTMARCHAND_MTN_CI",
+          "call_back_url": "https://www.kbine-mobile.com/api/payments/webhook/touchpoint",
+          "gu_transaction_id": "1763559482509",
+          "partner_transaction_id": "20251119133801ORD-20251119-77058"
+        },
+        "payment_method": "mtn_money",
+        "transaction_id": "20251119133801ORD-20251119-77058",
+        "touchpoint_status": "FAILED",
+        "touchpoint_response": {
+          "fees": 0.2,
+          "amount": 10,
+          "status": "INITIATED",
+          "dateTime": 1763559482509,
+          "idFromGU": "1763559482509",
+          "serviceCode": "PAIEMENTMARCHAND_MTN_CI",
+          "idFromClient": "20251119133801ORD-20251119-77058",
+          "numTransaction": "1763559482509",
+          "recipientNumber": "0566955943"
+        },
+        "webhook_received_at": "2025-11-19T13:42:21.879Z",
+        "touchpoint_transaction_id": "1763559482509"
+      },
+      "created_at": "2025-11-19T13:38:01.000Z",
+      "updated_at": "2025-11-19T13:42:21.000Z",
+      "order_status": "pending",
+      "user_id": 2,
+      "order_reference": "ORD-20251119-77058",
+      "user_phone": "0566955943"
+    },
+    {
+      "id": 18,
+      "order_id": 51,
+      "amount": "10.00",
+      "payment_method": "wave",
+      "payment_phone": "0566955943",
+      "payment_reference": "PAY-20251119133511ORD-20251119-94344",
+      "external_reference": "20251119133511ORD-20251119-94344",
       "status": "success",
-      "created_at": "2025-01-24T10:30:00.000Z"
+      "callback_data": {
+        "fees": 0.2,
+        "status": "INITIATED",
+        "message": "Transaction initiée avec succès",
+        "success": true,
+        "initiated_at": "2025-11-19T13:35:12.726Z",
+        "raw_response": {
+          "fees": 0.2,
+          "amount": 10,
+          "status": "INITIATED",
+          "dateTime": 1763559311654,
+          "idFromGU": "1763559311654",
+          "payment_url": "https://pay.wave.com/c/cos-218m02hag2ppa?a=10&c=XOF&m=BAPE%27S%20SERVICES%20%2A%20Touc",
+          "serviceCode": "CI_PAIEMENTWAVE_TP",
+          "idFromClient": "20251119133511ORD-20251119-94344",
+          "numTransaction": "1763559311654",
+          "recipientNumber": "0566955943"
+        },
+        "webhook_data": {
+          "status": "SUCCESSFUL",
+          "service_id": "CI_PAIEMENTWAVE_TP",
+          "call_back_url": "https://www.kbine-mobile.com/api/payments/webhook/touchpoint",
+          "gu_transaction_id": "1763559311654",
+          "partner_transaction_id": "20251119133511ORD-20251119-94344"
+        },
+        "payment_method": "wave",
+        "transaction_id": "20251119133511ORD-20251119-94344",
+        "touchpoint_status": "SUCCESSFUL",
+        "touchpoint_response": {
+          "fees": 0.2,
+          "amount": 10,
+          "status": "INITIATED",
+          "dateTime": 1763559311654,
+          "idFromGU": "1763559311654",
+          "payment_url": "https://pay.wave.com/c/cos-218m02hag2ppa?a=10&c=XOF&m=BAPE%27S%20SERVICES%20%2A%20Touc",
+          "serviceCode": "CI_PAIEMENTWAVE_TP",
+          "idFromClient": "20251119133511ORD-20251119-94344",
+          "numTransaction": "1763559311654",
+          "recipientNumber": "0566955943"
+        },
+        "webhook_received_at": "2025-11-19T13:36:03.357Z",
+        "touchpoint_transaction_id": "1763559311654"
+      },
+      "created_at": "2025-11-19T13:35:11.000Z",
+      "updated_at": "2025-11-19T13:36:03.000Z",
+      "order_status": "completed",
+      "user_id": 2,
+      "order_reference": "ORD-20251119-94344",
+      "user_phone": "0566955943"
     }
   ],
   "pagination": {
-    "total": 156,
-    "total_pages": 16,
+    "total": 21,
+    "total_pages": 3,
     "current_page": 1,
-    "per_page": 10,
+    "limit": 10,
     "has_next_page": true,
     "has_previous_page": false
   }
 }
 ```
+
+**Champs de réponse:**
+- `id` (integer) - ID du paiement
+- `order_id` (integer) - ID de la commande associée
+- `order_reference` (string) - Référence de la commande (ORD-YYYYMMDD-XXXXX)
+- `amount` (string) - Montant du paiement
+- `payment_method` (string) - Méthode utilisée (wave, orange_money, mtn_money, moov_money)
+- `payment_phone` (string) - Numéro de téléphone utilisé
+- `payment_reference` (string) - Référence interne du paiement (PAY-*)
+- `external_reference` (string) - ID unique généré lors de l'initialisation
+- `status` (string) - Statut actuel (pending, success, failed, refunded)
+- `callback_data` (object) - Données complètes du paiement (voir Guide du callback_data)
+  - `initiated_at` - Timestamp d'initialisation
+  - `touchpoint_status` - Statut TouchPoint (INITIATED, SUCCESSFUL, FAILED, etc.)
+  - `touchpoint_response` - Réponse complète de TouchPoint
+  - `raw_response` - Réponse brute de TouchPoint
+  - `webhook_data` - Données du webhook (si reçu)
+  - `webhook_received_at` - Timestamp de réception du webhook
+  - `fees` - Frais de transaction
+- `created_at` (datetime) - Date de création du paiement
+- `updated_at` (datetime) - Date de dernière mise à jour
+- `user_id` (integer) - ID de l'utilisateur
+- `user_phone` (string) - Téléphone de l'utilisateur
+- `order_status` (string) - Statut de la commande associée
+
+**Interpretation des Statuts:**
+
+| Statut | Meaning | Webhook | Action |
+|--------|---------|---------|--------|
+| `pending` | ⏳ En attente | Pas encore reçu | Attendre le webhook |
+| `success` | ✅ Réussi | Reçu SUCCESSFUL | Commande complétée |
+| `failed` | ❌ Échoué | Reçu FAILED | Permettre nouvelle tentative |
+| `refunded` | 🔄 Remboursé | N/A | Remboursement effectué |
+
+**Important:** Le `callback_data` contient l'intégralité des données de la transaction pour audit et debugging. Voir le [Guide du callback_data](./CALLBACK_DATA_GUIDE.md) pour une documentation détaillée.
 
 ---
 

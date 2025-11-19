@@ -3,11 +3,12 @@
 ## 📋 Table des Matières
 
 1. [Vue d'Ensemble](#vue-densemble)
-2. [Structure](#structure)
-3. [Champs Détaillés](#champs-détaillés)
-4. [Cas d'Utilisation](#cas-dutilisation)
-5. [Codes d'Erreur](#codes-derreur)
-6. [Exemples Pratiques](#exemples-pratiques)
+2. [Structure de callback_data au Stockage](#structure-de-callback_data-au-stockage)
+3. [Structure d'Initialisation par Méthode](#structure-dinitialisation-par-méthode)
+4. [Champs Détaillés](#champs-détaillés)
+5. [Cas d'Utilisation](#cas-dutilisation)
+6. [Codes d'Erreur](#codes-derreur)
+7. [Exemples Pratiques](#exemples-pratiques)
 
 ---
 
@@ -31,7 +32,7 @@ Le `callback_data` est un champ JSON stocké dans chaque enregistrement de paiem
 
 ---
 
-## Structure
+## Structure de callback_data au Stockage
 
 ### Format Minimal (Paiement Juste Créé)
 ```json
@@ -52,7 +53,224 @@ Le `callback_data` est un champ JSON stocké dans chaque enregistrement de paiem
 }
 ```
 
-### Format avec Soft Delete
+---
+
+## Structure d'Initialisation par Méthode
+
+### Wave - Réponse Complète d'Initialisation
+
+Lors de l'initialisation, Wave retourne une réponse enrichie incluant l'URL de paiement.
+
+**Response API (endpoint `/api/payments/initialize`):**
+```json
+{
+  "success": true,
+  "message": "Paiement initialisé avec succès",
+  "data": {
+    "success": true,
+    "payment_id": 21,
+    "transaction_id": "20251119134055ORD-20251119-77058",
+    "payment_method": "wave",
+    "amount": 10,
+    "status": "INITIATED",
+    "touchpoint_transaction_id": "1763559655779",
+    "message": "Transaction initiée avec succès",
+    "raw_response": {
+      "idFromClient": "20251119134055ORD-20251119-77058",
+      "idFromGU": "1763559655779",
+      "amount": 10,
+      "fees": 0.2,
+      "serviceCode": "CI_PAIEMENTWAVE_TP",
+      "recipientNumber": "0566955943",
+      "dateTime": 1763559655779,
+      "status": "INITIATED",
+      "numTransaction": "1763559655779",
+      "payment_url": "https://pay.wave.com/c/cos-218m2pg9r22mc?a=10&c=XOF&m=BAPE%27S%20SERVICES%20%2A%20Touc"
+    },
+    "return_url": "https://www.kbine-mobile.com/payments/return/ORD-20251119-77058/successful",
+    "cancel_url": "https://www.kbine-mobile.com/payments/return/ORD-20251119-77058/failed",
+    "fees": 0.2
+  }
+}
+```
+
+**Stocké dans callback_data:**
+```json
+{
+  "initiated_at": "2025-11-19T13:40:55.779Z",
+  "touchpoint_transaction_id": "1763559655779",
+  "touchpoint_status": "INITIATED",
+  "touchpoint_response": {
+    "idFromClient": "20251119134055ORD-20251119-77058",
+    "idFromGU": "1763559655779",
+    "amount": 10,
+    "fees": 0.2,
+    "serviceCode": "CI_PAIEMENTWAVE_TP",
+    "recipientNumber": "0566955943",
+    "dateTime": 1763559655779,
+    "status": "INITIATED",
+    "numTransaction": "1763559655779",
+    "payment_url": "https://pay.wave.com/c/cos-218m2pg9r22mc?a=10&c=XOF&m=BAPE%27S%20SERVICES%20%2A%20Touc"
+  },
+  "return_url": "https://www.kbine-mobile.com/payments/return/ORD-20251119-77058/successful",
+  "cancel_url": "https://www.kbine-mobile.com/payments/return/ORD-20251119-77058/failed",
+  "error_url": null
+}
+```
+
+**Points clés pour Wave:**
+- 🔗 `payment_url`: URL pour rediriger l'utilisateur vers la page de paiement Wave
+- 📱 `recipientNumber`: Numéro du destinataire (merchant Wave)
+- 💰 `fees`: Frais de transaction (0.2 XOF)
+- 🔄 `return_url` / `cancel_url`: URLs de redirection après paiement
+- ⏳ `status`: "INITIATED" jusqu'à confirmation du webhook
+
+**Actions requises:**
+1. Rediriger l'utilisateur vers `payment_url`
+2. Attendre le webhook de confirmation
+3. Après paiement réussi, rediriger vers `return_url`
+
+---
+
+### MTN Money - Réponse d'Initialisation
+
+MTN Money n'expose pas d'URL de paiement. L'utilisateur reçoit une notification USSD.
+
+**Response API (endpoint `/api/payments/initialize`):**
+```json
+{
+  "success": true,
+  "message": "Paiement initialisé avec succès",
+  "data": {
+    "success": true,
+    "payment_id": 19,
+    "transaction_id": "20251119133801ORD-20251119-77058",
+    "payment_method": "mtn_money",
+    "amount": 10,
+    "status": "INITIATED",
+    "touchpoint_transaction_id": "1763559482509",
+    "message": "Transaction initiée avec succès",
+    "raw_response": {
+      "idFromClient": "20251119133801ORD-20251119-77058",
+      "idFromGU": "1763559482509",
+      "amount": 10,
+      "fees": 0.2,
+      "serviceCode": "PAIEMENTMARCHAND_MTN_CI",
+      "recipientNumber": "0566955943",
+      "dateTime": 1763559482509,
+      "status": "INITIATED",
+      "numTransaction": "1763559482509"
+    },
+    "fees": 0.2
+  }
+}
+```
+
+**Stocké dans callback_data:**
+```json
+{
+  "initiated_at": "2025-11-19T13:38:01.509Z",
+  "touchpoint_transaction_id": "1763559482509",
+  "touchpoint_status": "INITIATED",
+  "touchpoint_response": {
+    "idFromClient": "20251119133801ORD-20251119-77058",
+    "idFromGU": "1763559482509",
+    "amount": 10,
+    "fees": 0.2,
+    "serviceCode": "PAIEMENTMARCHAND_MTN_CI",
+    "recipientNumber": "0566955943",
+    "dateTime": 1763559482509,
+    "status": "INITIATED",
+    "numTransaction": "1763559482509"
+  }
+}
+```
+
+**Points clés pour MTN Money:**
+- ❌ Pas de `payment_url` - l'utilisateur attend une notification USSD
+- 📱 Numéro de téléphone fourni reçoit automatiquement une notification
+- 💰 `fees`: Frais de transaction (0.2 XOF)
+- ⏳ `status`: "INITIATED" jusqu'à confirmation du webhook
+- 📞 Le client doit confirmer sur son téléphone via l'interface MTN
+
+**Actions requises:**
+1. Afficher un message à l'utilisateur: "Vous allez recevoir une notification sur votre téléphone"
+2. Attendre le webhook de confirmation
+3. Afficher le statut en temps réel ou permettre au client de vérifier
+
+---
+
+### Orange Money et Moov Money - Structure Similaire
+
+Orange Money et Moov Money suivent le même pattern que MTN Money. Voici un exemple pour Orange Money:
+
+**Response API (endpoint `/api/payments/initialize`):**
+```json
+{
+  "success": true,
+  "message": "Paiement initialisé avec succès",
+  "data": {
+    "success": true,
+    "payment_id": 22,
+    "transaction_id": "20251119134500ORD-20251119-77059",
+    "payment_method": "orange_money",
+    "amount": 5000,
+    "status": "INITIATED",
+    "touchpoint_transaction_id": "1763559800000",
+    "message": "Transaction initiée avec succès",
+    "raw_response": {
+      "idFromClient": "20251119134500ORD-20251119-77059",
+      "idFromGU": "1763559800000",
+      "amount": 5000,
+      "fees": 10,
+      "serviceCode": "PAIEMENTMARCHAND_ORANGE_CI",
+      "recipientNumber": "0789062079",
+      "dateTime": 1763559800000,
+      "status": "INITIATED",
+      "numTransaction": "1763559800000"
+    },
+    "fees": 10
+  }
+}
+```
+
+**Stocké dans callback_data:**
+```json
+{
+  "initiated_at": "2025-11-19T13:45:00.000Z",
+  "touchpoint_transaction_id": "1763559800000",
+  "touchpoint_status": "INITIATED",
+  "touchpoint_response": {
+    "idFromClient": "20251119134500ORD-20251119-77059",
+    "idFromGU": "1763559800000",
+    "amount": 5000,
+    "fees": 10,
+    "serviceCode": "PAIEMENTMARCHAND_ORANGE_CI",
+    "recipientNumber": "0789062079",
+    "dateTime": 1763559800000,
+    "status": "INITIATED",
+    "numTransaction": "1763559800000"
+  }
+}
+```
+
+**Comparaison des méthodes:**
+
+| Aspect | Wave | MTN Money | Orange Money | Moov Money |
+|--------|------|-----------|--------------|-----------|
+| **payment_url** | ✅ Fourni | ❌ Non | ❌ Non | ❌ Non |
+| **Notification** | USSD + Push | USSD | USSD | USSD |
+| **return_url** | ✅ Utilisé | ❌ Non | ❌ Non | ❌ Non |
+| **Webhook** | ✅ Oui | ✅ Oui | ✅ Oui | ✅ Oui |
+| **Frais** | Faibles | Faibles | Plus élevés | Faibles |
+| **Délai** | Rapide | Variable | Variable | Variable |
+
+---
+
+### Format avec Soft Delete (Paiement Supprimé)
+
+Quand un paiement est supprimé (soft delete), le `callback_data` inclut des informations de suppression.
+
 ```json
 {
   "initiated_at": "2025-11-17T12:00:35.837Z",
@@ -60,7 +278,15 @@ Le `callback_data` est un champ JSON stocké dans chaque enregistrement de paiem
   "deleted_at": "2025-11-17T13:42:06.456Z",
   "notes": "Paiement annulé/supprimé le 2025-11-17T13:42:06.456Z",
   "touchpoint_status": "SUCCESSFUL",
-  "touchpoint_response": { /* ... */ },
+  "touchpoint_response": {
+    "idFromClient": "20251117120032ORD-20251113-77283",
+    "idFromGU": "1763380833411",
+    "amount": 100,
+    "fees": 2,
+    "serviceCode": "PAIEMENTMARCHANDOMPAYCIDIRECT",
+    "numTransaction": "MP251117.1200.D16237",
+    "recipientNumber": "0749793994"
+  },
   "touchpoint_transaction_id": "20251117120032ORD-20251113-77283"
 }
 ```
