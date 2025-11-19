@@ -142,7 +142,7 @@ class TouchPointService {
         })
       }
 
-      // ✅ Configuration spécifique pour Orange Money (comme dans PHP)
+      // ✅ Configuration spécifique pour Orange Money 
       if (payment_method === "orange_money" && otp) {
         transactionData.additionnalInfos.otp = otp
         console.log('[TouchPointService] OTP ajouté pour Orange Money')

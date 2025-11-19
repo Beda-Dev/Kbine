@@ -871,19 +871,15 @@ const processTouchPointWebhook = async (webhookData) => {
         );
         console.log('[PaymentService] processTouchPointWebhook - Update paiement OK');
 
-        // Si paiement réussi, mettre à jour la commande
-        if (newStatus === "success") {
-            await db.execute(
-                `UPDATE orders SET status = 'completed', updated_at = NOW() WHERE id = ?`,
-                [payment.order_id]
-            );
-
-            logger.info("[PaymentService] Commande validée", {
-                orderId: payment.order_id,
-                paymentId: payment.id,
-            });
-            console.log('[PaymentService] processTouchPointWebhook - Commande mise à jour completed', { order_id: payment.order_id });
-        }
+        // ✅ NE PAS modifier le statut de la commande - laissez-le inchangé
+        // Le statut de la commande ne dépend pas du statut du paiement
+        logger.info("[PaymentService] Paiement mis à jour", {
+            paymentId: payment.id,
+            paymentStatus: newStatus,
+            orderId: payment.order_id,
+            note: "Le statut de la commande reste inchangé"
+        });
+        console.log('[PaymentService] processTouchPointWebhook - Statut de la commande inchangé', { order_id: payment.order_id });
 
         return {
             success: true,
