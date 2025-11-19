@@ -4,6 +4,16 @@
  */
 
 /**
+ * Formater un montant en devise XOF
+ * Convertit les strings en nombres et formate correctement
+ */
+const formatCurrency = (amount) => {
+    const numAmount = typeof amount === 'string' ? parseFloat(amount) : amount;
+    if (isNaN(numAmount)) return '0 XOF';
+    return numAmount.toLocaleString('fr-CI', { style: 'currency', currency: 'XOF' });
+};
+
+/**
  * Obtenir le label de la méthode de paiement
  */
 const getPaymentMethodLabel = (method) => {
@@ -21,6 +31,11 @@ const getPaymentMethodLabel = (method) => {
  */
 const getSuccessPage = (data) => {
     const { orderReference, amount, paymentMethod, transactionId, fees, timestamp } = data;
+    
+    // Convertir les montants en nombres
+    const numAmount = typeof amount === 'string' ? parseFloat(amount) : amount;
+    const numFees = typeof fees === 'string' ? parseFloat(fees) : (fees || 0);
+    const totalAmount = numAmount + numFees;
     
     return `
 <!DOCTYPE html>
@@ -241,7 +256,7 @@ const getSuccessPage = (data) => {
         <div class="content">
             <div class="amount-highlight">
                 <div class="amount-label">Montant payé</div>
-                <div class="amount-value">${(amount + fees).toLocaleString('fr-CI', { style: 'currency', currency: 'XOF' })}</div>
+                <div class="amount-value">${formatCurrency(numAmount)}</div>
             </div>
             <div class="info-section">
                 <div class="info-item">
@@ -258,7 +273,7 @@ const getSuccessPage = (data) => {
                 </div>
                 <div class="info-item">
                     <span class="info-label"><i class="fas fa-coins"></i> Frais</span>
-                    <span class="info-value">${fees.toLocaleString('fr-CI', { style: 'currency', currency: 'XOF' })}</span>
+                    <span class="info-value">${formatCurrency(numFees)}</span>
                 </div>
                 <div class="info-item">
                     <span class="info-label"><i class="fas fa-check"></i> Statut</span>
@@ -278,6 +293,9 @@ const getSuccessPage = (data) => {
  */
 const getFailedPage = (data) => {
     const { orderReference, amount, paymentMethod, transactionId, reason, timestamp } = data;
+    
+    // Convertir le montant en nombre
+    const numAmount = typeof amount === 'string' ? parseFloat(amount) : amount;
     
     return `
 <!DOCTYPE html>
@@ -503,7 +521,7 @@ const getFailedPage = (data) => {
         <div class="content">
             <div class="amount-highlight">
                 <div class="amount-label">Montant</div>
-                <div class="amount-value">${amount.toLocaleString('fr-CI', { style: 'currency', currency: 'XOF' })}</div>
+                <div class="amount-value">${formatCurrency(numAmount)}</div>
             </div>
             <div class="reason-box">
                 <div class="reason-title">
