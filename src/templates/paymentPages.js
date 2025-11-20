@@ -49,7 +49,7 @@ const getSuccessPage = (data) => {
         * { margin: 0; padding: 0; box-sizing: border-box; }
         body {
             font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
-            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            background: #F8F9FA;
             min-height: 100vh;
             display: flex;
             align-items: center;
@@ -57,9 +57,9 @@ const getSuccessPage = (data) => {
             padding: 20px;
         }
         .container {
-            background: white;
+            background: #FFFFFF;
             border-radius: 20px;
-            box-shadow: 0 20px 60px rgba(0, 0, 0, 0.3);
+            box-shadow: 0 20px 60px rgba(0, 0, 0, 0.1);
             max-width: 500px;
             width: 100%;
             overflow: hidden;
@@ -70,7 +70,7 @@ const getSuccessPage = (data) => {
             to { opacity: 1; transform: translateY(0); }
         }
         .header {
-            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            background: linear-gradient(135deg, #FF6B35 0%, #2E86AB 100%);
             padding: 40px 20px;
             text-align: center;
             position: relative;
@@ -94,7 +94,7 @@ const getSuccessPage = (data) => {
         .logo-placeholder {
             width: 100px;
             height: 100px;
-            background: #fe6b35;
+            background: #FF6B35;
             border-radius: 50%;
             margin: 0 auto 20px;
             display: flex;
@@ -115,7 +115,7 @@ const getSuccessPage = (data) => {
         }
         .success-icon {
             font-size: 60px;
-            color: #4ade80;
+            color: #4CAF50;
             margin-bottom: 20px;
             animation: checkmark 0.6s ease-out;
             position: relative;
@@ -143,7 +143,7 @@ const getSuccessPage = (data) => {
             padding: 40px 30px;
         }
         .amount-highlight {
-            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            background: linear-gradient(135deg, #FF6B35 0%, #2E86AB 100%);
             color: white;
             padding: 20px;
             border-radius: 10px;
@@ -152,8 +152,8 @@ const getSuccessPage = (data) => {
             animation: pulse 2s ease-in-out infinite;
         }
         @keyframes pulse {
-            0%, 100% { box-shadow: 0 0 0 0 rgba(102, 126, 234, 0.7); }
-            50% { box-shadow: 0 0 0 10px rgba(102, 126, 234, 0); }
+            0%, 100% { box-shadow: 0 0 0 0 rgba(255, 107, 53, 0.7); }
+            50% { box-shadow: 0 0 0 10px rgba(255, 107, 53, 0); }
         }
         .amount-label { font-size: 12px; opacity: 0.9; margin-bottom: 5px; }
         .amount-value { font-size: 32px; font-weight: bold; }
@@ -163,7 +163,7 @@ const getSuccessPage = (data) => {
             justify-content: space-between;
             align-items: center;
             padding: 15px 0;
-            border-bottom: 1px solid #f0f0f0;
+            border-bottom: 1px solid #EDF2F7;
             animation: fadeIn 0.6s ease-out forwards;
             opacity: 0;
         }
@@ -178,17 +178,17 @@ const getSuccessPage = (data) => {
             to { opacity: 1; transform: translateX(0); }
         }
         .info-label {
-            color: #666;
+            color: #4A5568;
             font-size: 14px;
             display: flex;
             align-items: center;
             gap: 10px;
         }
-        .info-label i { color: #667eea; width: 20px; text-align: center; }
-        .info-value { font-weight: 600; color: #333; font-size: 16px; }
+        .info-label i { color: #FF6B35; width: 20px; text-align: center; }
+        .info-value { font-weight: 600; color: #1A202C; font-size: 16px; }
         .status-badge {
             display: inline-block;
-            background: #4ade80;
+            background: #4CAF50;
             color: white;
             padding: 6px 12px;
             border-radius: 20px;
@@ -197,9 +197,9 @@ const getSuccessPage = (data) => {
         }
         .footer {
             padding: 30px;
-            background: #f9f9f9;
+            background: #F8F9FA;
             text-align: center;
-            border-top: 1px solid #f0f0f0;
+            border-top: 1px solid #EDF2F7;
         }
         .btn-group {
             display: flex;
@@ -218,19 +218,19 @@ const getSuccessPage = (data) => {
             display: inline-block;
         }
         .btn-primary {
-            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            background: linear-gradient(135deg, #FF6B35 0%, #2E86AB 100%);
             color: white;
         }
         .btn-primary:hover {
             transform: translateY(-2px);
-            box-shadow: 0 10px 20px rgba(102, 126, 234, 0.3);
+            box-shadow: 0 10px 20px rgba(255, 107, 53, 0.3);
         }
         .btn-secondary {
             background: white;
-            color: #667eea;
-            border: 2px solid #667eea;
+            color: #FF6B35;
+            border: 2px solid #FF6B35;
         }
-        .btn-secondary:hover { background: #f0f0f0; }
+        .btn-secondary:hover { background: #F8F9FA; }
         @media (max-width: 600px) {
             .header { padding: 30px 20px; }
             .header h1 { font-size: 24px; }
@@ -309,7 +309,7 @@ const getFailedPage = (data) => {
         * { margin: 0; padding: 0; box-sizing: border-box; }
         body {
             font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
-            background: linear-gradient(135deg, #f093fb 0%, #f5576c 100%);
+            background: #F8F9FA;
             min-height: 100vh;
             display: flex;
             align-items: center;
@@ -317,9 +317,9 @@ const getFailedPage = (data) => {
             padding: 20px;
         }
         .container {
-            background: white;
+            background: #FFFFFF;
             border-radius: 20px;
-            box-shadow: 0 20px 60px rgba(0, 0, 0, 0.3);
+            box-shadow: 0 20px 60px rgba(0, 0, 0, 0.1);
             max-width: 500px;
             width: 100%;
             overflow: hidden;
@@ -330,7 +330,7 @@ const getFailedPage = (data) => {
             to { opacity: 1; transform: translateY(0); }
         }
         .header {
-            background: linear-gradient(135deg, #f093fb 0%, #f5576c 100%);
+            background: linear-gradient(135deg, #E53E3E 0%, #ED8936 100%);
             padding: 40px 20px;
             text-align: center;
             position: relative;
@@ -368,7 +368,7 @@ const getFailedPage = (data) => {
         }
         .error-icon {
             font-size: 60px;
-            color: #ef4444;
+            color: #E53E3E;
             margin-bottom: 20px;
             animation: shake 0.6s ease-out;
             position: relative;
@@ -394,7 +394,7 @@ const getFailedPage = (data) => {
         }
         .content { padding: 40px 30px; }
         .amount-highlight {
-            background: linear-gradient(135deg, #f093fb 0%, #f5576c 100%);
+            background: linear-gradient(135deg, #E53E3E 0%, #ED8936 100%);
             color: white;
             padding: 20px;
             border-radius: 10px;
@@ -404,8 +404,8 @@ const getFailedPage = (data) => {
         .amount-label { font-size: 12px; opacity: 0.9; margin-bottom: 5px; }
         .amount-value { font-size: 32px; font-weight: bold; }
         .reason-box {
-            background: #fff3cd;
-            border-left: 4px solid #f5576c;
+            background: #FFF5E6;
+            border-left: 4px solid #ED8936;
             padding: 15px;
             border-radius: 8px;
             margin: 20px 0;
@@ -417,7 +417,7 @@ const getFailedPage = (data) => {
         }
         .reason-title {
             font-weight: 600;
-            color: #856404;
+            color: #ED8936;
             margin-bottom: 5px;
             display: flex;
             align-items: center;
@@ -430,7 +430,7 @@ const getFailedPage = (data) => {
             justify-content: space-between;
             align-items: center;
             padding: 15px 0;
-            border-bottom: 1px solid #f0f0f0;
+            border-bottom: 1px solid #EDF2F7;
             animation: fadeIn 0.6s ease-out forwards;
             opacity: 0;
         }
@@ -443,17 +443,17 @@ const getFailedPage = (data) => {
             to { opacity: 1; transform: translateX(0); }
         }
         .info-label {
-            color: #666;
+            color: #4A5568;
             font-size: 14px;
             display: flex;
             align-items: center;
             gap: 10px;
         }
-        .info-label i { color: #f5576c; width: 20px; text-align: center; }
-        .info-value { font-weight: 600; color: #333; font-size: 16px; }
+        .info-label i { color: #E53E3E; width: 20px; text-align: center; }
+        .info-value { font-weight: 600; color: #1A202C; font-size: 16px; }
         .status-badge {
             display: inline-block;
-            background: #ef4444;
+            background: #E53E3E;
             color: white;
             padding: 6px 12px;
             border-radius: 20px;
@@ -462,9 +462,9 @@ const getFailedPage = (data) => {
         }
         .footer {
             padding: 30px;
-            background: #f9f9f9;
+            background: #F8F9FA;
             text-align: center;
-            border-top: 1px solid #f0f0f0;
+            border-top: 1px solid #EDF2F7;
         }
         .btn-group {
             display: flex;
@@ -483,19 +483,19 @@ const getFailedPage = (data) => {
             display: inline-block;
         }
         .btn-primary {
-            background: linear-gradient(135deg, #f093fb 0%, #f5576c 100%);
+            background: linear-gradient(135deg, #E53E3E 0%, #ED8936 100%);
             color: white;
         }
         .btn-primary:hover {
             transform: translateY(-2px);
-            box-shadow: 0 10px 20px rgba(245, 87, 108, 0.3);
+            box-shadow: 0 10px 20px rgba(229, 62, 62, 0.3);
         }
         .btn-secondary {
             background: white;
-            color: #f5576c;
-            border: 2px solid #f5576c;
+            color: #E53E3E;
+            border: 2px solid #E53E3E;
         }
-        .btn-secondary:hover { background: #f0f0f0; }
+        .btn-secondary:hover { background: #F8F9FA; }
         @media (max-width: 600px) {
             .header { padding: 30px 20px; }
             .header h1 { font-size: 24px; }
@@ -550,7 +550,7 @@ const getFailedPage = (data) => {
             </div>
         </div>
         <div class="footer">
-            <p style="margin-top: 20px; color: #999; font-size: 12px;">
+            <p style="margin-top: 20px; color: #718096; font-size: 12px;">
                 Si le problème persiste, veuillez contacter notre support.
             </p>
         </div>
