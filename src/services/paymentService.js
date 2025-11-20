@@ -1097,7 +1097,7 @@ const getUserPayments = async ({
         console.log('[PaymentService] getUserPayments - Params:', [...params, limit, offset]);
 
         // ✅ CORRECTION: Ajouter limit et offset à la fin des paramètres
-        const [payments] = await db.execute(query, [...params, limit, offset]);
+        const [payments] = await db.query(query, [...params, limit, offset]);
         console.log('[PaymentService] getUserPayments - Résultats (count)', payments?.length || 0);
 
         // Requête count
@@ -1109,7 +1109,7 @@ const getUserPayments = async ({
         `;
 
         console.log('[PaymentService] getUserPayments - Exécution requête COUNT');
-        const [countResult] = await db.execute(countQuery, params);
+        const [countResult] = await db.query(countQuery, params);
         const total = countResult[0].total;
         const totalPages = Math.ceil(total / limit);
 
