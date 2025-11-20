@@ -788,7 +788,7 @@ const initializePayment = async (paymentData) => {
 };
 
 /**
- * Traiter le webhook TouchPoint - VERSION CORRIGÉE
+ * Traiter le webhook TouchPoint - VERSION CORRIGÉE AVEC MÀJ DES STATUTS
  */
 const processTouchPointWebhook = async (webhookData) => {
     try {
@@ -797,7 +797,7 @@ const processTouchPointWebhook = async (webhookData) => {
         });
         console.log('[PaymentService] processTouchPointWebhook - Début', JSON.stringify(webhookData, null, 2));
 
-        const { partner_transaction_id, status, idFromClient } = webhookData;
+        const { partner_transaction_id, status, idFromClient, message } = webhookData;
         
         // TouchPoint peut envoyer soit partner_transaction_id soit idFromClient
         const transactionId = partner_transaction_id || idFromClient;
@@ -850,13 +850,38 @@ const processTouchPointWebhook = async (webhookData) => {
             }
         }
 
-        // Créer le nouvel objet callback_data
+        // ✅ CORRECTION: Mettre à jour TOUS les statuts et messages à jour avec les données du webhook
         const updatedCallbackData = {
             ...currentCallbackData,
+            // ✅ Mettre à jour les statuts au niveau racine
+            status: status, // Mettre à jour le statut final
+            message: message || webhookData.message || currentCallbackData.message || "Paiement traité",
+            
+            // ✅ Mettre à jour touchpoint_status avec le statut final du webhook
             touchpoint_status: status,
-            webhook_data: webhookData,
+            
+            // ✅ Ajouter les données du webhook
+            webhook_data: {
+                status: webhookData.status,
+                message: webhookData.message,
+                service_id: webhookData.service_id,
+                call_back_url: webhookData.call_back_url,
+                gu_transaction_id: webhookData.gu_transaction_id,
+                partner_transaction_id: webhookData.partner_transaction_id || transactionId,
+                commission: webhookData.commission
+            },
             webhook_received_at: new Date().toISOString(),
         };
+
+        // ✅ Si touchpoint_response existe, mettre à jour son statut aussi
+        if (updatedCallbackData.touchpoint_response) {
+            updatedCallbackData.touchpoint_response = {
+                ...updatedCallbackData.touchpoint_response,
+                status: status // Mettre à jour le statut dans la réponse TouchPoint
+            };
+        }
+
+        console.log('[PaymentService] processTouchPointWebhook - callback_data à sauvegarder', JSON.stringify(updatedCallbackData, null, 2));
 
         // Mettre à jour le paiement
         await db.execute(
@@ -871,27 +896,32 @@ const processTouchPointWebhook = async (webhookData) => {
         );
         console.log('[PaymentService] processTouchPointWebhook - Update paiement OK');
 
-        // ✅ NE PAS modifier le statut de la commande - laissez-le inchangé
-        // Le statut de la commande ne dépend pas du statut du paiement
         logger.info("[PaymentService] Paiement mis à jour", {
             paymentId: payment.id,
-            paymentStatus: newStatus,
-            orderId: payment.order_id,
-            note: "Le statut de la commande reste inchangé"
+            oldStatus: payment.status,
+            newStatus: newStatus,
+            webhookStatus: status,
         });
-        console.log('[PaymentService] processTouchPointWebhook - Statut de la commande inchangé', { order_id: payment.order_id });
+        console.log('[PaymentService] processTouchPointWebhook - ✅ Succès', { 
+            paymentId: payment.id,
+            newStatus: newStatus,
+            webhookStatus: status
+        });
 
         return {
             success: true,
             status: newStatus,
             message: "Webhook traité avec succès",
+            paymentId: payment.id,
+            payment_status: newStatus
         };
     } catch (error) {
         logger.error("[PaymentService] Erreur traitement webhook TouchPoint", {
             error: error.message,
             stack: error.stack,
+            webhookData: webhookData
         });
-        console.log('[PaymentService] processTouchPointWebhook - Erreur', { message: error.message });
+        console.log('[PaymentService] processTouchPointWebhook - ❌ Erreur', { message: error.message });
         throw error;
     }
 };

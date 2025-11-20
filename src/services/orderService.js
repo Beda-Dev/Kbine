@@ -173,7 +173,7 @@ const findById = async (orderId) => {
             FROM orders o
             LEFT JOIN users u ON o.user_id = u.id
             LEFT JOIN plans p ON o.plan_id = p.id
-            LEFT JOIN payments pay ON pay.order_id = o.id
+            INNER JOIN payments pay ON pay.order_id = o.id AND pay.status = 'success'
             WHERE o.id = ?`,
             [orderId]
         );
@@ -181,8 +181,8 @@ const findById = async (orderId) => {
         console.log('[OrderService] [findById] Résultats obtenus', { rowCount: rows.length });
 
         if (rows.length === 0) {
-            console.log('[OrderService] [findById] Commande non trouvée', { orderId });
-            logger.warn(`[OrderService] Commande non trouvée: ${orderId}`);
+            console.log('[OrderService] [findById] Commande non trouvée ou sans paiement réussi', { orderId });
+            logger.warn(`[OrderService] Commande non trouvée ou sans paiement réussi: ${orderId}`);
             return null;
         }
 
@@ -218,13 +218,7 @@ const findById = async (orderId) => {
             };
         }
 
-        // Ne pas retourner la commande si aucun paiement ou si le paiement est en attente/autre que success
-        if (!order.payment_id || !['success'].includes(order.payment_status)) {
-            console.log('[OrderService] [findById] Paiement absent ou statut non autorisé', { orderId, payment_status: order.payment_status });
-            return null;
-        }
-
-        // Ajouter le paiement (TOUS les champs)
+        // ✅ CORRIGÉ: Le paiement est TOUJOURS présent et TOUJOURS 'success' (grâce à INNER JOIN)
         result.payment = {
             id: order.payment_id,
             amount: parseFloat(order.payment_amount),
@@ -295,7 +289,7 @@ const findByReference = async (orderReference) => {
             FROM orders o
             LEFT JOIN users u ON o.user_id = u.id
             LEFT JOIN plans p ON o.plan_id = p.id
-            LEFT JOIN payments pay ON pay.order_id = o.id
+            INNER JOIN payments pay ON pay.order_id = o.id AND pay.status = 'success'
             WHERE o.order_reference = ?`,
             [orderReference]
         );
@@ -303,8 +297,8 @@ const findByReference = async (orderReference) => {
         console.log('[OrderService] [findByReference] Résultats obtenus', { rowCount: rows.length });
 
         if (rows.length === 0) {
-            console.log('[OrderService] [findByReference] Commande non trouvée', { orderReference });
-            logger.warn(`[OrderService] Commande non trouvée: ${orderReference}`);
+            console.log('[OrderService] [findByReference] Commande non trouvée ou sans paiement réussi', { orderReference });
+            logger.warn(`[OrderService] Commande non trouvée ou sans paiement réussi: ${orderReference}`);
             return null;
         }
 
@@ -335,13 +329,7 @@ const findByReference = async (orderReference) => {
             };
         }
 
-        // Ne pas retourner la commande si aucun paiement ou si le paiement est en attente/autre que success
-        if (!order.payment_id || !['success'].includes(order.payment_status)) {
-            console.log('[OrderService] [findByReference] Paiement absent ou statut non autorisé', { orderReference, payment_status: order.payment_status });
-            return null;
-        }
-
-        // Ajouter le paiement (TOUS les champs)
+        // ✅ CORRIGÉ: Le paiement est TOUJOURS présent et TOUJOURS 'success' (grâce à INNER JOIN)
         result.payment = {
             id: order.payment_id,
             amount: parseFloat(order.payment_amount),
