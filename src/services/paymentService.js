@@ -1023,16 +1023,7 @@ const getUserPayments = async ({
 
         // Filtre date spécifique (format YYYY-MM-DD)
         if (date) {
-            const startOfDay = new Date(date);
-            const endOfDay = new Date(date);
-            endOfDay.setDate(endOfDay.getDate() + 1);
-
-            console.log('[PaymentService] getUserPayments - Filtre date', {
-                date,
-                startOfDay,
-                endOfDay
-            });
-
+            console.log('[PaymentService] getUserPayments - Filtre date', { date });
             whereClauses.push('DATE(p.created_at) = DATE(?)');
             params.push(date);
         }
@@ -1056,9 +1047,10 @@ const getUserPayments = async ({
 
         const whereClause = whereClauses.length > 0 ? `WHERE ${whereClauses.join(' AND ')}` : '';
 
+        // ✅ CORRIGÉ: Utiliser des alias distincts pour les ID de chaque table
         const query = `
             SELECT 
-                p.id,
+                p.id as payment_id,
                 p.order_id,
                 p.amount,
                 p.payment_method,
@@ -1067,8 +1059,8 @@ const getUserPayments = async ({
                 p.external_reference,
                 p.status,
                 p.callback_data,
-                p.created_at,
-                p.updated_at,
+                p.created_at as payment_created_at,
+                p.updated_at as payment_updated_at,
                 o.id as order_id_full,
                 o.order_reference,
                 o.status as order_status,
@@ -1091,13 +1083,11 @@ const getUserPayments = async ({
                 op.name as operator_name,
                 op.code as operator_code,
                 op.prefixes as operator_prefixes,
-                op.created_at as operator_created_at,
-                u.phone_number as user_phone
+                op.created_at as operator_created_at
             FROM payments p
             LEFT JOIN orders o ON p.order_id = o.id
             LEFT JOIN plans pl ON o.plan_id = pl.id
             LEFT JOIN operators op ON pl.operator_id = op.id
-            LEFT JOIN users u ON o.user_id = u.id
             ${whereClause}
             ORDER BY ${sortField} ${sortDirection}
             LIMIT ? OFFSET ?
@@ -1129,7 +1119,7 @@ const getUserPayments = async ({
         // Transformer les données
         const formattedPayments = payments.map(payment => {
             const result = {
-                id: payment.id,
+                id: payment.payment_id,
                 order_id: payment.order_id,
                 amount: parseFloat(payment.amount),
                 payment_method: payment.payment_method,
@@ -1142,8 +1132,8 @@ const getUserPayments = async ({
                         ? JSON.parse(payment.callback_data) 
                         : payment.callback_data) 
                     : null,
-                created_at: payment.created_at,
-                updated_at: payment.updated_at
+                created_at: payment.payment_created_at,
+                updated_at: payment.payment_updated_at
             };
 
             // ✅ AJOUTER LES DÉTAILS COMPLETS DE LA COMMANDE
