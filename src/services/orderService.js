@@ -173,7 +173,7 @@ const findById = async (orderId) => {
             FROM orders o
             LEFT JOIN users u ON o.user_id = u.id
             LEFT JOIN plans p ON o.plan_id = p.id
-            INNER JOIN payments pay ON pay.order_id = o.id AND pay.status = 'success'
+            LEFT JOIN payments pay ON pay.order_id = o.id
             WHERE o.id = ?`,
             [orderId]
         );
@@ -181,8 +181,8 @@ const findById = async (orderId) => {
         console.log('[OrderService] [findById] Résultats obtenus', { rowCount: rows.length });
 
         if (rows.length === 0) {
-            console.log('[OrderService] [findById] Commande non trouvée ou sans paiement réussi', { orderId });
-            logger.warn(`[OrderService] Commande non trouvée ou sans paiement réussi: ${orderId}`);
+            console.log('[OrderService] [findById] Commande non trouvée', { orderId });
+            logger.warn(`[OrderService] Commande non trouvée: ${orderId}`);
             return null;
         }
 
@@ -191,7 +191,8 @@ const findById = async (orderId) => {
             orderId, 
             orderReference: order.order_reference, 
             status: order.status,
-            phoneNumber: order.phone_number
+            phoneNumber: order.phone_number,
+            hasPayment: !!order.payment_id
         });
         
         const result = {
@@ -218,19 +219,23 @@ const findById = async (orderId) => {
             };
         }
 
-        // ✅ CORRIGÉ: Le paiement est TOUJOURS présent et TOUJOURS 'success' (grâce à INNER JOIN)
-        result.payment = {
-            id: order.payment_id,
-            amount: parseFloat(order.payment_amount),
-            payment_method: order.payment_method,
-            payment_phone: order.payment_phone,
-            payment_reference: order.payment_reference,
-            external_reference: order.external_reference,
-            status: order.payment_status,
-            callback_data: order.callback_data ? (typeof order.callback_data === 'string' ? JSON.parse(order.callback_data) : order.callback_data) : null,
-            created_at: order.payment_created_at,
-            updated_at: order.payment_updated_at
-        };
+        // ✅ CORRIGÉ: Ajouter le paiement seulement s'il existe
+        if (order.payment_id) {
+            result.payment = {
+                id: order.payment_id,
+                amount: parseFloat(order.payment_amount),
+                payment_method: order.payment_method,
+                payment_phone: order.payment_phone,
+                payment_reference: order.payment_reference,
+                external_reference: order.external_reference,
+                status: order.payment_status,
+                callback_data: order.callback_data ? (typeof order.callback_data === 'string' ? JSON.parse(order.callback_data) : order.callback_data) : null,
+                created_at: order.payment_created_at,
+                updated_at: order.payment_updated_at
+            };
+        } else {
+            result.payment = null;
+        }
 
         // Ajouter TOUTES les données du plan si présent
         if (order.plan_id) {
@@ -289,7 +294,7 @@ const findByReference = async (orderReference) => {
             FROM orders o
             LEFT JOIN users u ON o.user_id = u.id
             LEFT JOIN plans p ON o.plan_id = p.id
-            INNER JOIN payments pay ON pay.order_id = o.id AND pay.status = 'success'
+            LEFT JOIN payments pay ON pay.order_id = o.id
             WHERE o.order_reference = ?`,
             [orderReference]
         );
@@ -297,8 +302,8 @@ const findByReference = async (orderReference) => {
         console.log('[OrderService] [findByReference] Résultats obtenus', { rowCount: rows.length });
 
         if (rows.length === 0) {
-            console.log('[OrderService] [findByReference] Commande non trouvée ou sans paiement réussi', { orderReference });
-            logger.warn(`[OrderService] Commande non trouvée ou sans paiement réussi: ${orderReference}`);
+            console.log('[OrderService] [findByReference] Commande non trouvée', { orderReference });
+            logger.warn(`[OrderService] Commande non trouvée: ${orderReference}`);
             return null;
         }
 
@@ -329,7 +334,13 @@ const findByReference = async (orderReference) => {
             };
         }
 
-        // ✅ CORRIGÉ: Le paiement est TOUJOURS présent et TOUJOURS 'success' (grâce à INNER JOIN)
+        // ✅ RETOURNER SEULEMENT SI PAIEMENT RÉUSSI (pour la route publique)
+        if (!order.payment_id || order.payment_status !== 'success') {
+            console.log('[OrderService] [findByReference] Paiement absent ou statut non autorisé', { orderReference, payment_status: order.payment_status });
+            return null;
+        }
+
+        // Ajouter le paiement (présent et réussi)
         result.payment = {
             id: order.payment_id,
             amount: parseFloat(order.payment_amount),

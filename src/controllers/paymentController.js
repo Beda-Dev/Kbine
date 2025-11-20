@@ -540,6 +540,98 @@ const checkPaymentStatus = async (req, res) => {
     }
 };
 
+/**
+ * @route   GET /api/payments/user/:user_id
+ * @desc    Récupérer tous les paiements d'un utilisateur avec filtres avancés
+ * @access  Private
+ */
+const getUserPayments = async (req, res, next) => {
+    try {
+        const { user_id } = req.params;
+        const { 
+            page = 1, 
+            limit = 10, 
+            status, 
+            payment_method,
+            date,
+            start_date,
+            end_date,
+            sort_by = 'created_at',
+            sort_order = 'DESC'
+        } = req.query;
+
+        console.log('[PaymentController] [getUserPayments] Début', {
+            userId: user_id,
+            filters: { status, payment_method, date, start_date, end_date },
+            pagination: { page, limit },
+            sort: { sort_by, sort_order }
+        });
+
+        const userId = parseInt(user_id, 10);
+        if (isNaN(userId)) {
+            console.log('[PaymentController] [getUserPayments] ID utilisateur invalide');
+            return res.status(400).json({
+                success: false,
+                error: 'ID utilisateur invalide'
+            });
+        }
+
+        const result = await paymentService.getUserPayments({
+            user_id: userId,
+            page: parseInt(page),
+            limit: parseInt(limit),
+            status,
+            payment_method,
+            date,
+            start_date,
+            end_date,
+            sort_by,
+            sort_order: sort_order.toUpperCase()
+        });
+
+        console.log('[PaymentController] [getUserPayments] Succès', { 
+            count: result?.data?.length || 0,
+            total: result?.pagination?.total
+        });
+
+        logger.info('Paiements utilisateur récupérés', {
+            userId,
+            count: result?.data?.length,
+            filters: { status, payment_method, date }
+        });
+
+        res.json({
+            success: true,
+            data: result.data,
+            pagination: result.pagination
+        });
+    } catch (error) {
+        console.log('[PaymentController] [getUserPayments] Erreur', { 
+            message: error.message,
+            userId: req.params.user_id
+        });
+
+        logger.error('Erreur récupération paiements utilisateur', {
+            error: error.message,
+            userId: req.params.user_id,
+            filters: req.query
+        });
+
+        if (error.message.includes('Utilisateur non trouvé')) {
+            return res.status(404).json({
+                success: false,
+                error: error.message
+            });
+        }
+
+        res.status(500).json({
+            success: false,
+            error: 'Erreur lors de la récupération des paiements',
+            details: error.message
+        });
+    }
+};
+
 // Export des constantes et contrôleurs
 module.exports = {
     // Constantes
@@ -559,4 +651,5 @@ module.exports = {
     initializePayment,
     touchpointWebhook,
     checkPaymentStatus,
+    getUserPayments,
 };

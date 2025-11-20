@@ -965,6 +965,260 @@ const checkPaymentStatus = async (orderReference) => {
     }
 };
 
+/**
+ * Récupère tous les paiements d'un utilisateur avec filtres avancés
+ */
+const getUserPayments = async ({
+    user_id,
+    page = 1,
+    limit = 10,
+    status,
+    payment_method,
+    date,
+    start_date,
+    end_date,
+    sort_by = 'created_at',
+    sort_order = 'DESC'
+} = {}) => {
+    try {
+        console.log('[PaymentService] getUserPayments - Début', {
+            user_id,
+            filters: { status, payment_method, date, start_date, end_date },
+            pagination: { page, limit },
+            sort: { sort_by, sort_order }
+        });
+
+        // Vérifier que l'utilisateur existe
+        const [users] = await db.execute(
+            'SELECT id FROM users WHERE id = ?',
+            [user_id]
+        );
+
+        if (users.length === 0) {
+            throw new Error('Utilisateur non trouvé');
+        }
+
+        console.log('[PaymentService] getUserPayments - Utilisateur trouvé');
+
+        // Construire la requête
+        const offset = (page - 1) * limit;
+        const whereClauses = [];
+        const params = [];
+
+        // Filtre utilisateur (obligatoire)
+        whereClauses.push('o.user_id = ?');
+        params.push(user_id);
+
+        // Filtre statut paiement
+        if (status) {
+            whereClauses.push('p.status = ?');
+            params.push(status);
+        }
+
+        // Filtre méthode paiement
+        if (payment_method) {
+            whereClauses.push('p.payment_method = ?');
+            params.push(payment_method);
+        }
+
+        // Filtre date spécifique (format YYYY-MM-DD)
+        if (date) {
+            const startOfDay = new Date(date);
+            const endOfDay = new Date(date);
+            endOfDay.setDate(endOfDay.getDate() + 1);
+
+            console.log('[PaymentService] getUserPayments - Filtre date', {
+                date,
+                startOfDay,
+                endOfDay
+            });
+
+            whereClauses.push('DATE(p.created_at) = DATE(?)');
+            params.push(date);
+        }
+
+        // Filtre date de début
+        if (start_date && !date) {
+            whereClauses.push('p.created_at >= ?');
+            params.push(new Date(start_date));
+        }
+
+        // Filtre date de fin
+        if (end_date && !date) {
+            whereClauses.push('p.created_at <= ?');
+            params.push(new Date(end_date));
+        }
+
+        // Valider sort_by (prévention SQL injection)
+        const allowedSortFields = ['p.created_at', 'p.updated_at', 'p.amount', 'p.status', 'p.payment_method'];
+        const sortField = allowedSortFields.includes(sort_by) ? sort_by : 'p.created_at';
+        const sortDirection = sort_order === 'ASC' ? 'ASC' : 'DESC';
+
+        const whereClause = whereClauses.length > 0 ? `WHERE ${whereClauses.join(' AND ')}` : '';
+
+        const query = `
+            SELECT 
+                p.id,
+                p.order_id,
+                p.amount,
+                p.payment_method,
+                p.payment_phone,
+                p.payment_reference,
+                p.external_reference,
+                p.status,
+                p.callback_data,
+                p.created_at,
+                p.updated_at,
+                o.id as order_id_full,
+                o.order_reference,
+                o.status as order_status,
+                o.amount as order_amount,
+                o.phone_number as order_phone_number,
+                o.assigned_to,
+                o.created_at as order_created_at,
+                o.updated_at as order_updated_at,
+                o.plan_id,
+                pl.id as plan_id_full,
+                pl.operator_id,
+                pl.name as plan_name,
+                pl.description as plan_description,
+                pl.price as plan_price,
+                pl.type as plan_type,
+                pl.validity_days as plan_validity_days,
+                pl.active as plan_active,
+                pl.created_at as plan_created_at,
+                op.id as operator_id_full,
+                op.name as operator_name,
+                op.code as operator_code,
+                op.prefixes as operator_prefixes,
+                op.created_at as operator_created_at,
+                u.phone_number as user_phone
+            FROM payments p
+            LEFT JOIN orders o ON p.order_id = o.id
+            LEFT JOIN plans pl ON o.plan_id = pl.id
+            LEFT JOIN operators op ON pl.operator_id = op.id
+            LEFT JOIN users u ON o.user_id = u.id
+            ${whereClause}
+            ORDER BY ${sortField} ${sortDirection}
+            LIMIT ? OFFSET ?
+        `;
+
+        console.log('[PaymentService] getUserPayments - Exécution requête SELECT');
+        const [payments] = await db.execute(query, [...params, limit, offset]);
+        console.log('[PaymentService] getUserPayments - Résultats (count)', payments?.length || 0);
+
+        // Requête count
+        const countQuery = `
+            SELECT COUNT(p.id) as total
+            FROM payments p
+            LEFT JOIN orders o ON p.order_id = o.id
+            ${whereClause}
+        `;
+
+        console.log('[PaymentService] getUserPayments - Exécution requête COUNT');
+        const [countResult] = await db.execute(countQuery, params);
+        const total = countResult[0].total;
+        const totalPages = Math.ceil(total / limit);
+
+        console.log('[PaymentService] getUserPayments - Total:', {
+            total,
+            totalPages,
+            currentPage: page
+        });
+
+        // Transformer les données
+        const formattedPayments = payments.map(payment => {
+            const result = {
+                id: payment.id,
+                order_id: payment.order_id,
+                amount: parseFloat(payment.amount),
+                payment_method: payment.payment_method,
+                payment_phone: payment.payment_phone,
+                payment_reference: payment.payment_reference,
+                external_reference: payment.external_reference,
+                status: payment.status,
+                callback_data: payment.callback_data ? 
+                    (typeof payment.callback_data === 'string' 
+                        ? JSON.parse(payment.callback_data) 
+                        : payment.callback_data) 
+                    : null,
+                created_at: payment.created_at,
+                updated_at: payment.updated_at
+            };
+
+            // ✅ AJOUTER LES DÉTAILS COMPLETS DE LA COMMANDE
+            if (payment.order_id) {
+                result.order = {
+                    id: payment.order_id_full,
+                    reference: payment.order_reference,
+                    status: payment.order_status,
+                    amount: parseFloat(payment.order_amount),
+                    phone_number: payment.order_phone_number,
+                    assigned_to: payment.assigned_to,
+                    created_at: payment.order_created_at,
+                    updated_at: payment.order_updated_at,
+                    plan_id: payment.plan_id
+                };
+            }
+
+            // ✅ AJOUTER LES DÉTAILS COMPLETS DU PLAN
+            if (payment.plan_id) {
+                result.plan = {
+                    id: payment.plan_id_full,
+                    operator_id: payment.operator_id,
+                    name: payment.plan_name,
+                    description: payment.plan_description,
+                    price: parseFloat(payment.plan_price),
+                    type: payment.plan_type,
+                    validity_days: payment.plan_validity_days,
+                    active: payment.plan_active === 1,
+                    created_at: payment.plan_created_at,
+                    operator: {
+                        id: payment.operator_id_full,
+                        name: payment.operator_name,
+                        code: payment.operator_code,
+                        prefixes: payment.operator_prefixes ? 
+                            (typeof payment.operator_prefixes === 'string' 
+                                ? JSON.parse(payment.operator_prefixes) 
+                                : payment.operator_prefixes) 
+                            : [],
+                        created_at: payment.operator_created_at
+                    }
+                };
+            }
+
+            return result;
+        });
+
+        console.log('[PaymentService] getUserPayments - Transformation terminée');
+
+        return {
+            data: formattedPayments,
+            pagination: {
+                total,
+                total_pages: totalPages,
+                current_page: page,
+                limit,
+                has_next_page: page < totalPages,
+                has_previous_page: page > 1
+            }
+        };
+    } catch (error) {
+        console.log('[PaymentService] getUserPayments - Erreur', {
+            message: error.message,
+            userId: user_id
+        });
+
+        logger.error('Erreur récupération paiements utilisateur', {
+            error: error.message,
+            userId: user_id,
+            filters: { status, payment_method, date }
+        });
+
+        throw error;
+    }
+};
+
 module.exports = {
     // Gestion basique des paiements
     createPayment,
@@ -985,4 +1239,7 @@ module.exports = {
     // Constantes
     PAYMENT_METHODS,
     PAYMENT_STATUS,
+
+    // Nouveaux endpoints
+    getUserPayments,
 };

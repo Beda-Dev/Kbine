@@ -155,6 +155,34 @@ router.post('/',
     paymentController.createPayment
 );
 
+/**
+ * @route   GET /api/payments/user/:user_id
+ * @desc    Récupérer tous les paiements d'un utilisateur avec filtres
+ * @access  Private
+ */
+router.get('/user/:user_id',
+    authenticateToken,
+    (req, res, next) => {
+        console.log('[PaymentRoutes] GET /user/:user_id - Validation', { 
+            userId: req.params.user_id,
+            query: req.query 
+        });
+        
+        const userId = parseInt(req.params.user_id, 10);
+        if (isNaN(userId)) {
+            console.log('[PaymentRoutes] ID utilisateur invalide');
+            return res.status(400).json({
+                success: false,
+                error: 'ID utilisateur invalide'
+            });
+        }
+        
+        console.log('[PaymentRoutes] Validation user_id OK');
+        next();
+    },
+    paymentController.getUserPayments
+);
+
 // ==========================================
 // SECTION 4: ROUTES AVEC PARAMÈTRES DYNAMIQUES
 // Ces routes DOIVENT être à la fin pour ne pas capturer les routes statiques
@@ -294,7 +322,7 @@ router.patch('/:id/status',
         if (idResult.error) {
             console.log('[PaymentRoutes] Erreur validation ID', {
                 error: idResult.error.message
-            });
+            });j
             
             return res.status(400).json({
                 success: false,

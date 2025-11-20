@@ -935,11 +935,19 @@ Authorization: Bearer <token>
           "fees": 2,
           "amount": 1000,
           "status": "SUCCESSFUL",
-          "numTransaction": "WAVE250124.1630.ABC12"
+          "dateTime": 1737723000000,
+          "idFromGU": "1737723000000",
+          "serviceCode": "CI_PAIEMENTWAVE_TP",
+          "idFromClient": "20250124123456ORD-20250124-ABC12",
+          "numTransaction": "WAVE250124.1630.ABC12",
+          "recipientNumber": "0701020304"
         },
         "webhook_data": {
           "status": "SUCCESSFUL",
-          "service_id": "CI_PAIEMENTWAVE_TP"
+          "service_id": "CI_PAIEMENTWAVE_TP",
+          "call_back_url": "https://www.kbine-mobile.com/api/payments/webhook/touchpoint",
+          "gu_transaction_id": "1737723000000",
+          "partner_transaction_id": "20250124123456ORD-20250124-ABC12"
         },
         "webhook_received_at": "2025-01-24T16:30:02.000Z",
         "touchpoint_transaction_id": "20250124123456ORD-20250124-ABC12"
@@ -1127,7 +1135,7 @@ console.log(`Frais: ${callbackData.touchpoint_response.fees}`);
 **Champs:**
 - `order_reference` (string, requis) - Référence de la commande (format: ORD-YYYYMMDD-XXXXX)
 - `amount` (number, requis) - Montant à payer (positif, max 2 décimales)
-- `payment_phone` (string, requis) - Numéro de téléphone pour le paiement (format ivoirien: 10 chiffres commençant par 0)
+- `payment_phone` (string, requis) - Numéro de téléphone pour le paiement (format ivoirien: 0XXXXXXXXX)
 - `payment_method` (string, requis) - Méthode de paiement: `wave`, `orange_money`, `mtn_money`, `moov_money`
 - `otp` (string, optionnel) - Code OTP à 4 chiffres (obligatoire pour `orange_money`, optionnel pour les autres)
 - `return_url` (string, optionnel) - URL de retour après paiement réussi (Wave uniquement)
@@ -1505,9 +1513,9 @@ Le webhook effectue les actions suivantes:
    - `payment_reference` (string) - Référence du paiement
    - `external_reference` (string) - Référence externe TouchPoint
    - `status` (string) - Statut du paiement
-   - `callback_data` (object) - **Données complètes du webhook et de TouchPoint** (voir section "Structure du callback_data")
+   - `callback_data` (object) - **Données complètes du webhook et de TouchPoint** (voir Guide du callback_data)
    - `created_at` (datetime) - Date de création
-   - `updated_at` (datetime) - Date de dernière mise à jour
+   - `updated_at` (datetime) - Date de mise à jour
 
 
 #### Réponses d'Erreur
@@ -1629,6 +1637,8 @@ Le webhook effectue les actions suivantes:
           "numTransaction": "1763559655779",
           "recipientNumber": "0566955943"
         },
+        "return_url": "https://www.kbine-mobile.com/payments/return/ORD-20251119-77058/successful",
+        "cancel_url": "https://www.kbine-mobile.com/payments/return/ORD-20251119-77058/failed",
         "payment_method": "wave",
         "transaction_id": "20251119134055ORD-20251119-77058",
         "touchpoint_status": "INITIATED",
@@ -1638,7 +1648,6 @@ Le webhook effectue les actions suivantes:
           "status": "INITIATED",
           "dateTime": 1763559655779,
           "idFromGU": "1763559655779",
-          "payment_url": "https://pay.wave.com/c/cos-218m2pg9r22mc?a=10&c=XOF&m=BAPE%27S%20SERVICES%20%2A%20Touc",
           "serviceCode": "CI_PAIEMENTWAVE_TP",
           "idFromClient": "20251119134055ORD-20251119-77058",
           "numTransaction": "1763559655779",
@@ -1650,7 +1659,7 @@ Le webhook effectue les actions suivantes:
       "updated_at": "2025-11-19T13:40:56.000Z",
       "order_status": "pending",
       "user_id": 2,
-      "order_reference": "ORD-20251119-77058",
+      "order_reference": "ORD-20251119-66785",
       "user_phone": "0566955943"
     },
     {
@@ -1672,7 +1681,7 @@ Le webhook effectue les actions suivantes:
       "updated_at": "2025-11-19T13:39:29.000Z",
       "order_status": "pending",
       "user_id": 2,
-      "order_reference": "ORD-20251119-77058",
+      "order_reference": "ORD-20251119-66785",
       "user_phone": "0566955943"
     },
     {
@@ -1731,7 +1740,7 @@ Le webhook effectue les actions suivantes:
       "updated_at": "2025-11-19T13:42:21.000Z",
       "order_status": "pending",
       "user_id": 2,
-      "order_reference": "ORD-20251119-77058",
+      "order_reference": "ORD-20251119-66785",
       "user_phone": "0566955943"
     },
     {
@@ -1816,13 +1825,6 @@ Le webhook effectue les actions suivantes:
 - `external_reference` (string) - ID unique généré lors de l'initialisation
 - `status` (string) - Statut actuel (pending, success, failed, refunded)
 - `callback_data` (object) - Données complètes du paiement (voir Guide du callback_data)
-  - `initiated_at` - Timestamp d'initialisation
-  - `touchpoint_status` - Statut TouchPoint (INITIATED, SUCCESSFUL, FAILED, etc.)
-  - `touchpoint_response` - Réponse complète de TouchPoint
-  - `raw_response` - Réponse brute de TouchPoint
-  - `webhook_data` - Données du webhook (si reçu)
-  - `webhook_received_at` - Timestamp de réception du webhook
-  - `fees` - Frais de transaction
 - `created_at` (datetime) - Date de création du paiement
 - `updated_at` (datetime) - Date de dernière mise à jour
 - `user_id` (integer) - ID de l'utilisateur
@@ -1842,22 +1844,70 @@ Le webhook effectue les actions suivantes:
 
 ---
 
-### 8. Mettre à Jour un Paiement
+### 8. Récupérer les Paiements d'un Utilisateur avec Filtres Avancés
 
-**Endpoint:** `PUT /api/payments/:id`
+**Endpoint:** `GET /api/payments/user/:user_id`
 
-**Description:** Met à jour les informations d'un paiement.
+**Description:** Récupère TOUS les paiements d'un utilisateur avec filtres avancés (date, statut, méthode) et détails complets du plan et de la commande.
 
-**Niveau d'accès:** Admin
+**Niveau d'accès:** Authentifié
 
-#### Données à Envoyer (JSON)
+#### Paramètres de Requête
 
-```json
-{
-  "amount": 5500.00,
-  "payment_phone": "0789062080",
-  "status": "success"
-}
+| Paramètre | Type | Défaut | Description |
+|-----------|------|--------|-------------|
+| `page` | integer | 1 | Numéro de page |
+| `limit` | integer | 10 | Éléments par page (max: 100) |
+| `status` | string | - | Filtrer par statut paiement (pending, success, failed, refunded) |
+| `payment_method` | string | - | Filtrer par méthode (wave, orange_money, mtn_money, moov_money) |
+| `date` | string (YYYY-MM-DD) | - | Paiements d'une date spécifique (ex: 2025-11-20) |
+| `start_date` | string (YYYY-MM-DD) | - | Début de plage de dates |
+| `end_date` | string (YYYY-MM-DD) | - | Fin de plage de dates |
+| `sort_by` | string | p.created_at | Champ de tri (p.created_at, p.updated_at, p.amount, p.status, p.payment_method) |
+| `sort_order` | string | DESC | Ordre de tri (ASC ou DESC) |
+
+#### Exemples de Requêtes
+
+**1️⃣ Tous les paiements de l'utilisateur (pagination)**
+```bash
+GET /api/payments/user/31?page=1&limit=20
+Authorization: Bearer <token>
+```
+
+**2️⃣ Paiements pour une date spécifique**
+```bash
+GET /api/payments/user/31?date=2025-11-20
+Authorization: Bearer <token>
+```
+
+**3️⃣ Paiements réussis pour une date**
+```bash
+GET /api/payments/user/31?date=2025-11-20&status=success
+Authorization: Bearer <token>
+```
+
+**4️⃣ Paiements Wave pour une date**
+```bash
+GET /api/payments/user/31?date=2025-11-20&payment_method=wave
+Authorization: Bearer <token>
+```
+
+**5️⃣ Tous les paiements réussis (triés par montant DESC)**
+```bash
+GET /api/payments/user/31?status=success&sort_by=p.amount&sort_order=DESC
+Authorization: Bearer <token>
+```
+
+**6️⃣ Paiements par plage de dates**
+```bash
+GET /api/payments/user/31?start_date=2025-11-01&end_date=2025-11-30
+Authorization: Bearer <token>
+```
+
+**7️⃣ Combinaison complète de filtres**
+```bash
+GET /api/payments/user/31?date=2025-11-20&status=success&payment_method=wave&sort_by=p.created_at&sort_order=DESC&page=1&limit=10
+Authorization: Bearer <token>
 ```
 
 #### Réponse en Cas de Succès (200)
@@ -1865,84 +1915,277 @@ Le webhook effectue les actions suivantes:
 ```json
 {
   "success": true,
-  "message": "Paiement mis à jour avec succès",
-  "data": {
-    "id": 45,
-    "order_id": 123,
-    "amount": 5500.00,
-    "payment_phone": "0789062080",
-    "status": "success",
-    "updated_at": "2025-01-24T11:00:00.000Z"
-  }
-}
-```
-
----
-
-### 9. Mettre à Jour le Statut d'un Paiement
-
-### 9.1 Mettre à Jour le Statut d'un Paiement
-**Endpoint:** `PATCH /api/payments/:id/status`
-
-**Description:** Met à jour uniquement le statut d'un paiement existant.
-
-**Niveau d'accès:** Staff / Admin
-
-#### Données à Envoyer (JSON)
-```json
-{
-  "status": "success",
-  "notes": "Paiement confirmé manuellement"
-}
-```
-
-#### Réponse en Cas de Succès (200)
-```json
-{
-  "success": true,
-  "message": "Statut du paiement mis à jour avec succès",
-  "data": {
-    "id": 45,
-    "order_id": 123,
-    "amount": 5000.00,
-    "payment_method": "wave",
-    "status": "success",
-    "updated_at": "2025-01-24T11:30:00.000Z"
-  }
-}
-```
-
----
-
-### 9.2 Rembourser un Paiement
-**Endpoint:** `POST /api/payments/:id/refund`
-
-**Description:** Effectue le remboursement d'un paiement réussi.
-
-**Niveau d'accès:** Admin
-
-#### Données à Envoyer (JSON)
-```json
-{
-  "reason": "Commande annulée par le client"
-}
-```
-
-#### Réponse en Cas de Succès (200)
-```json
-{
-  "success": true,
-  "message": "Paiement remboursé avec succès",
-  "data": {
-    "id": 45,
-    "status": "refunded",
-    "callback_data": {
-      "refund_reason": "Commande annulée par le client",
-      "refunded_at": "2025-01-24T12:00:00.000Z"
+  "data": [
+    {
+      "id": 30,
+      "order_id": 66,
+      "amount": 315.00,
+      "payment_method": "wave",
+      "payment_phone": "0789062079",
+      "payment_reference": "PAY-20251119163551ORD-20251119-66785",
+      "external_reference": "20251119163551ORD-20251119-66785",
+      "status": "failed",
+      "callback_data": {
+        "fees": 6.3,
+        "status": "FAILED",
+        "message": "FAILED",
+        "touchpoint_status": "FAILED",
+        "initiated_at": "2025-11-19T16:35:51.068Z",
+        "webhook_received_at": "2025-11-19T16:55:01.437Z"
+      },
+      "created_at": "2025-11-19T16:35:51.000Z",
+      "updated_at": "2025-11-19T16:55:01.000Z",
+      "order": {
+        "id": 66,
+        "reference": "ORD-20251119-66785",
+        "status": "pending",
+        "amount": 315.00,
+        "phone_number": "0789062079",
+        "assigned_to": null,
+        "created_at": "2025-11-19T16:35:49.000Z",
+        "updated_at": "2025-11-19T16:35:49.000Z",
+        "plan_id": 55
+      },
+      "plan": {
+        "id": 55,
+        "operator_id": 1,
+        "name": "Plan Orange 315 XOF",
+        "description": "Crédit de communication 315 XOF",
+        "price": 315.00,
+        "type": "credit",
+        "validity_days": null,
+        "active": true,
+        "created_at": "2025-11-15T10:30:00.000Z",
+        "operator": {
+          "id": 1,
+          "name": "Orange CI",
+          "code": "ORANGE",
+          "prefixes": ["07"],
+          "created_at": "2025-01-01T00:00:00.000Z"
+        }
+      }
+    },
+    {
+      "id": 29,
+      "order_id": 65,
+      "amount": 210.00,
+      "payment_method": "wave",
+      "payment_phone": "0789062079",
+      "payment_reference": "PAY-20251119163204ORD-20251119-30516",
+      "external_reference": "20251119163204ORD-20251119-30516",
+      "status": "success",
+      "callback_data": {
+        "fees": 4.2,
+        "status": "SUCCESSFUL",
+        "message": "Transaction successful",
+        "touchpoint_status": "SUCCESSFUL",
+        "initiated_at": "2025-11-19T16:32:05.734Z",
+        "webhook_data": {
+          "status": "SUCCESSFUL",
+          "service_id": "CI_PAIEMENTWAVE_TP"
+        },
+        "webhook_received_at": "2025-11-19T16:32:08.180Z"
+      },
+      "created_at": "2025-11-19T16:32:04.000Z",
+      "updated_at": "2025-11-19T16:32:08.000Z",
+      "order": {
+        "id": 65,
+        "reference": "ORD-20251119-30516",
+        "status": "completed",
+        "amount": 210.00,
+        "phone_number": "0789062079",
+        "assigned_to": 5,
+        "created_at": "2025-11-19T16:32:02.000Z",
+        "updated_at": "2025-11-19T16:32:08.000Z",
+        "plan_id": 54
+      },
+      "plan": {
+        "id": 54,
+        "operator_id": 1,
+        "name": "Plan Orange 210 XOF",
+        "description": "Crédit de communication 210 XOF",
+        "price": 210.00,
+        "type": "credit",
+        "validity_days": null,
+        "active": true,
+        "created_at": "2025-11-15T10:30:00.000Z",
+        "operator": {
+          "id": 1,
+          "name": "Orange CI",
+          "code": "ORANGE",
+          "prefixes": ["07"],
+          "created_at": "2025-01-01T00:00:00.000Z"
+        }
+      }
     }
+  ],
+  "pagination": {
+    "total": 25,
+    "total_pages": 3,
+    "current_page": 1,
+    "limit": 10,
+    "has_next_page": true,
+    "has_previous_page": false
   }
 }
 ```
+
+#### Structure Complète de la Réponse
+
+**Champs du paiement:**
+- `id` (integer) - ID unique du paiement
+- `order_id` (integer) - ID de la commande associée
+- `amount` (number) - Montant du paiement
+- `payment_method` (string) - Méthode utilisée (wave, orange_money, mtn_money, moov_money)
+- `payment_phone` (string) - Numéro de téléphone utilisé
+- `payment_reference` (string) - Référence interne du paiement
+- `external_reference` (string) - ID unique TouchPoint
+- `status` (string) - Statut du paiement (pending, success, failed, refunded)
+- `callback_data` (object) - Données complètes du paiement (voir Guide du callback_data)
+- `created_at` (datetime) - Date de création
+- `updated_at` (datetime) - Date de mise à jour
+
+**Champs de la commande (object order):**
+- `id` (integer) - ID de la commande
+- `reference` (string) - Référence de la commande (ORD-YYYYMMDD-XXXXX)
+- `status` (string) - Statut de la commande (pending, assigned, processing, completed, cancelled)
+- `amount` (number) - Montant total de la commande
+- `phone_number` (string) - Numéro de téléphone pour la commande
+- `assigned_to` (integer ou null) - ID du staff assigné
+- `created_at` (datetime) - Date de création
+- `updated_at` (datetime) - Date de mise à jour
+- `plan_id` (integer) - ID du plan (null si commande personnalisée)
+
+**Champs du plan (object plan):**
+- `id` (integer) - ID du plan
+- `operator_id` (integer) - ID de l'opérateur
+- `name` (string) - Nom du plan (ex: "Plan Orange 315 XOF")
+- `description` (string) - Description du plan
+- `price` (number) - Prix du plan
+- `type` (string) - Type de plan (credit, minutes, internet, mixte)
+- `validity_days` (integer ou null) - Jours de validité
+- `active` (boolean) - Si le plan est actif
+- `created_at` (datetime) - Date de création du plan
+
+**Champs de l'opérateur (object plan.operator):**
+- `id` (integer) - ID de l'opérateur
+- `name` (string) - Nom complet (ex: "Orange CI")
+- `code` (string) - Code court (ex: "ORANGE")
+- `prefixes` (array) - Préfixes de numéros supportés (ex: ["07"])
+- `created_at` (datetime) - Date de création
+
+**Champs de pagination:**
+- `total` (integer) - Nombre total de résultats
+- `total_pages` (integer) - Nombre de pages
+- `current_page` (integer) - Page actuelle
+- `limit` (integer) - Résultats par page
+- `has_next_page` (boolean) - Y a-t-il une page suivante
+- `has_previous_page` (boolean) - Y a-t-il une page précédente
+
+**Champs de filtres (appliqués):**
+- `status` (string ou null) - Filtre de statut utilisé
+- `payment_method` (string ou null) - Filtre de méthode utilisé
+- `date` (string ou null) - Filtre de date spécifique utilisé
+- `start_date` (string ou null) - Filtre de date de début utilisé
+- `end_date` (string ou null) - Filtre de date de fin utilisé
+
+#### Réponses d'Erreur
+
+**401 - Non Authentifié**
+```json
+{
+  "success": false,
+  "error": "Token invalide ou expiré"
+}
+```
+
+**404 - Utilisateur Non Trouvé**
+```json
+{
+  "success": false,
+  "error": "Utilisateur non trouvé"
+}
+```
+
+**400 - Paramètres Invalides**
+```json
+{
+  "success": false,
+  "error": "ID utilisateur invalide"
+}
+```
+
+**500 - Erreur Serveur**
+```json
+{
+  "success": false,
+  "error": "Erreur lors de la récupération des paiements",
+  "details": "Description détaillée de l'erreur"
+}
+```
+
+#### Cas d'Utilisation
+
+**1️⃣ Afficher l'historique de paiement complet d'un utilisateur**
+```javascript
+const response = await fetch('/api/payments/user/31');
+const { data } = await response.json();
+
+data.forEach(payment => {
+  console.log(`
+    ${payment.order.reference}:
+    Montant: ${payment.amount} XOF
+    Statut: ${payment.status}
+    Méthode: ${payment.payment_method}
+    Plan: ${payment.plan?.name || 'N/A'}
+  `);
+});
+```
+
+**2️⃣ Filtrer les paiements réussis et calculer le total**
+```javascript
+const response = await fetch('/api/payments/user/31?status=success');
+const { data } = await response.json();
+
+const totalSpent = data.reduce((sum, p) => sum + p.amount, 0);
+console.log(`Total dépensé: ${totalSpent} XOF`);
+```
+
+**3️⃣ Afficher les détails complets du plan**
+```javascript
+const payment = data[0];
+const plan = payment.plan;
+const operator = plan.operator;
+
+console.log(`
+  Plan: ${plan.name}
+  Opérateur: ${operator.name} (${operator.code})
+  Prix: ${plan.price} XOF
+  Type: ${plan.type}
+  Actif: ${plan.active}
+`);
+```
+
+**4️⃣ Analyser les paiements par méthode sur une période**
+```javascript
+const response = await fetch('/api/payments/user/31?start_date=2025-11-01&end_date=2025-11-30');
+const { data } = await response.json();
+
+const byMethod = {};
+data.forEach(p => {
+  byMethod[p.payment_method] = (byMethod[p.payment_method] || 0) + p.amount;
+});
+
+console.log('Paiements par méthode:', byMethod);
+```
+
+#### Points Importants
+
+✅ **Données Enrichies** - Inclut TOUTES les informations du plan et de la commande  
+✅ **Filtrage Flexible** - Filtres par date, statut, méthode, avec tri personnalisé  
+✅ **Pagination** - Gestion efficace des grandes listes  
+✅ **Détails complets** - Plan + Opérateur + Commande + Paiement en une seule requête  
+✅ **Audit trail** - `callback_data` contient l'intégralité de l'historique du paiement
 
 ---
 
@@ -2158,8 +2401,16 @@ Content-Type: application/json
   "data": {
     "id": 125,
     "order_reference": "ORD-20250124-ABC12",
+    "user_id": 1,
+    "plan_id": 1,
     "amount": 1000.00,
-    "status": "pending"
+    "status": "pending",
+    "created_at": "2025-01-15T16:30:00.000Z",
+    "plan": {
+      "id": 1,
+      "name": "Recharge 1000 FCFA",
+      "price": 1000.00
+    }
   }
 }
 ```
@@ -2173,7 +2424,10 @@ Content-Type: application/json
   "order_reference": "ORD-20250124-ABC12",
   "amount": 1000.00,
   "payment_phone": "0701020304",
-  "payment_method": "wave"
+  "payment_method": "wave",
+  "return_url": "https://app.example.com/payment/success",
+  "cancel_url": "https://app.example.com/payment/cancel",
+  "error_url": "https://app.example.com/payment/error"
 }
 ```
 
@@ -2274,7 +2528,7 @@ Le champ `callback_data` est un objet JSON qui stocke toutes les informations d�
   - `status` - Statut de la transaction
   - `amount` - Montant de la transaction
   - `fees` - Frais appliqués
-  - `serviceCode` - Code du service (PAIEMENTMARCHANDOMPAYCIDIRECT, PAIEMENTMARCHAND_MTN_CI, etc.)
+  - `serviceCode` - Code du service (PAIEMENTMARCHANDPAYCIDIRECT, PAIEMENTMARCHAND_MTN_CI, etc.)
   - `idFromClient` - ID envoyé par le client (transaction_id)
   - `idFromGU` - ID généré par TouchPoint
   - `numTransaction` - Numéro de transaction formaté
@@ -2287,19 +2541,19 @@ Le champ `callback_data` est un objet JSON qui stocke toutes les informations d�
   "fees": 2,
   "amount": 100,
   "status": "SUCCESSFUL",
-  "dateTime": 1763386115698,
-  "idFromGU": "1763386115698",
-  "serviceCode": "PAIEMENTMARCHANDOMPAYCIDIRECT",
-  "idFromClient": "20251117132835ORD-20251113-77283",
-  "numTransaction": "MP251117.1328.A58986",
-  "recipientNumber": "0749793994"
+  "dateTime": 1737723000000,
+  "idFromGU": "1737723000000",
+  "serviceCode": "CI_PAIEMENTWAVE_TP",
+  "idFromClient": "20250124123456ORD-20250124-ABC12",
+  "numTransaction": "WAVE250124.1630.ABC12",
+  "recipientNumber": "0701020304"
 }
 ```
 
 #### 4. **touchpoint_transaction_id** (string)
 - **Type:** String
 - **Description:** ID unique de la transaction dans TouchPoint (généralement identique à `external_reference`)
-- **Exemple:** `"20251117132835ORD-20251113-77283"`
+- **Exemple:** `"20250124123456ORD-20250124-ABC12"`
 - **Utilité:** Référencer la transaction dans TouchPoint
 
 #### 5. **webhook_data** (object)
@@ -2317,10 +2571,10 @@ Le champ `callback_data` est un objet JSON qui stocke toutes les informations d�
 ```json
 {
   "status": "SUCCESSFUL",
-  "service_id": "PAIEMENTMARCHANDOMPAYCIDIRECT",
+  "service_id": "PAIEMENTMARCHANDPAYCIDIRECT",
   "call_back_url": "https://www.kbine-mobile.com/api/payments/webhook/touchpoint",
-  "gu_transaction_id": "1763386115698",
-  "partner_transaction_id": "20251117132835ORD-20251113-77283"
+  "gu_transaction_id": "1737723000000",
+  "partner_transaction_id": "20250124123456ORD-20250124-ABC12"
 }
 ```
 
@@ -2332,8 +2586,8 @@ Le champ `callback_data` est un objet JSON qui stocke toutes les informations d�
   "commission": 0,
   "service_id": "CI_PAIEMENTWAVE_TP",
   "call_back_url": "https://www.kbine-mobile.com/api/payments/webhook/touchpoint",
-  "gu_transaction_id": "1763476720407",
-  "partner_transaction_id": "20251118143839ORD-20251117-70954"
+  "gu_transaction_id": "1737723000000",
+  "partner_transaction_id": "20250124123456ORD-20250124-ABC12"
 }
 ```
 
@@ -2369,25 +2623,25 @@ Le champ `callback_data` est un objet JSON qui stocke toutes les informations d�
   "initiated_at": "2025-11-17T13:28:37.854Z",
   "webhook_data": {
     "status": "SUCCESSFUL",
-    "service_id": "PAIEMENTMARCHANDOMPAYCIDIRECT",
+    "service_id": "PAIEMENTMARCHANDPAYCIDIRECT",
     "call_back_url": "https://www.kbine-mobile.com/api/payments/webhook/touchpoint",
-    "gu_transaction_id": "1763386115698",
-    "partner_transaction_id": "20251117132835ORD-20251113-77283"
+    "gu_transaction_id": "1737723000000",
+    "partner_transaction_id": "20250124123456ORD-20250124-ABC12"
   },
   "touchpoint_status": "SUCCESSFUL",
   "touchpoint_response": {
     "fees": 2,
-    "amount": 100,
+    "amount": 1000,
     "status": "SUCCESSFUL",
-    "dateTime": 1763386115698,
-    "idFromGU": "1763386115698",
-    "serviceCode": "PAIEMENTMARCHANDOMPAYCIDIRECT",
-    "idFromClient": "20251117132835ORD-20251113-77283",
-    "numTransaction": "MP251117.1328.A58986",
-    "recipientNumber": "0749793994"
+    "dateTime": 1737723000000,
+    "idFromGU": "1737723000000",
+    "serviceCode": "CI_PAIEMENTWAVE_TP",
+    "idFromClient": "20250124123456ORD-20250124-ABC12",
+    "numTransaction": "WAVE250124.1630.ABC12",
+    "recipientNumber": "0701020304"
   },
   "webhook_received_at": "2025-11-17T13:28:38.222Z",
-  "touchpoint_transaction_id": "20251117132835ORD-20251113-77283"
+  "touchpoint_transaction_id": "20250124123456ORD-20250124-ABC12"
 }
 ```
 
@@ -2408,8 +2662,8 @@ Le champ `callback_data` est un objet JSON qui stocke toutes les informations d�
     "commission": 0,
     "service_id": "CI_PAIEMENTWAVE_TP",
     "call_back_url": "https://www.kbine-mobile.com/api/payments/webhook/touchpoint",
-    "gu_transaction_id": "1763476720407",
-    "partner_transaction_id": "20251118143839ORD-20251117-70954"
+    "gu_transaction_id": "1737723000000",
+    "partner_transaction_id": "20250124123456ORD-20250124-ABC12"
   },
   "touchpoint_status": "FAILED",
   "webhook_received_at": "2025-11-18T14:38:41.827Z"
@@ -2802,168 +3056,3 @@ try {
    - `POST /:id/refund` - Remboursement
 
 ---
-
-## 16. Tests
-
-### Exemple de Test avec cURL
-
-#### Test de Login
-```bash
-curl -X POST http://localhost:3000/api/auth/login \
-  -H "Content-Type: application/json" \
-  -d '{"phoneNumber": "0701020304"}'
-```
-
-#### Test de Récupération des Plans
-```bash
-curl -X GET http://localhost:3000/api/plans/phone/0701020304
-```
-
-#### Test de Création de Commande
-```bash
-curl -X POST http://localhost:3000/api/orders \
-  -H "Content-Type: application/json" \
-  -H "Authorization: Bearer {votre_token}" \
-  -d '{"plan_id": 1, "amount": 1000.00}'
-```
-
-#### Test d'Initialisation de Paiement (Wave)
-```bash
-curl -X POST http://localhost:3000/api/payments/initialize \
-  -H "Content-Type: application/json" \
-  -d '{
-    "order_reference": "ORD-20250124-ABC12",
-    "amount": 1000.00,
-    "payment_phone": "0701020304",
-    "payment_method": "wave",
-    "return_url": "https://app.example.com/payment/success",
-    "cancel_url": "https://app.example.com/payment/cancel"
-  }'
-```
-
-#### Test d'Initialisation de Paiement (Orange Money)
-```bash
-curl -X POST http://localhost:3000/api/payments/initialize \
-  -H "Content-Type: application/json" \
-  -d '{
-    "order_reference": "ORD-20250124-ABC12",
-    "amount": 1000.00,
-    "payment_phone": "0701020304",
-    "payment_method": "orange_money",
-    "otp": "1234"
-  }'
-```
-
-#### Test de Vérification du Statut
-```bash
-curl -X GET http://localhost:3000/api/payments/status/ORD-20250124-ABC12
-```
-
-#### Test de Webhook TouchPoint (Simulation)
-```bash
-curl -X POST http://localhost:3000/api/payments/webhook/touchpoint \
-  -H "Content-Type: application/json" \
-  -d '{
-    "partner_transaction_id": "20250124123456ORD-20250124-ABC12",
-    "idFromClient": "20250124123456ORD-20250124-ABC12",
-    "status": "SUCCESSFUL",
-    "amount": 1000.00,
-    "recipientNumber": "0701020304",
-    "serviceCode": "WAVE",
-    "timestamp": "2025-01-24T16:32:00.000Z"
-  }'
-```
-
-#### Test de Récupération des Méthodes de Paiement
-```bash
-curl -X GET http://localhost:3000/api/payments/methods
-```
-
-#### Test de Récupération des Statuts (Authentifié)
-```bash
-curl -X GET http://localhost:3000/api/payments/statuses \
-  -H "Authorization: Bearer {votre_token}"
-```
-
-#### Test de Récupération des Paiements avec Filtres
-```bash
-curl -X GET "http://localhost:3000/api/payments?page=1&limit=10&status=success&payment_method=wave" \
-  -H "Authorization: Bearer {votre_token}"
-```
-
-#### Test de Mise à Jour du Statut d'un Paiement
-```bash
-curl -X PATCH http://localhost:3000/api/payments/45/status \
-  -H "Content-Type: application/json" \
-  -H "Authorization: Bearer {votre_token}" \
-  -d '{
-    "status": "success",
-    "notes": "Paiement confirmé manuellement"
-  }'
-```
-
-#### Test de Remboursement
-```bash
-curl -X POST http://localhost:3000/api/payments/45/refund \
-  -H "Content-Type: application/json" \
-  -H "Authorization: Bearer {votre_token}" \
-  -d '{
-    "reason": "Commande annulée par le client"
-  }'
-```
-
----
-
-## 16. Support et Contact
-
-### Ressources Disponibles
-
-- **Documentation API:** Consulter ce document
-- **Logs:** Vérifier les fichiers `logs/error.log` et `logs/combined.log`
-- **Base de données:** Utiliser les requêtes SQL directement si nécessaire
-
-### Résolution de Problèmes Courants
-
-| Problème | Cause Possible | Solution |
-|----------|----------------|----------|
-| Token invalide (401) | Token expiré ou malformé | Réauthentifier l'utilisateur |
-| Opérateur non trouvé | Préfixe invalide | Vérifier les préfixes en base |
-| Paiement échoué | Problème avec le provider | Vérifier les logs et les credentials |
-| Commande non créée | Données manquantes | Valider les champs requis |
-
----
-
-## 17. Changelog
-
-### Version 1.2.0 (Actuelle - Janvier 2025)
-- ✅ **Support complet des URLs de callback pour Wave** (`return_url`, `cancel_url`, `error_url`)
-- ✅ **Enrichissement du callback_data** avec toutes les données TouchPoint et webhook
-- ✅ **Validation Joi complète** pour tous les paramètres de paiement
-- ✅ **Gestion d'erreurs améliorée** avec messages détaillés et contexte
-- ✅ **Idempotence du webhook** pour éviter les doublons
-- ✅ **Documentation complète** des flux de paiement et implémentation
-- ✅ **Tests cURL** pour tous les endpoints de paiement
-- ✅ **Spread operator** pour inclure toutes les données de paymentResult
-
-### Version 1.1.1
-- ✅ Ajout de la gestion des paiements Wave et TouchPoint
-- ✅ Implémentation des webhooks
-- ✅ Amélioration de la gestion des erreurs
-- ✅ Ajout de la gestion des versions d'application
-
-### Version 1.0.0
-- 🎉 Version initiale
-- ✅ Authentification JWT
-- ✅ Gestion des utilisateurs
-- ✅ Gestion des opérateurs et plans
-- ✅ Système de commandes
-
----
-
-## 18. Licence et Mentions Légales
-
-**Kbine Backend API - Version 1.1.1**
-
-© 2025 Kbine. Tous droits réservés.
-
-Cette documentation est fournie à titre informatif. Les endpoints et formats peuvent évoluer.
