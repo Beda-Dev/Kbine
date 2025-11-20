@@ -968,6 +968,10 @@ const checkPaymentStatus = async (orderReference) => {
 /**
  * Récupère tous les paiements d'un utilisateur avec filtres avancés
  */
+/**
+ * Récupère tous les paiements d'un utilisateur avec filtres avancés
+ * ✅ CORRECTION: Gestion correcte des paramètres undefined
+ */
 const getUserPayments = async ({
     user_id,
     page = 1,
@@ -1009,45 +1013,40 @@ const getUserPayments = async ({
         whereClauses.push('o.user_id = ?');
         params.push(user_id);
 
-        // Filtre statut paiement
-        if (status) {
+        // ✅ CORRECTION: N'ajouter les filtres que s'ils sont définis
+        if (status !== undefined && status !== null && status !== '') {
             whereClauses.push('p.status = ?');
             params.push(status);
         }
 
-        // Filtre méthode paiement
-        if (payment_method) {
+        if (payment_method !== undefined && payment_method !== null && payment_method !== '') {
             whereClauses.push('p.payment_method = ?');
             params.push(payment_method);
         }
 
-        // Filtre date spécifique (format YYYY-MM-DD)
-        if (date) {
+        if (date !== undefined && date !== null && date !== '') {
             console.log('[PaymentService] getUserPayments - Filtre date', { date });
             whereClauses.push('DATE(p.created_at) = DATE(?)');
             params.push(date);
         }
 
-        // Filtre date de début
-        if (start_date && !date) {
+        if (start_date !== undefined && start_date !== null && start_date !== '' && !date) {
             whereClauses.push('p.created_at >= ?');
             params.push(new Date(start_date));
         }
 
-        // Filtre date de fin
-        if (end_date && !date) {
+        if (end_date !== undefined && end_date !== null && end_date !== '' && !date) {
             whereClauses.push('p.created_at <= ?');
             params.push(new Date(end_date));
         }
 
         // Valider sort_by (prévention SQL injection)
-        const allowedSortFields = ['p.created_at', 'p.updated_at', 'p.amount', 'p.status', 'p.payment_method'];
-        const sortField = allowedSortFields.includes(sort_by) ? sort_by : 'p.created_at';
-        const sortDirection = sort_order === 'ASC' ? 'ASC' : 'DESC';
+        const allowedSortFields = ['created_at', 'updated_at', 'amount', 'status', 'payment_method'];
+        const sortField = allowedSortFields.includes(sort_by) ? sort_by : 'created_at';
+        const sortDirection = sort_order.toUpperCase() === 'ASC' ? 'ASC' : 'DESC';
 
         const whereClause = whereClauses.length > 0 ? `WHERE ${whereClauses.join(' AND ')}` : '';
 
-        // ✅ CORRIGÉ: Utiliser des alias distincts pour les ID de chaque table
         const query = `
             SELECT 
                 p.id as payment_id,
@@ -1089,11 +1088,15 @@ const getUserPayments = async ({
             LEFT JOIN plans pl ON o.plan_id = pl.id
             LEFT JOIN operators op ON pl.operator_id = op.id
             ${whereClause}
-            ORDER BY ${sortField} ${sortDirection}
+            ORDER BY p.${sortField} ${sortDirection}
             LIMIT ? OFFSET ?
         `;
 
         console.log('[PaymentService] getUserPayments - Exécution requête SELECT');
+        console.log('[PaymentService] getUserPayments - Query:', query);
+        console.log('[PaymentService] getUserPayments - Params:', [...params, limit, offset]);
+
+        // ✅ CORRECTION: Ajouter limit et offset à la fin des paramètres
         const [payments] = await db.execute(query, [...params, limit, offset]);
         console.log('[PaymentService] getUserPayments - Résultats (count)', payments?.length || 0);
 
@@ -1136,7 +1139,7 @@ const getUserPayments = async ({
                 updated_at: payment.payment_updated_at
             };
 
-            // ✅ AJOUTER LES DÉTAILS COMPLETS DE LA COMMANDE
+            // Ajouter les détails de la commande
             if (payment.order_id) {
                 result.order = {
                     id: payment.order_id_full,
@@ -1151,7 +1154,7 @@ const getUserPayments = async ({
                 };
             }
 
-            // ✅ AJOUTER LES DÉTAILS COMPLETS DU PLAN
+            // Ajouter les détails du plan
             if (payment.plan_id) {
                 result.plan = {
                     id: payment.plan_id_full,
