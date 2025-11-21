@@ -37,19 +37,19 @@ const paymentConfig = {
   },
 }
 
-console.log('[PaymentConfig] Chargement configuration', {
+// console.log('[PaymentConfig] Chargement configuration', {
 
-  touchpoint: {
-    apiUrl: paymentConfig.touchpoint.apiUrl,
-    username: paymentConfig.touchpoint.username,
-    password_len: process.env.TOUCHPOINT_PASSWORD ? process.env.TOUCHPOINT_PASSWORD.length : 0,
-    loginAgent: paymentConfig.touchpoint.loginAgent,
-    passwordAgent_len: process.env.TOUCHPOINT_PASSWORD_AGENT ? process.env.TOUCHPOINT_PASSWORD_AGENT.length : 0,
-    agencyCode: paymentConfig.touchpoint.agencyCode,
-    partnerName: paymentConfig.touchpoint.partnerName,
-    serviceCodes: paymentConfig.touchpoint.serviceCodes,
-  },
-  appUrl: paymentConfig.appUrl,
-})
+//   touchpoint: {
+//     apiUrl: paymentConfig.touchpoint.apiUrl,
+//     username: paymentConfig.touchpoint.username,
+//     password_len: process.env.TOUCHPOINT_PASSWORD ? process.env.TOUCHPOINT_PASSWORD.length : 0,
+//     loginAgent: paymentConfig.touchpoint.loginAgent,
+//     passwordAgent_len: process.env.TOUCHPOINT_PASSWORD_AGENT ? process.env.TOUCHPOINT_PASSWORD_AGENT.length : 0,
+//     agencyCode: paymentConfig.touchpoint.agencyCode,
+//     partnerName: paymentConfig.touchpoint.partnerName,
+//     serviceCodes: paymentConfig.touchpoint.serviceCodes,
+//   },
+//   appUrl: paymentConfig.appUrl,
+// })
 
 module.exports = paymentConfig

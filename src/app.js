@@ -38,6 +38,7 @@ const orderRoutes = require('./routes/orderRoutes');
 const paymentRoutes = require('./routes/paymentRoutes');
 const planRoutes = require('./routes/planRoutes');
 const appVersionRoutes = require('./routes/appVersionRoutes');
+const notificationRoutes = require('./routes/notificationRoutes');
 
 
 // TODO pour le developpeur junior: Creer les autres fichiers de routes
@@ -187,6 +188,7 @@ app.use('/api/operators', operatorRoutes);
 app.use('/api/orders', orderRoutes);
 app.use('/api/payments', paymentRoutes);
 app.use('/api/app', appVersionRoutes);
+app.use('/api/notifications', notificationRoutes);
 
 // ===============================
 // ROUTES PUBLIQUES

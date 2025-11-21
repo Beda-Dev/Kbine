@@ -19,6 +19,7 @@ Dockerfile
 guide ngrok.md
 GUIDE_DEMARRAGE.md
 test-touchpoint.js
+firebase-service-account.json
 
 # ===============================
 # ENVIRONMENT VARIABLES
