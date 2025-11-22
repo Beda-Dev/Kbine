@@ -22,20 +22,30 @@ try {
   let serviceAccount = null;
 
   // 1. Essayer de charger depuis la variable d'environnement
-  if (process.env.FIREBASE_SERVICE_ACCOUNT) {
-    console.log('[Firebase] 📋 Chargement depuis FIREBASE_SERVICE_ACCOUNT (env var)...');
-    try {
-      serviceAccount = JSON.parse(process.env.FIREBASE_SERVICE_ACCOUNT);
-      console.log('[Firebase] ✅ Credentials chargées depuis env var');
-    } catch (parseError) {
-      console.error('[Firebase] ❌ Erreur parsing FIREBASE_SERVICE_ACCOUNT:', parseError.message);
-      serviceAccount = null;
+if (process.env.FIREBASE_SERVICE_ACCOUNT) {
+  console.log('[Firebase] 📋 Chargement depuis FIREBASE_SERVICE_ACCOUNT (env var)...');
+  try {
+    serviceAccount = JSON.parse(process.env.FIREBASE_SERVICE_ACCOUNT);
+    
+    // Correction automatique des \n dans la private_key si nécessaire
+    if (serviceAccount.private_key) {
+      serviceAccount.private_key = serviceAccount.private_key.replace(/\\n/g, '\n');
     }
+    
+    console.log('[Firebase] ✅ Credentials chargées depuis env var');
+  } catch (parseError) {
+    console.error('[Firebase] ❌ Erreur parsing FIREBASE_SERVICE_ACCOUNT:', parseError.message);
+    serviceAccount = null;
   }
+}
 
   // 2. Si env var non disponible, essayer de charger le fichier
   if (!serviceAccount) {
-    const credentialsPath = path.join(__dirname, '../../firebase-service-account.json');
+    // En environnement Docker, le fichier est à la racine (/app/firebase-service-account.json)
+    // En développement local, il est à la racine du projet
+    const credentialsPath = process.env.NODE_ENV === 'production' 
+      ? path.join('/app', 'firebase-service-account.json')
+      : path.join(__dirname, '../../firebase-service-account.json');
     console.log('[Firebase] 🔍 Recherche fichier credentials à:', credentialsPath);
 
     if (fs.existsSync(credentialsPath)) {

@@ -1,11 +1,6 @@
 /**
  * Service de gestion des notifications Firebase Cloud Messaging
- * 
- * Ce service gère:
- * - L'enregistrement/suppression des tokens FCM
- * - L'envoi de notifications push
- * - L'historique des notifications
- * - La gestion des tokens invalides
+ * ✅ VERSION CORRIGÉE - Fix de l'erreur "Incorrect arguments to mysqld_stmt_execute"
  */
 
 const { messaging, isFirebaseInitialized, getMessaging } = require('../config/firebase');
@@ -254,7 +249,7 @@ class NotificationService {
   // =========================================================
 
   /**
-   * 🆕 Notifier le staff d'un nouveau paiement réussi
+   * Notifier le staff d'un nouveau paiement réussi
    */
   async notifyPaymentSuccess(payment, order) {
     console.log('[NotificationService] Notification paiement réussi', {
@@ -263,7 +258,6 @@ class NotificationService {
     });
 
     try {
-      // ✅ CORRECTION: Vérifier si Firebase est initialisé
       if (!isFirebaseInitialized()) {
         console.log('[NotificationService] ℹ️  Firebase non initialisé - notification ignorée');
         logger.warn('Firebase non initialisé - notification de paiement non envoyée', {
@@ -304,7 +298,6 @@ class NotificationService {
         orderId: order.id,
         tokenCount: tokens.length
       });
-      
 
     } catch (error) {
       logger.error('❌ Erreur notification paiement', {
@@ -412,22 +405,38 @@ class NotificationService {
   }
 
   /**
-   * Récupérer l'historique des notifications d'un utilisateur
+   * ✅ CORRIGÉ - Récupérer l'historique des notifications d'un utilisateur
+   * Fix: Conversion explicite de page et limit en entiers
    */
   async getNotificationHistory(userId, page = 1, limit = 20) {
     console.log('[NotificationService] Récupération historique', { userId, page, limit });
 
     try {
-      const offset = (page - 1) * limit;
+      // ✅ CORRECTION: Conversion explicite en entiers
+      const pageInt = parseInt(page, 10);
+      const limitInt = parseInt(limit, 10);
+      const offset = (pageInt - 1) * limitInt;
 
-      const [notifications] = await db.execute(
+      console.log('[NotificationService] Paramètres convertis', { 
+        pageInt, 
+        limitInt, 
+        offset,
+        userId 
+      });
+
+      // ✅ CORRECTION: Utiliser query() au lieu de execute() pour LIMIT/OFFSET
+      const [notifications] = await db.query(
         `SELECT id, title, body, type, data, sent_at, created_at
          FROM notifications 
          WHERE user_id = ?
          ORDER BY created_at DESC
-         LIMIT ? OFFSET ?`,
-        [userId, limit, offset]
+         LIMIT ${limitInt} OFFSET ${offset}`,
+        [userId]
       );
+
+      console.log('[NotificationService] Notifications récupérées', { 
+        count: notifications.length 
+      });
 
       const [totalCount] = await db.execute(
         `SELECT COUNT(*) as count FROM notifications WHERE user_id = ?`,
@@ -443,8 +452,8 @@ class NotificationService {
       return {
         notifications: formattedNotifications,
         pagination: {
-          page,
-          limit,
+          page: pageInt,
+          limit: limitInt,
           total: totalCount[0].count,
           hasMore: offset + notifications.length < totalCount[0].count
         }
@@ -452,7 +461,10 @@ class NotificationService {
     } catch (error) {
       logger.error('❌ Erreur récupération historique', {
         error: error.message,
-        userId
+        stack: error.stack,
+        userId,
+        page,
+        limit
       });
       throw error;
     }

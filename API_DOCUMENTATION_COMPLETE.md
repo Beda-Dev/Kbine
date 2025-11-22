@@ -65,12 +65,13 @@ Le champ `callback_data` inclut maintenant:
 6. [Commandes](#commandes)
    - 6.1 [Vérifier le Statut de Paiement](#7-vérifier-le-statut-de-paiement-dune-commande)
 7. [Paiements](#paiements)
-8. [Versions d'Application](#10-versions-dapplication)
-9. [Codes d'Erreur](#11-codes-derreur)
-10. [Exemples d'Utilisation](#12-exemples-dutilisation)
-11. [Bonnes Pratiques](#13-bonnes-pratiques)
-12. [Structure du callback_data](#15-structure-du-callback_data)
-13. [Variables d'Environnement](#14-variables-denvironnement)
+8. [Notifications Push Firebase](#notifications-push-firebase)
+9. [Versions d'Application](#10-versions-dapplication)
+10. [Codes d'Erreur](#11-codes-derreur)
+11. [Exemples d'Utilisation](#12-exemples-dutilisation)
+12. [Bonnes Pratiques](#13-bonnes-pratiques)
+13. [Structure du callback_data](#15-structure-du-callback_data)
+14. [Variables d'Environnement](#14-variables-denvironnement)
 
 ---
 
@@ -1815,15 +1816,15 @@ Le webhook effectue les actions suivantes:
 ```
 
 **Champs de réponse:**
-- `id` (integer) - ID du paiement
+- `id` (integer) - ID unique du paiement
 - `order_id` (integer) - ID de la commande associée
 - `order_reference` (string) - Référence de la commande (ORD-YYYYMMDD-XXXXX)
 - `amount` (string) - Montant du paiement
 - `payment_method` (string) - Méthode utilisée (wave, orange_money, mtn_money, moov_money)
 - `payment_phone` (string) - Numéro de téléphone utilisé
 - `payment_reference` (string) - Référence interne du paiement (PAY-*)
-- `external_reference` (string) - ID unique généré lors de l'initialisation
-- `status` (string) - Statut actuel (pending, success, failed, refunded)
+- `external_reference` (string) - ID unique TouchPoint
+- `status` (string) - Statut du paiement (pending, success, failed, refunded)
 - `callback_data` (object) - Données complètes du paiement (voir Guide du callback_data)
 - `created_at` (datetime) - Date de création du paiement
 - `updated_at` (datetime) - Date de dernière mise à jour
@@ -2035,15 +2036,19 @@ Authorization: Bearer <token>
 **Champs du paiement:**
 - `id` (integer) - ID unique du paiement
 - `order_id` (integer) - ID de la commande associée
-- `amount` (number) - Montant du paiement
+- `order_reference` (string) - Référence de la commande (ORD-YYYYMMDD-XXXXX)
+- `amount` (string) - Montant du paiement
 - `payment_method` (string) - Méthode utilisée (wave, orange_money, mtn_money, moov_money)
 - `payment_phone` (string) - Numéro de téléphone utilisé
-- `payment_reference` (string) - Référence interne du paiement
+- `payment_reference` (string) - Référence interne du paiement (PAY-*)
 - `external_reference` (string) - ID unique TouchPoint
 - `status` (string) - Statut du paiement (pending, success, failed, refunded)
 - `callback_data` (object) - Données complètes du paiement (voir Guide du callback_data)
-- `created_at` (datetime) - Date de création
-- `updated_at` (datetime) - Date de mise à jour
+- `created_at` (datetime) - Date de création du paiement
+- `updated_at` (datetime) - Date de dernière mise à jour
+- `user_id` (integer) - ID de l'utilisateur
+- `user_phone` (string) - Téléphone de l'utilisateur
+- `order_status` (string) - Statut de la commande associée
 
 **Champs de la commande (object order):**
 - `id` (integer) - ID de la commande
@@ -2487,572 +2492,719 @@ GET /api/payments/status/ORD-20250124-ABC12
 
 ---
 
-## 15. Structure du callback_data
+## Notifications Push Firebase
 
 ### Vue d'Ensemble
 
-Le champ `callback_data` est un objet JSON qui stocke toutes les informations détaillées du paiement, notamment les réponses de TouchPoint et les données des webhooks. Il permet un audit complet et le debugging des transactions.
+**Notifications Push Firebase Cloud Messaging (FCM)** permet d'envoyer des notifications en temps réel à vos utilisateurs sur iOS et Android.
 
-### Structure Générale
-
-```json
-{
-  "initiated_at": "2025-11-18T14:38:39.741Z",
-  "touchpoint_status": "SUCCESSFUL",
-  "touchpoint_response": { /* Réponse complète de TouchPoint */ },
-  "touchpoint_transaction_id": "20251118143839ORD-20251117-70954",
-  "webhook_data": { /* Données du webhook reçu */ },
-  "webhook_received_at": "2025-11-18T14:38:41.827Z"
-}
-```
-
-### Champs Principaux
-
-#### 1. **initiated_at** (datetime)
-- **Type:** ISO 8601 datetime string
-- **Description:** Date et heure exactes de l'initialisation du paiement
-- **Exemple:** `"2025-11-18T14:38:39.741Z"`
-- **Utilité:** Tracer le moment du démarrage de la transaction
-
-#### 2. **touchpoint_status** (string)
-- **Type:** String (enum)
-- **Valeurs possibles:** `INITIATED`, `SUCCESSFUL`, `FAILED`, `PENDING`, `TIMEOUT`, `CANCELLED`, `REFUSED`
-- **Description:** Statut retourné par TouchPoint lors de l'initialisation
-- **Exemple:** `"SUCCESSFUL"` ou `"INITIATED"`
-- **Utilité:** Connaître le statut initial avant le webhook
-
-#### 3. **touchpoint_response** (object)
-- **Type:** Object
-- **Description:** Réponse complète retournée par l'API TouchPoint lors de l'initialisation
-- **Contient:**
-  - `status` - Statut de la transaction
-  - `amount` - Montant de la transaction
-  - `fees` - Frais appliqués
-  - `serviceCode` - Code du service (PAIEMENTMARCHANDPAYCIDIRECT, PAIEMENTMARCHAND_MTN_CI, etc.)
-  - `idFromClient` - ID envoyé par le client (transaction_id)
-  - `idFromGU` - ID généré par TouchPoint
-  - `numTransaction` - Numéro de transaction formaté
-  - `recipientNumber` - Numéro de téléphone du destinataire
-  - `dateTime` - Timestamp de la transaction
-
-**Exemple complet:**
-```json
-{
-  "fees": 2,
-  "amount": 100,
-  "status": "SUCCESSFUL",
-  "dateTime": 1737723000000,
-  "idFromGU": "1737723000000",
-  "serviceCode": "CI_PAIEMENTWAVE_TP",
-  "idFromClient": "20250124123456ORD-20250124-ABC12",
-  "numTransaction": "WAVE250124.1630.ABC12",
-  "recipientNumber": "0701020304"
-}
-```
-
-#### 4. **touchpoint_transaction_id** (string)
-- **Type:** String
-- **Description:** ID unique de la transaction dans TouchPoint (généralement identique à `external_reference`)
-- **Exemple:** `"20250124123456ORD-20250124-ABC12"`
-- **Utilité:** Référencer la transaction dans TouchPoint
-
-#### 5. **webhook_data** (object)
-- **Type:** Object
-- **Description:** Données complètes reçues du webhook TouchPoint
-- **Contient:**
-  - `status` - Statut final de la transaction
-  - `message` - Message descriptif (erreur ou succès)
-  - `service_id` - ID du service
-  - `call_back_url` - URL de callback utilisée
-  - `gu_transaction_id` - ID de transaction TouchPoint
-  - `partner_transaction_id` - ID du partenaire (notre transaction_id)
-
-**Exemple pour paiement réussi:**
-```json
-{
-  "status": "SUCCESSFUL",
-  "service_id": "PAIEMENTMARCHANDPAYCIDIRECT",
-  "call_back_url": "https://www.kbine-mobile.com/api/payments/webhook/touchpoint",
-  "gu_transaction_id": "1737723000000",
-  "partner_transaction_id": "20250124123456ORD-20250124-ABC12"
-}
-```
-
-**Exemple pour paiement échoué:**
-```json
-{
-  "status": "FAILED",
-  "message": "[22] Invalid transaction. Please try again.",
-  "commission": 0,
-  "service_id": "CI_PAIEMENTWAVE_TP",
-  "call_back_url": "https://www.kbine-mobile.com/api/payments/webhook/touchpoint",
-  "gu_transaction_id": "1737723000000",
-  "partner_transaction_id": "20250124123456ORD-20250124-ABC12"
-}
-```
-
-#### 6. **webhook_received_at** (datetime)
-- **Type:** ISO 8601 datetime string
-- **Description:** Date et heure de réception du webhook
-- **Exemple:** `"2025-11-18T14:38:41.827Z"`
-- **Utilité:** Tracer le délai entre initialisation et notification
-
-#### 7. **deleted** (boolean) - *Optionnel*
-- **Type:** Boolean
-- **Description:** Indique si le paiement a été supprimé (soft delete)
-- **Valeur:** `true` si supprimé
-- **Utilité:** Identifier les paiements annulés
-
-#### 8. **deleted_at** (datetime) - *Optionnel*
-- **Type:** ISO 8601 datetime string
-- **Description:** Date et heure de la suppression
-- **Exemple:** `"2025-11-17T13:42:06.456Z"`
-- **Utilité:** Tracer quand le paiement a été annulé
-
-#### 9. **notes** (string) - *Optionnel*
-- **Type:** String
-- **Description:** Notes ajoutées lors de la suppression ou mise à jour
-- **Exemple:** `"Paiement annulé/supprimé le 2025-11-17T13:42:06.456Z"`
-- **Utilité:** Audit et traçabilité
-
-### Cas d'Utilisation Réels
-
-#### Cas 1: Paiement Réussi avec Webhook
-```json
-{
-  "initiated_at": "2025-11-17T13:28:37.854Z",
-  "webhook_data": {
-    "status": "SUCCESSFUL",
-    "service_id": "PAIEMENTMARCHANDPAYCIDIRECT",
-    "call_back_url": "https://www.kbine-mobile.com/api/payments/webhook/touchpoint",
-    "gu_transaction_id": "1737723000000",
-    "partner_transaction_id": "20250124123456ORD-20250124-ABC12"
-  },
-  "touchpoint_status": "SUCCESSFUL",
-  "touchpoint_response": {
-    "fees": 2,
-    "amount": 1000,
-    "status": "SUCCESSFUL",
-    "dateTime": 1737723000000,
-    "idFromGU": "1737723000000",
-    "serviceCode": "CI_PAIEMENTWAVE_TP",
-    "idFromClient": "20250124123456ORD-20250124-ABC12",
-    "numTransaction": "WAVE250124.1630.ABC12",
-    "recipientNumber": "0701020304"
-  },
-  "webhook_received_at": "2025-11-17T13:28:38.222Z",
-  "touchpoint_transaction_id": "20250124123456ORD-20250124-ABC12"
-}
-```
-
-**Interprétation:**
-- ✅ Paiement initialisé à 13:28:37
-- ✅ TouchPoint a retourné SUCCESSFUL
-- ✅ Webhook reçu à 13:28:38 (1 seconde plus tard)
-- ✅ Montant: 100 FCFA avec 2 FCFA de frais
-- ✅ Numéro de transaction: MP251117.1328.A58986
-
-#### Cas 2: Paiement Échoué
-```json
-{
-  "initiated_at": "2025-11-18T14:38:39.741Z",
-  "webhook_data": {
-    "status": "FAILED",
-    "message": "[22] Invalid transaction. Please try again.",
-    "commission": 0,
-    "service_id": "CI_PAIEMENTWAVE_TP",
-    "call_back_url": "https://www.kbine-mobile.com/api/payments/webhook/touchpoint",
-    "gu_transaction_id": "1737723000000",
-    "partner_transaction_id": "20250124123456ORD-20250124-ABC12"
-  },
-  "touchpoint_status": "FAILED",
-  "webhook_received_at": "2025-11-18T14:38:41.827Z"
-}
-```
-
-**Interprétation:**
-- ❌ Paiement échoué
-- ❌ Erreur: "[22] Invalid transaction. Please try again."
-- ❌ Aucuns frais appliqués (commission: 0)
-- ⏱️ Webhook reçu 2 secondes après initialisation
-
-#### Cas 3: Paiement En Attente (Pas de Webhook)
-```json
-{
-  "initiated_at": "2025-11-17T12:49:08.292Z",
-  "touchpoint_status": "INITIATED",
-  "touchpoint_response": {
-    "fees": 2,
-    "amount": 100,
-    "status": "INITIATED",
-    "dateTime": 1763383746775,
-    "idFromGU": "1763383746775",
-    "serviceCode": "PAIEMENTMARCHAND_MTN_CI",
-    "idFromClient": "20251117124906ORD-20251113-77283",
-    "numTransaction": "1763383746775",
-    "recipientNumber": "0566955943"
-  },
-  "touchpoint_transaction_id": "20251117124906ORD-20251113-77283"
-}
-```
-
-**Interprétation:**
-- ⏳ Paiement en attente (INITIATED)
-- ⏳ Aucun webhook reçu encore
-- 📱 Utilisateur doit compléter le paiement via USSD/App
-- 🔄 Statut peut changer quand le webhook arrive
-
-#### Cas 4: Paiement Supprimé (Soft Delete)
-```json
-{
-  "notes": "\nPaiement annulé/supprimé le 2025-11-17T13:42:06.456Z",
-  "deleted": true,
-  "deleted_at": "2025-11-17T13:42:06.456Z",
-  "initiated_at": "2025-11-17T12:00:35.837Z",
-  "touchpoint_status": "SUCCESSFUL",
-  "touchpoint_response": {
-    "fees": 2,
-    "amount": 100,
-    "status": "SUCCESSFUL",
-    "dateTime": 1763380833411,
-    "idFromGU": "1763380833411",
-    "serviceCode": "PAIEMENTMARCHANDOMPAYCIDIRECT",
-    "idFromClient": "20251117120032ORD-20251113-77283",
-    "numTransaction": "MP251117.1200.D16237",
-    "recipientNumber": "0749793994"
-  },
-  "touchpoint_transaction_id": "20251117120032ORD-20251113-77283"
-}
-```
-
-**Interprétation:**
-- 🗑️ Paiement supprimé (soft delete)
-- 📝 Raison: "Paiement annulé/supprimé le 2025-11-17T13:42:06.456Z"
-- ⚠️ Statut du paiement: `failed` (marqué comme échoué)
-- 📊 Les données originales sont conservées pour audit
-
-### Codes d'Erreur TouchPoint
-
-| Code | Message | Cause |
-|------|---------|-------|
-| [22] | Invalid transaction. Please try again. | Transaction invalide ou numéro incorrect |
-| [1] | Insufficient funds | Solde insuffisant |
-| [2] | Transaction timeout | Timeout de la transaction |
-| [3] | Invalid phone number | Numéro de téléphone invalide |
-| [4] | Service not available | Service indisponible |
-
-### Utilisation du callback_data
-
-#### Pour le Debugging
-```javascript
-// Vérifier le message d'erreur exact
-const errorMessage = payment.callback_data.webhook_data?.message;
-console.log('Erreur:', errorMessage);
-```
-
-#### Pour l'Audit
-```javascript
-// Tracer le flux complet
-const timeline = {
-  initiated: payment.callback_data.initiated_at,
-  webhook_received: payment.callback_data.webhook_received_at,
-  duration_ms: new Date(payment.callback_data.webhook_received_at) - 
-               new Date(payment.callback_data.initiated_at)
-};
-```
-
-#### Pour la Réconciliation
-```javascript
-// Vérifier les montants et frais
-const amount = payment.callback_data.touchpoint_response?.amount;
-const fees = payment.callback_data.touchpoint_response?.fees;
-const total = amount + fees;
-```
-
-#### Pour le Suivi Client
-```javascript
-// Obtenir le numéro de transaction formaté
-const transactionNumber = payment.callback_data.touchpoint_response?.numTransaction;
-// Exemple: "MP251117.1328.A58986"
-```
-
----
-
-## 14. Variables d'Environnement
+**Fonctionnalités:**
+- ✅ Notifications en temps réel via Firebase Cloud Messaging
+- ✅ Support Android et iOS
+- ✅ Gestion automatique des tokens invalides
+- ✅ Historique des notifications
+- ✅ Notifications métier (paiements, commandes, etc.)
+- ✅ Notifications de test pour le debugging
 
 ### Configuration Requise
 
+#### 1. Fichier Service Account Firebase
+
+Obtenir le fichier `firebase-service-account.json` depuis Firebase Console:
+
+1. Aller à **Project Settings > Service Accounts**
+2. Cliquer sur **Generate New Private Key**
+3. Sauvegarder le fichier JSON téléchargé
+
+**Placement du fichier:**
+- **Production (Docker):** À la racine du projet (`/app/firebase-service-account.json`)
+- **Développement:** À la racine du projet (`./firebase-service-account.json`)
+
+#### 2. Variable d'Environnement Alternative
+
+Si le fichier n'est pas disponible, définir:
+
 ```env
-# Base de données
-DB_HOST=kbine-mysql
-DB_PORT=3306
-DB_USER=kbine_user
-DB_PASSWORD=kbine_secure_password
-DB_NAME=kbine_db
+FIREBASE_SERVICE_ACCOUNT={"type":"service_account","project_id":"kbine-...","...":...}
+```
 
-# JWT
-JWT_SECRET=votre_secret_jwt_tres_securise
-JWT_REFRESH_SECRET=votre_secret_refresh_jwt
-JWT_ACCESS_EXPIRES_IN=24h
-JWT_REFRESH_EXPIRES_IN=7d
+#### 3. Configuration FCM Client (Application Mobile)
 
-# Serveur
-PORT=3000
-NODE_ENV=production
+**Android (`strings.xml`):**
+```xml
+<string name="default_notification_channel_id">kbine_channel</string>
+```
 
-# Wave
-WAVE_API_URL=https://api.wave.com
-WAVE_API_TOKEN=votre_token_wave
-WAVE_WEBHOOK_SECRET=votre_secret_webhook_wave
-
-# TouchPoint
-TOUCHPOINT_API_URL=https://api.touchpoint.com
-TOUCHPOINT_USERNAME=votre_username
-TOUCHPOINT_PASSWORD=votre_password
-TOUCHPOINT_AGENCY_CODE=votre_code_agence
-TOUCHPOINT_LOGIN_AGENT=votre_login_agent
-TOUCHPOINT_PASSWORD_AGENT=votre_password_agent
-
-# Application
-APP_URL=https://votre-domaine.com
-LOG_LEVEL=info
+**iOS (`Info.plist`):**
+```xml
+<key>UIUserNotificationSettings</key>
+<dict>
+  <key>UIUserNotificationTypes</key>
+  <integer>7</integer>
+</dict>
 ```
 
 ---
 
-## 15. Structure du callback_data et Détails d'Implémentation
+### 1. Enregistrer un Token FCM
 
-### 15.1 Structure Complète du callback_data
+**Endpoint:** `POST /api/notifications/register-token`
 
-Le champ `callback_data` stocke toutes les informations relatives à la transaction TouchPoint. Voici sa structure complète:
+**Description:** Enregistre un token Firebase Cloud Messaging pour recevoir des notifications push. À appeler lors du démarrage de l'application et à chaque nouveau token généré.
+
+**Niveau d'accès:** Authentifié
+
+#### Données à Envoyer (JSON)
 
 ```json
 {
-  "initiated_at": "2025-01-24T16:30:00.000Z",
-  "touchpoint_transaction_id": "20250124123456ORD-20250124-ABC12",
-  "touchpoint_status": "SUCCESSFUL",
-  "touchpoint_response": {
-    "fees": 2,
-    "amount": 1000,
-    "status": "SUCCESSFUL",
-    "dateTime": 1737723000000,
-    "idFromGU": "1737723000000",
-    "serviceCode": "CI_PAIEMENTWAVE_TP",
-    "idFromClient": "20250124123456ORD-20250124-ABC12",
-    "numTransaction": "WAVE250124.1630.ABC12",
-    "recipientNumber": "0701020304"
-  },
-  "webhook_data": {
-    "status": "SUCCESSFUL",
-    "service_id": "CI_PAIEMENTWAVE_TP",
-    "call_back_url": "https://www.kbine-mobile.com/api/payments/webhook/touchpoint",
-    "gu_transaction_id": "1737723000000",
-    "partner_transaction_id": "20250124123456ORD-20250124-ABC12"
-  },
-  "webhook_received_at": "2025-01-24T16:30:02.000Z",
-  "return_url": "https://app.example.com/payment/success",
-  "cancel_url": "https://app.example.com/payment/cancel",
-  "error_url": "https://app.example.com/payment/error",
-  "notes": "Paiement confirmé",
-  "last_update": "2025-01-24T16:30:02.000Z"
+  "token": "fPgF5K8g0J2mR9sL1w3x5z7b9d1e3f5h7j9k1m3n5p7q9r1t3v5w7y9z1a3c5e7g9i1",
+  "platform": "android"
 }
 ```
 
-**Champs principaux:**
-- `initiated_at` (ISO 8601) - Timestamp d'initialisation du paiement
-- `touchpoint_transaction_id` (string) - ID unique de la transaction TouchPoint
-- `touchpoint_status` (string) - Statut TouchPoint actuel
-- `touchpoint_response` (object) - Réponse complète de TouchPoint lors de l'initialisation
-- `webhook_data` (object) - Données reçues du webhook TouchPoint
-- `webhook_received_at` (ISO 8601) - Timestamp de réception du webhook
-- `return_url`, `cancel_url`, `error_url` (strings) - URLs de callback (Wave)
-- `notes` (string) - Notes additionnelles
-- `last_update` (ISO 8601) - Timestamp de la dernière mise à jour
+**Champs:**
+- `token` (string, requis) - Token FCM générés par Firebase SDK
+- `platform` (string, requis) - Plateforme: `android` ou `ios`
 
-### 15.2 Flux de Données - Initialisation du Paiement
+#### Réponse en Cas de Succès (200)
 
-**Étapes dans `paymentService.initializePayment()`:**
-
-1. **Validation de la commande**
-   - Vérifier que la commande existe
-   - Vérifier qu'elle n'est pas déjà payée
-   - Vérifier que le montant correspond
-
-2. **Création du paiement en base**
-   - Générer `transaction_id` (format: timestamp + order_reference)
-   - Générer `payment_reference` (format: PAY-{transaction_id})
-   - Insérer en base avec statut `pending`
-   - Stocker les URLs initiales dans `callback_data`
-
-3. **Appel à TouchPoint**
-   - Construire les paramètres selon la méthode de paiement
-   - Pour Wave: ajouter `return_url`, `cancel_url`, `error_url`, `partner_name`
-   - Pour Orange Money: ajouter `otp`
-   - Envoyer la requête à TouchPoint
-
-4. **Mise à jour avec réponse TouchPoint**
-   - Enrichir `callback_data` avec:
-     - `touchpoint_transaction_id` (du numTransaction de TouchPoint)
-     - `touchpoint_status` (du status de TouchPoint)
-     - `touchpoint_response` (réponse complète)
-   - Inclure toutes les données de `paymentResult` via spread operator
-
-5. **Retour au client**
-   - Inclure `payment_id`, `transaction_id`, `status`
-   - Pour Wave: inclure `return_url`, `cancel_url`, `fees`
-
-### 15.3 Flux de Données - Webhook TouchPoint
-
-**Étapes dans `paymentService.processTouchPointWebhook()`:**
-
-1. **Réception du webhook**
-   - Récupérer `partner_transaction_id` ou `idFromClient`
-   - Valider que l'ID n'est pas vide
-
-2. **Recherche du paiement**
-   - Chercher via `external_reference` (qui contient le transaction_id)
-   - Vérifier que le paiement existe
-
-3. **Vérification du statut**
-   - Si déjà `success`, retourner sans modification (idempotence)
-
-4. **Mappage du statut**
-   - `SUCCESSFUL` → `success`
-   - `INITIATED`, `PENDING` → `pending`
-   - `FAILED`, `TIMEOUT`, `CANCELLED`, `REFUSED` → `failed`
-
-5. **Mise à jour du paiement**
-   - Mettre à jour le statut
-   - Enrichir `callback_data` avec:
-     - `touchpoint_status` (du webhook)
-     - `webhook_data` (données complètes du webhook)
-     - `webhook_received_at` (timestamp actuel)
-   - Préserver les données existantes via spread operator
-
-6. **Mise à jour de la commande**
-   - Si statut = `success`: mettre à jour la commande à `completed`
-
-### 15.4 Validations Implémentées
-
-**Dans `paymentValidator.initializePaymentValidation()`:**
-
-```javascript
+```json
 {
-  order_reference: Joi.string()
-    .pattern(/^ORD-\d{8}-[A-Z0-9]{5}$/)  // Format strict
-    .required(),
-  
-  amount: Joi.number()
-    .positive()
-    .precision(2)  // Max 2 décimales
-    .required(),
-  
-  payment_phone: Joi.string()
-    .pattern(/^0[0-9]{9}$/)  // Format ivoirien
-    .required(),
-  
-  payment_method: Joi.string()
-    .valid('wave', 'orange_money', 'mtn_money', 'moov_money')
-    .required(),
-  
-  otp: Joi.string()
-    .pattern(/^[0-9]{4}$/)  // 4 chiffres
-    .when('payment_method', {
-      is: 'orange_money',
-      then: Joi.required(),  // Obligatoire pour Orange Money
-      otherwise: Joi.optional()
-    }),
-  
-  return_url: Joi.string()
-    .uri()  // Validation URI
-    .optional(),
-  
-  cancel_url: Joi.string()
-    .uri()
-    .optional(),
-  
-  error_url: Joi.string()
-    .uri()
-    .optional()
+  "success": true,
+  "message": "Token enregistré avec succès"
 }
 ```
 
-### 15.5 Gestion des Erreurs TouchPoint
+#### Réponses d'Erreur
 
-**Dans `touchpointService.createTransaction()`:**
+**400 - Token Manquant**
+```json
+{
+  "success": false,
+  "error": "Le token FCM est requis"
+}
+```
+
+**400 - Plateforme Invalide**
+```json
+{
+  "success": false,
+  "error": "La plateforme doit être \"android\" ou \"ios\""
+}
+```
+
+#### Exemple d'Utilisation (React Native)
 
 ```javascript
-try {
-  // Validation OTP
-  if (payment_method === "orange_money" && !otp) {
-    throw new Error("L'OTP est obligatoire pour les paiements Orange Money")
+import messaging from '@react-native-firebase/messaging';
+
+// Enregistrer le token au démarrage
+const registerFCMToken = async (authToken) => {
+  try {
+    const token = await messaging().getToken();
+    
+    await fetch('https://api.kbine.com/api/notifications/register-token', {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+        'Authorization': `Bearer ${authToken}`
+      },
+      body: JSON.stringify({
+        token,
+        platform: Platform.OS // 'android' ou 'ios'
+      })
+    });
+    
+    console.log('✅ Token FCM enregistré');
+  } catch (error) {
+    console.error('❌ Erreur enregistrement token:', error);
   }
-  
-  // Formatage du numéro
-  const formattedPhone = this.formatPhoneNumber(payment_phone)
-  
-  // Construction de la transaction
-  const transactionData = {
-    idFromClient: transaction_id,
-    amount: parseFloat(amount),
-    callback: `${this.appUrl}/api/payments/webhook/touchpoint`,
-    recipientNumber: formattedPhone,
-    serviceCode: serviceCode,
-    additionnalInfos: { /* ... */ }
-  }
-  
-  // Configuration spécifique par méthode
-  if (payment_method === "wave") {
-    transactionData.additionnalInfos.partner_name = this.partnerName
-    transactionData.additionnalInfos.return_url = callbackUrls.return_url
-    transactionData.additionnalInfos.cancel_url = callbackUrls.cancel_url
-  }
-  
-  // Appel API
-  const response = await axios.put(url, transactionData, { /* auth */ })
-  
-  // Retour enrichi
-  return {
-    success: true,
-    status: response.data.status,
-    transaction_id,
-    touchpoint_transaction_id: response.data.numTransaction,
-    message: response.data.message,
-    payment_method,
-    raw_response: response.data,
-    return_url: (Wave) ? callbackUrls.return_url : undefined,
-    cancel_url: (Wave) ? callbackUrls.cancel_url : undefined,
-    fees: response.data.fees
-  }
-} catch (error) {
-  // Gestion d'erreur détaillée
-  const errorMessage = error.response?.data?.message || error.message
-  throw new Error(`Erreur TouchPoint (${payment_method}): ${errorMessage}`)
+};
+
+// À appeler au démarrage de l'app
+useEffect(() => {
+  registerFCMToken(userAuthToken);
+}, []);
+
+// Écouter les nouveaux tokens
+messaging().onTokenRefresh(token => {
+  registerFCMToken(userAuthToken);
+});
+```
+
+---
+
+### 2. Supprimer un Token FCM
+
+**Endpoint:** `POST /api/notifications/remove-token`
+
+**Description:** Supprime un token FCM (à appeler lors de la déconnexion).
+
+**Niveau d'accès:** Authentifié
+
+#### Données à Envoyer (JSON)
+
+```json
+{
+  "token": "fPgF5K8g0J2mR9sL1w3x5z7b9d1e3f5h7j9k1m3n5p7q9r1t3v5w7y9z1a3c5e7g9i1"
 }
 ```
 
-### 15.6 Routes et Middlewares
+#### Réponse en Cas de Succès (200)
 
-**Ordre critique des routes (dans `paymentRoutes.js`):**
+```json
+{
+  "success": true,
+  "message": "Token supprimé avec succès"
+}
+```
 
-1. **Routes publiques (sans auth)**
-   - `POST /webhook/touchpoint` - Webhook public
-   - `POST /initialize` - Initialisation publique
-   - `GET /status/:order_reference` - Vérification publique
-   - `GET /methods` - Méthodes disponibles
+#### Exemple d'Utilisation
 
-2. **Middleware d'authentification**
-   - `router.use(authenticateToken)`
+```javascript
+// À l'appel de déconnexion
+const logout = async (authToken) => {
+  try {
+    const token = await messaging().getToken();
+    
+    await fetch('https://api.kbine.com/api/notifications/remove-token', {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+        'Authorization': `Bearer ${authToken}`
+      },
+      body: JSON.stringify({ token })
+    });
+    
+    // Puis effectuer la déconnexion
+    await logout();
+  } catch (error) {
+    console.error('❌ Erreur suppression token:', error);
+  }
+};
+```
 
-3. **Routes protégées statiques**
-   - `GET /statuses` - Statuts disponibles
-   - `GET /` - Liste avec pagination
+---
 
-4. **Routes avec paramètres dynamiques**
-   - `GET /:id` - Détails d'un paiement
-   - `PUT /:id` - Mise à jour
-   - `DELETE /:id` - Suppression
-   - `PATCH /:id/status` - Mise à jour du statut
-   - `POST /:id/refund` - Remboursement
+### 3. Récupérer l'Historique des Notifications
+
+**Endpoint:** `GET /api/notifications/history`
+
+**Description:** Récupère l'historique de toutes les notifications reçues par l'utilisateur connecté avec pagination.
+
+**Niveau d'accès:** Authentifié
+
+#### Paramètres de Requête
+
+| Paramètre | Type | Défaut | Description |
+|-----------|------|--------|-------------|
+| `page` | integer | 1 | Numéro de page |
+| `limit` | integer | 20 | Notifications par page (max: 100) |
+
+#### Réponse en Cas de Succès (200)
+
+```json
+{
+  "success": true,
+  "data": [
+    {
+      "id": 145,
+      "title": "💰 Paiement reçu",
+      "body": "Paiement de 1000F reçu - Commande #ORD-20250124-ABC12",
+      "type": "payment_success",
+      "data": {
+        "orderId": "45",
+        "orderReference": "ORD-20250124-ABC12",
+        "amount": "1000",
+        "paymentMethod": "wave",
+        "customerPhone": "0701020304",
+        "timestamp": "1737723000000"
+      },
+      "sent_at": "2025-01-24T16:30:00.000Z",
+      "created_at": "2025-01-24T16:30:00.000Z"
+    },
+    {
+      "id": 144,
+      "title": "✅ Commande terminée",
+      "body": "Votre commande #ORD-20250124-ABC11 a été traitée avec succès",
+      "type": "order_completed",
+      "data": {
+        "orderId": "44",
+        "orderReference": "ORD-20250124-ABC11",
+        "status": "completed",
+        "amount": "500",
+        "timestamp": "1737722000000"
+      },
+      "sent_at": "2025-01-24T16:25:00.000Z",
+      "created_at": "2025-01-24T16:25:00.000Z"
+    }
+  ],
+  "pagination": {
+    "page": 1,
+    "limit": 20,
+    "total": 150,
+    "hasMore": true
+  }
+}
+```
+
+**Champs de réponse:**
+- `id` (integer) - ID unique de la notification
+- `title` (string) - Titre de la notification
+- `body` (string) - Corps/contenu de la notification
+- `type` (string) - Type de notification (payment_success, order_completed, etc.)
+- `data` (object) - Données additionnelles structurées
+- `sent_at` (datetime) - Quand la notification a été envoyée
+- `created_at` (datetime) - Quand l'entrée a été créée en base
+
+**Champs de pagination:**
+- `page` (integer) - Page actuelle
+- `limit` (integer) - Notifications par page
+- `total` (integer) - Nombre total de notifications
+- `hasMore` (boolean) - Y a-t-il d'autres pages
+
+#### Types de Notifications
+
+| Type | Titre | Déclencheur |
+|------|-------|------------|
+| `payment_success` | 💰 Paiement reçu | Paiement réussi |
+| `order_completed` | ✅ Commande terminée | Commande marquée complétée |
+| `payment_failed` | ❌ Paiement échoué | Paiement échoué |
+| `order_assigned` | 📋 Commande assignée | Commande assignée au staff |
+| `test` | 🧪 Test | Notification de test |
+
+#### Exemple d'Utilisation
+
+```javascript
+// Récupérer l'historique avec pagination
+const fetchNotificationHistory = async (authToken, page = 1) => {
+  const response = await fetch(
+    `https://api.kbine.com/api/notifications/history?page=${page}&limit=20`,
+    {
+      headers: {
+        'Authorization': `Bearer ${authToken}`
+      }
+    }
+  );
+  
+  const { data, pagination } = await response.json();
+  
+  // Afficher les notifications
+  data.forEach(notif => {
+    console.log(`${notif.title}: ${notif.body}`);
+  });
+  
+  // Vérifier s'il y a d'autres pages
+  if (pagination.hasMore) {
+    fetchNotificationHistory(authToken, page + 1);
+  }
+};
+```
+
+---
+
+### 4. Envoyer une Notification de Test
+
+**Endpoint:** `POST /api/notifications/test`
+
+**Description:** Envoie une notification de test pour vérifier que le système fonctionne correctement. Utile pour le debugging et les tests.
+
+**Niveau d'accès:** Admin
+
+#### Données à Envoyer (JSON)
+
+```json
+{
+  "title": "Test Notification",
+  "body": "Ceci est une notification de test",
+  "userId": 1
+}
+```
+
+**Champs:**
+- `title` (string, requis) - Titre de la notification
+- `body` (string, requis) - Corps de la notification
+- `userId` (integer, optionnel) - ID de l'utilisateur cible (si omis: envoyer à tout le staff)
+
+#### Réponse en Cas de Succès (200)
+
+```json
+{
+  "success": true,
+  "message": "Notification de test envoyée",
+  "successCount": 2,
+  "failureCount": 0
+}
+```
+
+**Champs de réponse:**
+- `successCount` (integer) - Nombre de tokens ayant reçu la notification
+- `failureCount` (integer) - Nombre de tokens ayant échoué
+
+#### Réponses d'Erreur
+
+**400 - Données Manquantes**
+```json
+{
+  "success": false,
+  "error": "Le titre et le corps sont requis"
+}
+```
+
+**404 - Utilisateur Non Trouvé**
+```json
+{
+  "success": false,
+  "error": "Aucun token trouvé pour cet utilisateur"
+}
+```
+
+#### Exemple de Test cURL
+
+```bash
+# Tester l'envoi de notification au staff
+curl -X POST https://api.kbine.com/api/notifications/test \
+  -H "Content-Type: application/json" \
+  -H "Authorization: Bearer YOUR_ADMIN_TOKEN" \
+  -d '{
+    "title": "Test du Système",
+    "body": "Ceci est une notification de test du système Kbine"
+  }'
+
+# Tester l'envoi à un utilisateur spécifique
+curl -X POST https://api.kbine.com/api/notifications/test \
+  -H "Content-Type: application/json" \
+  -H "Authorization: Bearer YOUR_ADMIN_TOKEN" \
+  -d '{
+    "title": "Test Personnel",
+    "body": "Notification de test pour l'\''utilisateur 1",
+    "userId": 1
+  }'
+```
+
+---
+
+### Notifications Automatiques
+
+Le système envoie automatiquement des notifications dans les cas suivants:
+
+#### 1. Paiement Réussi
+**Déclencheur:** Webhook TouchPoint reçu avec statut `SUCCESSFUL`
+
+**Destinataires:** 👥 Tout le staff (admin + staff)
+
+**Contenu:**
+```
+Titre: 💰 Paiement reçu
+Corps: Paiement de {amount}F reçu - Commande #{orderReference}
+
+Données:
+- type: payment_success
+- orderId: {orderId}
+- orderReference: {orderReference}
+- amount: {amount}
+- paymentMethod: {paymentMethod}
+- customerPhone: {customerPhone}
+```
+
+#### 2. Commande Terminée
+**Déclencheur:** Commande marquée avec statut `completed`
+
+**Destinataires:** 👤 Le client ayant créé la commande
+
+**Contenu:**
+```
+Titre: ✅ Commande terminée
+Corps: Votre commande #ORD-20250124-ABC11 a été traitée avec succès
+
+Données:
+- type: order_completed
+- orderId: {orderId}
+- orderReference: {orderReference}
+- status: completed
+- amount: {amount}
+```
+
+#### 3. Paiement Échoué
+**Déclencheur:** Webhook TouchPoint reçu avec statut `FAILED`
+
+**Destinataires:** 👤 Le client + 👥 Staff
+
+**Contenu:**
+```
+Titre: ❌ Paiement échoué
+Corps: Le paiement de votre commande #{orderReference} a échoué
+
+Données:
+- type: payment_failed
+- orderId: {orderId}
+- orderReference: {orderReference}
+- amount: {amount}
+- errorMessage: {errorMessage}
+```
+
+#### 4. Commande Assignée
+**Déclencheur:** Commande assignée à un membre du staff
+
+**Destinataires:** 👤 Le staff assigné
+
+**Contenu:**
+```
+Titre: 📋 Nouvelle commande
+Corps: Nouvelle commande assignée: #{orderReference} - {amount}F
+
+Données:
+- type: order_assigned
+- orderId: {orderId}
+- orderReference: {orderReference}
+- amount: {amount}
+- assignedBy: {adminName}
+```
+
+---
+
+### Intégration dans l'Application Mobile
+
+#### React Native (Gestion Complète)
+
+```javascript
+import messaging from '@react-native-firebase/messaging';
+import { useEffect, useState } from 'react';
+
+export const NotificationManager = ({ authToken, userId }) => {
+  const [notifications, setNotifications] = useState([]);
+
+  useEffect(() => {
+    // 1️⃣ Enregistrer le token au démarrage
+    registerInitialToken();
+
+    // 2️⃣ Écouter les notifications en avant-plan
+    const unsubscribeForeground = messaging().onMessage(async (remoteMessage) => {
+      handleForegroundNotification(remoteMessage);
+    });
+
+    // 3️⃣ Écouter les notifications reçues quand l'app était fermée
+    messaging().getInitialNotification().then((message) => {
+      if (message) {
+        handleBackgroundNotification(message);
+      }
+    });
+
+    // 4️⃣ Écouter les clics sur les notifications
+    const unsubscribeBackground = messaging().onNotificationOpenedApp(
+      (message) => {
+        handleNotificationClick(message);
+      }
+    );
+
+    // 5️⃣ Écouter les nouveaux tokens
+    const unsubscribeTokenRefresh = messaging().onTokenRefresh((token) => {
+      updateToken(token);
+    });
+
+    return () => {
+      unsubscribeForeground();
+      unsubscribeBackground();
+      unsubscribeTokenRefresh();
+    };
+  }, [authToken, userId]);
+
+  const registerInitialToken = async () => {
+    try {
+      // Demander la permission (iOS)
+      const authStatus = await messaging().requestPermission();
+      const enabled =
+        authStatus === messaging.AuthorizationStatus.AUTHORIZED ||
+        authStatus === messaging.AuthorizationStatus.PROVISIONAL;
+
+      if (enabled) {
+        const token = await messaging().getToken();
+        await registerFCMToken(token);
+      }
+    } catch (error) {
+      console.error('❌ Erreur enregistrement initial:', error);
+    }
+  };
+
+  const registerFCMToken = async (token) => {
+    try {
+      const response = await fetch('https://api.kbine.com/api/notifications/register-token', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          'Authorization': `Bearer ${authToken}`
+        },
+        body: JSON.stringify({
+          token,
+          platform: Platform.OS // 'android' ou 'ios'
+        })
+      });
+
+      if (!response.ok) throw new Error('Erreur enregistrement');
+      console.log('✅ Token FCM enregistré');
+    } catch (error) {
+      console.error('❌ Erreur:', error);
+    }
+  };
+
+  const handleForegroundNotification = (remoteMessage) => {
+    console.log('📬 Notification reçue en avant-plan:', remoteMessage);
+
+    const { notification, data } = remoteMessage;
+    
+    // Afficher une notification locale
+    showNotification({
+      title: notification?.title,
+      body: notification?.body,
+      data
+    });
+  };
+
+  const handleBackgroundNotification = (message) => {
+    console.log('📬 Notification reçue en arrière-plan:', message);
+    // Navigation automatique si nécessaire
+    handleNotificationClick(message);
+  };
+
+  const handleNotificationClick = (message) => {
+    const { data } = message;
+
+    // Redirection basée sur le type
+    if (data?.type === 'payment_success') {
+      // Naviguer vers les détails de la commande
+      navigation.navigate('OrderDetails', { orderId: data.orderId });
+    } else if (data?.type === 'order_completed') {
+      // Naviguer vers la commande
+      navigation.navigate('OrderDetails', { orderId: data.orderId });
+    }
+  };
+
+  return null; // Ce composant ne rend rien
+};
+```
+
+#### Affichage des Notifications Locales
+
+```javascript
+import notifee from '@react-native-notifee/react-native';
+
+const showNotification = async ({ title, body, data }) => {
+  try {
+    // Créer un canal (Android)
+    await notifee.createChannel({
+      id: 'kbine_channel',
+      name: 'Kbine Notifications',
+      sound: 'default',
+      importance: 4 // High
+    });
+
+    // Afficher la notification
+    await notifee.displayNotification({
+      title,
+      body,
+      data,
+      android: {
+        channelId: 'kbine_channel',
+        smallIcon: 'ic_launcher', // Icône personnalisée
+        pressAction: {
+          id: 'default'
+        }
+      },
+      ios: {
+        sound: 'default'
+      }
+    });
+  } catch (error) {
+    console.error('❌ Erreur affichage notification:', error);
+  }
+};
+```
+
+---
+
+### Débogage et Troubleshooting
+
+#### ✅ Vérifier que Firebase est Initialisé
+
+```bash
+# Voir les logs au démarrage
+docker logs kbine-backend | grep Firebase
+
+# Résultat attendu:
+# [Firebase] ✅ Firebase Admin SDK initialisé
+# [Firebase] Project ID: kbine-xxxxx
+# [Firebase] Firebase Cloud Messaging disponible
+```
+
+#### ⚠️ Firebase Non Initialisé
+
+**Cause:** Fichier credentials manquant ou variable d'environnement non définie
+
+**Solution:**
+1. Vérifier que `firebase-service-account.json` est à la racine du projet
+2. OU définir `FIREBASE_SERVICE_ACCOUNT` en env var
+3. Redémarrer le serveur
+
+#### 📋 Tester l'Enregistrement du Token
+
+```bash
+curl -X POST https://api.kbine.com/api/notifications/register-token \
+  -H "Content-Type: application/json" \
+  -H "Authorization: Bearer YOUR_TOKEN" \
+  -d '{
+    "token": "test_token_12345",
+    "platform": "android"
+  }'
+
+# Réponse attendue:
+# { "success": true, "message": "Token enregistré avec succès" }
+```
+
+#### 🧪 Envoyer une Notification de Test
+
+```bash
+curl -X POST https://api.kbine.com/api/notifications/test \
+  -H "Content-Type: application/json" \
+  -H "Authorization: Bearer YOUR_ADMIN_TOKEN" \
+  -d '{
+    "title": "Test",
+    "body": "Test de notification"
+  }'
+```
+
+#### 🔍 Consulter la Base de Données
+
+```sql
+-- Voir les tokens enregistrés
+SELECT * FROM fcm_tokens WHERE user_id = 1;
+
+-- Voir l'historique des notifications
+SELECT * FROM notifications WHERE user_id = 1 ORDER BY created_at DESC;
+
+-- Voir les tokens actifs
+SELECT COUNT(*) as active_tokens FROM fcm_tokens WHERE is_active = TRUE;
+```
+
+#### ⚡ Problèmes Courants
+
+| Problème | Cause | Solution |
+|----------|-------|----------|
+| Notifications non reçues | Firebase non initialisé | Vérifier les credentials Firebase |
+| Tokens perdus après redémarrage | Base de données non connectée | Vérifier la connexion MySQL |
+| Erreur "Invalid token" | Token expiré | Réenregistrer le token |
+| Service unavailable | Firebase service down | Attendre ou essayer plus tard |
+
+---
+
+### Bonnes Pratiques
+
+1. **Enregistrer le token au démarrage de l'app** ✅
+2. **Réenregistrer quand le token change** ✅
+3. **Nettoyer les tokens à la déconnexion** ✅
+4. **Gérer les erreurs de notifications gracieusement** ✅
+5. **Tester avec des notifications de test** ✅
+6. **Monitorer les logs Firebase** ✅
+7. **Vérifier les permissions utilisateur (iOS)** ✅
 
 ---
