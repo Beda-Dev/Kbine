@@ -2,7 +2,7 @@
 
 ## ✅ Mise à Jour Importante - Version TouchPoint Améliorée
 
-**Date:** Janvier 2025
+**Date:** Novembre 2025
 
 **Changement Principal:** Tous les paiements passent maintenant par **TouchPoint** (Wave, MTN Money, Orange Money, Moov Money) avec support complet des URLs de callback pour Wave.
 

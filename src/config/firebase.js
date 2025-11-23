@@ -82,6 +82,8 @@ if (process.env.FIREBASE_SERVICE_ACCOUNT) {
     console.log('[Firebase] ✅ Firebase Admin SDK initialisé');
     console.log('[Firebase] Project ID:', serviceAccount.project_id);
     console.log('[Firebase] Firebase Cloud Messaging disponible');
+    console.log('[Firebase] Messaging instance:', messaging);
+console.log('[Firebase] Has sendMulticast?', typeof messaging?.sendMulticast);
   } else {
     console.warn('[Firebase] ⚠️  Credentials Firebase non disponibles');
     console.warn('[Firebase] ℹ️  Fournir FIREBASE_SERVICE_ACCOUNT ou firebase-service-account.json');
@@ -105,7 +107,8 @@ if (process.env.FIREBASE_SERVICE_ACCOUNT) {
 
 // =========================================================
 // EXPORTS
-// =========================================================
+// =============================================
+// ============
 
 /**
  * Vérifier si Firebase est initialisé

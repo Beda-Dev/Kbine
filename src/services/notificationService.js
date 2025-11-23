@@ -1,9 +1,9 @@
 /**
  * Service de gestion des notifications Firebase Cloud Messaging
- * ✅ VERSION CORRIGÉE - Fix de l'erreur "Incorrect arguments to mysqld_stmt_execute"
+ * ✅ VERSION CORRIGÉE - Fix de l'erreur "messaging.sendMulticast is not a function"
  */
 
-const { messaging, isFirebaseInitialized, getMessaging } = require('../config/firebase');
+const { isFirebaseInitialized, getMessaging } = require('../config/firebase');
 const db = require('../config/database');
 const logger = require('../utils/logger');
 
@@ -128,7 +128,7 @@ class NotificationService {
   // =========================================================
 
   /**
-   * Envoyer une notification à des tokens spécifiques
+   * ✅ CORRIGÉ - Envoyer une notification à des tokens spécifiques
    */
   async sendToTokens(tokens, notification, data = {}) {
     console.log('[NotificationService] Envoi notification', {
@@ -149,6 +149,13 @@ class NotificationService {
     }
 
     try {
+      // ✅ CORRECTION: Obtenir l'instance messaging via getMessaging()
+      const messaging = getMessaging();
+      
+      if (!messaging) {
+        throw new Error('Instance Firebase Messaging non disponible');
+      }
+
       const message = {
         notification: {
           title: notification.title,
@@ -176,7 +183,8 @@ class NotificationService {
         }
       };
 
-      const response = await messaging.sendMulticast(message);
+      console.log('[NotificationService] Envoi via Firebase sendEachForMulticast...');
+      const response = await messaging.sendEachForMulticast(message);
 
       // Gérer les tokens invalides
       if (response.failureCount > 0) {
@@ -198,8 +206,10 @@ class NotificationService {
     } catch (error) {
       logger.error('❌ Erreur envoi notification', {
         error: error.message,
+        stack: error.stack,
         tokenCount: tokens.length
       });
+      console.error('[NotificationService] Stack trace:', error.stack);
       throw error;
     }
   }
@@ -267,7 +277,6 @@ class NotificationService {
         return { success: false, reason: 'Firebase not initialized' };
       }
 
-      const messaging = getMessaging();
       const tokens = await this.getStaffTokens();
 
       const notification = {
@@ -405,14 +414,12 @@ class NotificationService {
   }
 
   /**
-   * ✅ CORRIGÉ - Récupérer l'historique des notifications d'un utilisateur
-   * Fix: Conversion explicite de page et limit en entiers
+   * Récupérer l'historique des notifications d'un utilisateur
    */
   async getNotificationHistory(userId, page = 1, limit = 20) {
     console.log('[NotificationService] Récupération historique', { userId, page, limit });
 
     try {
-      // ✅ CORRECTION: Conversion explicite en entiers
       const pageInt = parseInt(page, 10);
       const limitInt = parseInt(limit, 10);
       const offset = (pageInt - 1) * limitInt;
@@ -424,7 +431,6 @@ class NotificationService {
         userId 
       });
 
-      // ✅ CORRECTION: Utiliser query() au lieu de execute() pour LIMIT/OFFSET
       const [notifications] = await db.query(
         `SELECT id, title, body, type, data, sent_at, created_at
          FROM notifications 
