@@ -1515,19 +1515,22 @@ Le webhook effectue les actions suivantes:
    - `external_reference` (string) - Référence externe TouchPoint
    - `status` (string) - Statut du paiement
    - `callback_data` (object) - **Données complètes du webhook et de TouchPoint** (voir Guide du callback_data)
-   - `created_at` (datetime) - Date de création
-   - `updated_at` (datetime) - Date de mise à jour
+   - `created_at` (datetime) - Date de création du paiement
+   - `updated_at` (datetime) - Date de dernière mise à jour
+   - `user_id` (integer) - ID de l'utilisateur
+   - `user_phone` (string) - Téléphone de l'utilisateur
+   - `order_status` (string) - Statut de la commande associée
 
+**Interpretation des Statuts:**
 
-#### Réponses d'Erreur
+| Statut | Meaning | Webhook | Action |
+|--------|---------|---------|--------|
+| `pending` | ⏳ En attente | Pas encore reçu | Attendre le webhook |
+| `success` | ✅ Réussi | Reçu SUCCESSFUL | Commande complétée |
+| `failed` | ❌ Échoué | Reçu FAILED | Permettre nouvelle tentative |
+| `refunded` | 🔄 Remboursé | N/A | Remboursement effectué |
 
-**404 - Aucun Paiement Trouvé**
-```json
-{
-  "success": false,
-  "error": "Aucun paiement trouvé pour cette commande"
-}
-```
+**Important:** Le `callback_data` contient l'intégralité des données de la transaction pour audit et debugging. Voir le [Guide du callback_data](./CALLBACK_DATA_GUIDE.md) pour une documentation détaillée.
 
 ---
 
@@ -1653,8 +1656,7 @@ Le webhook effectue les actions suivantes:
           "idFromClient": "20251119134055ORD-20251119-77058",
           "numTransaction": "1763559655779",
           "recipientNumber": "0566955943"
-        },
-        "touchpoint_transaction_id": "1763559655779"
+        }
       },
       "created_at": "2025-11-19T13:40:55.000Z",
       "updated_at": "2025-11-19T13:40:56.000Z",
@@ -1815,222 +1817,6 @@ Le webhook effectue les actions suivantes:
 }
 ```
 
-**Champs de réponse:**
-- `id` (integer) - ID unique du paiement
-- `order_id` (integer) - ID de la commande associée
-- `order_reference` (string) - Référence de la commande (ORD-YYYYMMDD-XXXXX)
-- `amount` (string) - Montant du paiement
-- `payment_method` (string) - Méthode utilisée (wave, orange_money, mtn_money, moov_money)
-- `payment_phone` (string) - Numéro de téléphone utilisé
-- `payment_reference` (string) - Référence interne du paiement (PAY-*)
-- `external_reference` (string) - ID unique TouchPoint
-- `status` (string) - Statut du paiement (pending, success, failed, refunded)
-- `callback_data` (object) - Données complètes du paiement (voir Guide du callback_data)
-- `created_at` (datetime) - Date de création du paiement
-- `updated_at` (datetime) - Date de dernière mise à jour
-- `user_id` (integer) - ID de l'utilisateur
-- `user_phone` (string) - Téléphone de l'utilisateur
-- `order_status` (string) - Statut de la commande associée
-
-**Interpretation des Statuts:**
-
-| Statut | Meaning | Webhook | Action |
-|--------|---------|---------|--------|
-| `pending` | ⏳ En attente | Pas encore reçu | Attendre le webhook |
-| `success` | ✅ Réussi | Reçu SUCCESSFUL | Commande complétée |
-| `failed` | ❌ Échoué | Reçu FAILED | Permettre nouvelle tentative |
-| `refunded` | 🔄 Remboursé | N/A | Remboursement effectué |
-
-**Important:** Le `callback_data` contient l'intégralité des données de la transaction pour audit et debugging. Voir le [Guide du callback_data](./CALLBACK_DATA_GUIDE.md) pour une documentation détaillée.
-
----
-
-### 8. Récupérer les Paiements d'un Utilisateur avec Filtres Avancés
-
-**Endpoint:** `GET /api/payments/user/:user_id`
-
-**Description:** Récupère TOUS les paiements d'un utilisateur avec filtres avancés (date, statut, méthode) et détails complets du plan et de la commande.
-
-**Niveau d'accès:** Authentifié
-
-#### Paramètres de Requête
-
-| Paramètre | Type | Défaut | Description |
-|-----------|------|--------|-------------|
-| `page` | integer | 1 | Numéro de page |
-| `limit` | integer | 10 | Éléments par page (max: 100) |
-| `status` | string | - | Filtrer par statut paiement (pending, success, failed, refunded) |
-| `payment_method` | string | - | Filtrer par méthode (wave, orange_money, mtn_money, moov_money) |
-| `date` | string (YYYY-MM-DD) | - | Paiements d'une date spécifique (ex: 2025-11-20) |
-| `start_date` | string (YYYY-MM-DD) | - | Début de plage de dates |
-| `end_date` | string (YYYY-MM-DD) | - | Fin de plage de dates |
-| `sort_by` | string | p.created_at | Champ de tri (p.created_at, p.updated_at, p.amount, p.status, p.payment_method) |
-| `sort_order` | string | DESC | Ordre de tri (ASC ou DESC) |
-
-#### Exemples de Requêtes
-
-**1️⃣ Tous les paiements de l'utilisateur (pagination)**
-```bash
-GET /api/payments/user/31?page=1&limit=20
-Authorization: Bearer <token>
-```
-
-**2️⃣ Paiements pour une date spécifique**
-```bash
-GET /api/payments/user/31?date=2025-11-20
-Authorization: Bearer <token>
-```
-
-**3️⃣ Paiements réussis pour une date**
-```bash
-GET /api/payments/user/31?date=2025-11-20&status=success
-Authorization: Bearer <token>
-```
-
-**4️⃣ Paiements Wave pour une date**
-```bash
-GET /api/payments/user/31?date=2025-11-20&payment_method=wave
-Authorization: Bearer <token>
-```
-
-**5️⃣ Tous les paiements réussis (triés par montant DESC)**
-```bash
-GET /api/payments/user/31?status=success&sort_by=p.amount&sort_order=DESC
-Authorization: Bearer <token>
-```
-
-**6️⃣ Paiements par plage de dates**
-```bash
-GET /api/payments/user/31?start_date=2025-11-01&end_date=2025-11-30
-Authorization: Bearer <token>
-```
-
-**7️⃣ Combinaison complète de filtres**
-```bash
-GET /api/payments/user/31?date=2025-11-20&status=success&payment_method=wave&sort_by=p.created_at&sort_order=DESC&page=1&limit=10
-Authorization: Bearer <token>
-```
-
-#### Réponse en Cas de Succès (200)
-
-```json
-{
-  "success": true,
-  "data": [
-    {
-      "id": 30,
-      "order_id": 66,
-      "amount": 315.00,
-      "payment_method": "wave",
-      "payment_phone": "0789062079",
-      "payment_reference": "PAY-20251119163551ORD-20251119-66785",
-      "external_reference": "20251119163551ORD-20251119-66785",
-      "status": "failed",
-      "callback_data": {
-        "fees": 6.3,
-        "status": "FAILED",
-        "message": "FAILED",
-        "touchpoint_status": "FAILED",
-        "initiated_at": "2025-11-19T16:35:51.068Z",
-        "webhook_received_at": "2025-11-19T16:55:01.437Z"
-      },
-      "created_at": "2025-11-19T16:35:51.000Z",
-      "updated_at": "2025-11-19T16:55:01.000Z",
-      "order": {
-        "id": 66,
-        "reference": "ORD-20251119-66785",
-        "status": "pending",
-        "amount": 315.00,
-        "phone_number": "0789062079",
-        "assigned_to": null,
-        "created_at": "2025-11-19T16:35:49.000Z",
-        "updated_at": "2025-11-19T16:35:49.000Z",
-        "plan_id": 55
-      },
-      "plan": {
-        "id": 55,
-        "operator_id": 1,
-        "name": "Plan Orange 315 XOF",
-        "description": "Crédit de communication 315 XOF",
-        "price": 315.00,
-        "type": "credit",
-        "validity_days": null,
-        "active": true,
-        "created_at": "2025-11-15T10:30:00.000Z",
-        "operator": {
-          "id": 1,
-          "name": "Orange CI",
-          "code": "ORANGE",
-          "prefixes": ["07"],
-          "created_at": "2025-01-01T00:00:00.000Z"
-        }
-      }
-    },
-    {
-      "id": 29,
-      "order_id": 65,
-      "amount": 210.00,
-      "payment_method": "wave",
-      "payment_phone": "0789062079",
-      "payment_reference": "PAY-20251119163204ORD-20251119-30516",
-      "external_reference": "20251119163204ORD-20251119-30516",
-      "status": "success",
-      "callback_data": {
-        "fees": 4.2,
-        "status": "SUCCESSFUL",
-        "message": "Transaction successful",
-        "touchpoint_status": "SUCCESSFUL",
-        "initiated_at": "2025-11-19T16:32:05.734Z",
-        "webhook_data": {
-          "status": "SUCCESSFUL",
-          "service_id": "CI_PAIEMENTWAVE_TP"
-        },
-        "webhook_received_at": "2025-11-19T16:32:08.180Z"
-      },
-      "created_at": "2025-11-19T16:32:04.000Z",
-      "updated_at": "2025-11-19T16:32:08.000Z",
-      "order": {
-        "id": 65,
-        "reference": "ORD-20251119-30516",
-        "status": "completed",
-        "amount": 210.00,
-        "phone_number": "0789062079",
-        "assigned_to": 5,
-        "created_at": "2025-11-19T16:32:02.000Z",
-        "updated_at": "2025-11-19T16:32:08.000Z",
-        "plan_id": 54
-      },
-      "plan": {
-        "id": 54,
-        "operator_id": 1,
-        "name": "Plan Orange 210 XOF",
-        "description": "Crédit de communication 210 XOF",
-        "price": 210.00,
-        "type": "credit",
-        "validity_days": null,
-        "active": true,
-        "created_at": "2025-11-15T10:30:00.000Z",
-        "operator": {
-          "id": 1,
-          "name": "Orange CI",
-          "code": "ORANGE",
-          "prefixes": ["07"],
-          "created_at": "2025-01-01T00:00:00.000Z"
-        }
-      }
-    }
-  ],
-  "pagination": {
-    "total": 25,
-    "total_pages": 3,
-    "current_page": 1,
-    "limit": 10,
-    "has_next_page": true,
-    "has_previous_page": false
-  }
-}
-```
-
 #### Structure Complète de la Réponse
 
 **Champs du paiement:**
@@ -2134,7 +1920,7 @@ Authorization: Bearer <token>
 **1️⃣ Afficher l'historique de paiement complet d'un utilisateur**
 ```javascript
 const response = await fetch('/api/payments/user/31');
-const { data } = await response.json();
+const data = await response.json();
 
 data.forEach(payment => {
   console.log(`
@@ -2150,7 +1936,7 @@ data.forEach(payment => {
 **2️⃣ Filtrer les paiements réussis et calculer le total**
 ```javascript
 const response = await fetch('/api/payments/user/31?status=success');
-const { data } = await response.json();
+const data = await response.json();
 
 const totalSpent = data.reduce((sum, p) => sum + p.amount, 0);
 console.log(`Total dépensé: ${totalSpent} XOF`);
@@ -2174,7 +1960,7 @@ console.log(`
 **4️⃣ Analyser les paiements par méthode sur une période**
 ```javascript
 const response = await fetch('/api/payments/user/31?start_date=2025-11-01&end_date=2025-11-30');
-const { data } = await response.json();
+const data = await response.json();
 
 const byMethod = {};
 data.forEach(p => {
@@ -2357,7 +2143,9 @@ Content-Type: application/json
   "user": {
     "id": 1,
     "phone_number": "0701020304",
-    "role": "client"
+    "role": "client",
+    "created_at": "2025-01-15T10:30:00.000Z",
+    "updated_at": "2025-01-15T10:30:00.000Z"
   }
 }
 ```
@@ -2594,43 +2382,48 @@ FIREBASE_SERVICE_ACCOUNT={"type":"service_account","project_id":"kbine-...","...
 }
 ```
 
-#### Exemple d'Utilisation (React Native)
+#### Exemple d'Utilisation (Dart/Flutter)
 
-```javascript
-import messaging from '@react-native-firebase/messaging';
+```dart
+import 'dart:convert';
+import 'package:http/http.dart' as http;
+import 'package:firebase_messaging/firebase_messaging.dart';
 
 // Enregistrer le token au démarrage
-const registerFCMToken = async (authToken) => {
+Future<void> registerFCMToken(String authToken) async {
   try {
-    const token = await messaging().getToken();
+    final messaging = FirebaseMessaging.instance;
+    final token = await messaging.getToken();
     
-    await fetch('https://api.kbine.com/api/notifications/register-token', {
-      method: 'POST',
+    if (token == null) return;
+    
+    final uri = Uri.parse('https://api.kbine.com/api/notifications/register-token');
+    final response = await http.post(
+      uri,
       headers: {
         'Content-Type': 'application/json',
-        'Authorization': `Bearer ${authToken}`
+        'Authorization': 'Bearer $authToken'
       },
-      body: JSON.stringify({
-        token,
-        platform: Platform.OS // 'android' ou 'ios'
-      })
-    });
-    
-    console.log('✅ Token FCM enregistré');
+      body: json.encode({
+        'token': token,
+        'platform': 'android' // ou 'ios'
+      }),
+    );
+
+    if (response.statusCode == 200) {
+      print('✅ Token FCM enregistré');
+    }
   } catch (error) {
-    console.error('❌ Erreur enregistrement token:', error);
+    print('❌ Erreur enregistrement token: $error');
   }
-};
+}
 
 // À appeler au démarrage de l'app
-useEffect(() => {
-  registerFCMToken(userAuthToken);
-}, []);
-
-// Écouter les nouveaux tokens
-messaging().onTokenRefresh(token => {
-  registerFCMToken(userAuthToken);
-});
+void initializeNotifications(String authToken) {
+  FirebaseMessaging.instance.onTokenRefresh.listen((newToken) {
+    registerFCMToken(authToken);
+  });
+}
 ```
 
 ---
@@ -2660,29 +2453,37 @@ messaging().onTokenRefresh(token => {
 }
 ```
 
-#### Exemple d'Utilisation
+#### Exemple d'Utilisation (Dart/Flutter)
 
-```javascript
+```dart
+import 'dart:convert';
+import 'package:http/http.dart' as http;
+import 'package:firebase_messaging/firebase_messaging.dart';
+
 // À l'appel de déconnexion
-const logout = async (authToken) => {
+Future<void> logout(String authToken) async {
   try {
-    const token = await messaging().getToken();
+    final messaging = FirebaseMessaging.instance;
+    final token = await messaging.getToken();
     
-    await fetch('https://api.kbine.com/api/notifications/remove-token', {
-      method: 'POST',
+    if (token == null) return;
+    
+    final uri = Uri.parse('https://api.kbine.com/api/notifications/remove-token');
+    await http.post(
+      uri,
       headers: {
         'Content-Type': 'application/json',
-        'Authorization': `Bearer ${authToken}`
+        'Authorization': 'Bearer $authToken'
       },
-      body: JSON.stringify({ token })
-    });
+      body: json.encode({'token': token}),
+    );
     
+    print('✅ Token supprimé');
     // Puis effectuer la déconnexion
-    await logout();
   } catch (error) {
-    console.error('❌ Erreur suppression token:', error);
+    print('❌ Erreur suppression token: $error');
   }
-};
+}
 ```
 
 ---
@@ -2774,32 +2575,45 @@ const logout = async (authToken) => {
 | `order_assigned` | 📋 Commande assignée | Commande assignée au staff |
 | `test` | 🧪 Test | Notification de test |
 
-#### Exemple d'Utilisation
+#### Exemple d'Utilisation (Dart/Flutter)
 
-```javascript
+```dart
+import 'dart:convert';
+import 'package:http/http.dart' as http;
+
 // Récupérer l'historique avec pagination
-const fetchNotificationHistory = async (authToken, page = 1) => {
-  const response = await fetch(
-    `https://api.kbine.com/api/notifications/history?page=${page}&limit=20`,
-    {
+Future<void> fetchNotificationHistory(String authToken, {int page = 1}) async {
+  try {
+    final uri = Uri.parse(
+      'https://api.kbine.com/api/notifications/history?page=$page&limit=20'
+    );
+    
+    final response = await http.get(
+      uri,
       headers: {
-        'Authorization': `Bearer ${authToken}`
+        'Authorization': 'Bearer $authToken'
+      }
+    );
+
+    if (response.statusCode == 200) {
+      final data = json.decode(response.body);
+      final notifications = data['data'] as List<dynamic>;
+      final pagination = data['pagination'] as Map<String, dynamic>;
+      
+      // Afficher les notifications
+      for (var notif in notifications) {
+        print('${notif['title']}: ${notif['body']}');
+      }
+      
+      // Vérifier s'il y a d'autres pages
+      if (pagination['hasMore'] == true) {
+        await fetchNotificationHistory(authToken, page: page + 1);
       }
     }
-  );
-  
-  const { data, pagination } = await response.json();
-  
-  // Afficher les notifications
-  data.forEach(notif => {
-    console.log(`${notif.title}: ${notif.body}`);
-  });
-  
-  // Vérifier s'il y a d'autres pages
-  if (pagination.hasMore) {
-    fetchNotificationHistory(authToken, page + 1);
+  } catch (error) {
+    print('❌ Erreur: $error');
   }
-};
+}
 ```
 
 ---
@@ -2838,373 +2652,361 @@ const fetchNotificationHistory = async (authToken, page = 1) => {
 }
 ```
 
-**Champs de réponse:**
-- `successCount` (integer) - Nombre de tokens ayant reçu la notification
-- `failureCount` (integer) - Nombre de tokens ayant échoué
+#### Exemple d'Utilisation (Dart/Flutter)
 
-#### Réponses d'Erreur
+```dart
+import 'dart:convert';
+import 'package:http/http.dart' as http;
 
-**400 - Données Manquantes**
-```json
-{
-  "success": false,
-  "error": "Le titre et le corps sont requis"
+// Tester l'enregistrement du token
+Future<void> testRegisterToken(String authToken) async {
+  final uri = Uri.parse('https://api.kbine.com/api/notifications/register-token');
+  
+  final response = await http.post(
+    uri,
+    headers: {
+      'Content-Type': 'application/json',
+      'Authorization': 'Bearer $authToken'
+    },
+    body: json.encode({
+      'token': 'test_token_12345',
+      'platform': 'android'
+    }),
+  );
+
+  if (response.statusCode == 200) {
+    print('✅ Réponse: ${response.body}');
+  }
 }
-```
 
-**404 - Utilisateur Non Trouvé**
-```json
-{
-  "success": false,
-  "error": "Aucun token trouvé pour cet utilisateur"
+// Envoyer une notification de test au staff
+Future<void> sendTestNotification(String adminToken) async {
+  final uri = Uri.parse('https://api.kbine.com/api/notifications/test');
+  
+  final response = await http.post(
+    uri,
+    headers: {
+      'Content-Type': 'application/json',
+      'Authorization': 'Bearer $adminToken'
+    },
+    body: json.encode({
+      'title': 'Test du Système',
+      'body': 'Ceci est une notification de test du système Kbine'
+    }),
+  );
+
+  if (response.statusCode == 200) {
+    final data = json.decode(response.body);
+    print('✅ Notification envoyée');
+    print('Succès: ${data['successCount']}, Erreurs: ${data['failureCount']}');
+  }
 }
-```
 
-#### Exemple de Test cURL
+// Envoyer une notification de test à un utilisateur
+Future<void> sendTestNotificationToUser(String adminToken, int userId) async {
+  final uri = Uri.parse('https://api.kbine.com/api/notifications/test');
+  
+  final response = await http.post(
+    uri,
+    headers: {
+      'Content-Type': 'application/json',
+      'Authorization': 'Bearer $adminToken'
+    },
+    body: json.encode({
+      'title': 'Test Personnel',
+      'body': 'Notification de test pour l\'utilisateur $userId',
+      'userId': userId
+    }),
+  );
 
-```bash
-# Tester l'envoi de notification au staff
-curl -X POST https://api.kbine.com/api/notifications/test \
-  -H "Content-Type: application/json" \
-  -H "Authorization: Bearer YOUR_ADMIN_TOKEN" \
-  -d '{
-    "title": "Test du Système",
-    "body": "Ceci est une notification de test du système Kbine"
-  }'
-
-# Tester l'envoi à un utilisateur spécifique
-curl -X POST https://api.kbine.com/api/notifications/test \
-  -H "Content-Type: application/json" \
-  -H "Authorization: Bearer YOUR_ADMIN_TOKEN" \
-  -d '{
-    "title": "Test Personnel",
-    "body": "Notification de test pour l'\''utilisateur 1",
-    "userId": 1
-  }'
-```
-
----
-
-### Notifications Automatiques
-
-Le système envoie automatiquement des notifications dans les cas suivants:
-
-#### 1. Paiement Réussi
-**Déclencheur:** Webhook TouchPoint reçu avec statut `SUCCESSFUL`
-
-**Destinataires:** 👥 Tout le staff (admin + staff)
-
-**Contenu:**
-```
-Titre: 💰 Paiement reçu
-Corps: Paiement de {amount}F reçu - Commande #{orderReference}
-
-Données:
-- type: payment_success
-- orderId: {orderId}
-- orderReference: {orderReference}
-- amount: {amount}
-- paymentMethod: {paymentMethod}
-- customerPhone: {customerPhone}
-```
-
-#### 2. Commande Terminée
-**Déclencheur:** Commande marquée avec statut `completed`
-
-**Destinataires:** 👤 Le client ayant créé la commande
-
-**Contenu:**
-```
-Titre: ✅ Commande terminée
-Corps: Votre commande #ORD-20250124-ABC11 a été traitée avec succès
-
-Données:
-- type: order_completed
-- orderId: {orderId}
-- orderReference: {orderReference}
-- status: completed
-- amount: {amount}
-```
-
-#### 3. Paiement Échoué
-**Déclencheur:** Webhook TouchPoint reçu avec statut `FAILED`
-
-**Destinataires:** 👤 Le client + 👥 Staff
-
-**Contenu:**
-```
-Titre: ❌ Paiement échoué
-Corps: Le paiement de votre commande #{orderReference} a échoué
-
-Données:
-- type: payment_failed
-- orderId: {orderId}
-- orderReference: {orderReference}
-- amount: {amount}
-- errorMessage: {errorMessage}
-```
-
-#### 4. Commande Assignée
-**Déclencheur:** Commande assignée à un membre du staff
-
-**Destinataires:** 👤 Le staff assigné
-
-**Contenu:**
-```
-Titre: 📋 Nouvelle commande
-Corps: Nouvelle commande assignée: #{orderReference} - {amount}F
-
-Données:
-- type: order_assigned
-- orderId: {orderId}
-- orderReference: {orderReference}
-- amount: {amount}
-- assignedBy: {adminName}
+  if (response.statusCode == 200) {
+    print('✅ Notification personnelle envoyée');
+  }
+}
 ```
 
 ---
 
 ### Intégration dans l'Application Mobile
 
-#### React Native (Gestion Complète)
+#### Flutter (Gestion Complète - Dart)
 
-```javascript
-import messaging from '@react-native-firebase/messaging';
-import { useEffect, useState } from 'react';
+```dart
+import 'dart:convert';
+import 'package:firebase_messaging/firebase_messaging.dart';
+import 'package:flutter_local_notifications/flutter_local_notifications.dart';
+import 'package:http/http.dart' as http;
+import 'package:flutter/material.dart';
 
-export const NotificationManager = ({ authToken, userId }) => {
-  const [notifications, setNotifications] = useState([]);
+class NotificationManager {
+  final String authToken;
+  final String userId;
+  final FirebaseMessaging _messaging = FirebaseMessaging.instance;
+  final FlutterLocalNotificationsPlugin _localNotifications =
+      FlutterLocalNotificationsPlugin();
+  
+  NotificationManager({
+    required this.authToken,
+    required this.userId,
+  });
 
-  useEffect(() => {
-    // 1️⃣ Enregistrer le token au démarrage
-    registerInitialToken();
+  // 1️⃣ Initialiser les notifications
+  Future<void> initialize(BuildContext context) async {
+    // Enregistrer le token au démarrage
+    await _registerInitialToken();
 
     // 2️⃣ Écouter les notifications en avant-plan
-    const unsubscribeForeground = messaging().onMessage(async (remoteMessage) => {
-      handleForegroundNotification(remoteMessage);
+    FirebaseMessaging.onMessage.listen((RemoteMessage message) {
+      _handleForegroundNotification(message, context);
     });
 
     // 3️⃣ Écouter les notifications reçues quand l'app était fermée
-    messaging().getInitialNotification().then((message) => {
-      if (message) {
-        handleBackgroundNotification(message);
-      }
-    });
+    RemoteMessage? initialMessage = await _messaging.getInitialNotification();
+    if (initialMessage != null) {
+      _handleBackgroundNotification(initialMessage, context);
+    }
 
     // 4️⃣ Écouter les clics sur les notifications
-    const unsubscribeBackground = messaging().onNotificationOpenedApp(
-      (message) => {
-        handleNotificationClick(message);
-      }
-    );
+    FirebaseMessaging.onMessageOpenedApp.listen((RemoteMessage message) {
+      _handleNotificationClick(message, context);
+    });
 
     // 5️⃣ Écouter les nouveaux tokens
-    const unsubscribeTokenRefresh = messaging().onTokenRefresh((token) => {
-      updateToken(token);
+    _messaging.onTokenRefresh.listen((newToken) {
+      _registerFCMToken(newToken);
     });
+  }
 
-    return () => {
-      unsubscribeForeground();
-      unsubscribeBackground();
-      unsubscribeTokenRefresh();
-    };
-  }, [authToken, userId]);
-
-  const registerInitialToken = async () => {
+  // Enregistrer le token initial
+  Future<void> _registerInitialToken() async {
     try {
-      // Demander la permission (iOS)
-      const authStatus = await messaging().requestPermission();
-      const enabled =
-        authStatus === messaging.AuthorizationStatus.AUTHORIZED ||
-        authStatus === messaging.AuthorizationStatus.PROVISIONAL;
+      final NotificationSettings settings = await _messaging.requestPermission(
+        alert: true,
+        announcement: false,
+        badge: true,
+        carPlay: false,
+        criticalAlert: false,
+        provisional: false,
+        sound: true,
+      );
 
-      if (enabled) {
-        const token = await messaging().getToken();
-        await registerFCMToken(token);
+      if (settings.authorizationStatus == AuthorizationStatus.authorized) {
+        final token = await _messaging.getToken();
+        if (token != null) {
+          await _registerFCMToken(token);
+        }
       }
     } catch (error) {
-      console.error('❌ Erreur enregistrement initial:', error);
+      print('❌ Erreur enregistrement initial: $error');
     }
-  };
+  }
 
-  const registerFCMToken = async (token) => {
+  // Enregistrer le token auprès du serveur
+  Future<void> _registerFCMToken(String token) async {
     try {
-      const response = await fetch('https://api.kbine.com/api/notifications/register-token', {
-        method: 'POST',
+      final uri = Uri.parse('https://api.kbine.com/api/notifications/register-token');
+      
+      final response = await http.post(
+        uri,
         headers: {
           'Content-Type': 'application/json',
-          'Authorization': `Bearer ${authToken}`
+          'Authorization': 'Bearer $authToken'
         },
-        body: JSON.stringify({
-          token,
-          platform: Platform.OS // 'android' ou 'ios'
-        })
-      });
+        body: json.encode({
+          'token': token,
+          'platform': 'android', // ou 'ios'
+        }),
+      );
 
-      if (!response.ok) throw new Error('Erreur enregistrement');
-      console.log('✅ Token FCM enregistré');
+      if (response.statusCode == 200) {
+        print('✅ Token FCM enregistré');
+      }
     } catch (error) {
-      console.error('❌ Erreur:', error);
+      print('❌ Erreur: $error');
     }
-  };
+  }
 
-  const handleForegroundNotification = (remoteMessage) => {
-    console.log('📬 Notification reçue en avant-plan:', remoteMessage);
+  // Gérer les notifications en avant-plan
+  Future<void> _handleForegroundNotification(
+    RemoteMessage message,
+    BuildContext context,
+  ) async {
+    print('📬 Notification reçue en avant-plan: ${message.notification?.title}');
 
-    const { notification, data } = remoteMessage;
-    
-    // Afficher une notification locale
-    showNotification({
-      title: notification?.title,
-      body: notification?.body,
-      data
-    });
-  };
+    final notification = message.notification;
+    final data = message.data;
 
-  const handleBackgroundNotification = (message) => {
-    console.log('📬 Notification reçue en arrière-plan:', message);
-    // Navigation automatique si nécessaire
-    handleNotificationClick(message);
-  };
+    await _showLocalNotification(
+      title: notification?.title ?? 'Notification',
+      body: notification?.body ?? '',
+      payload: json.encode(data),
+    );
+  }
 
-  const handleNotificationClick = (message) => {
-    const { data } = message;
+  // Gérer les notifications reçues en arrière-plan
+  Future<void> _handleBackgroundNotification(
+    RemoteMessage message,
+    BuildContext context,
+  ) async {
+    print('📬 Notification reçue en arrière-plan');
+    _handleNotificationClick(message, context);
+  }
+
+  // Gérer les clics sur les notifications
+  Future<void> _handleNotificationClick(
+    RemoteMessage message,
+    BuildContext context,
+  ) async {
+    final data = message.data;
+    final type = data['type'];
+
+    print('🔔 Notification cliquée - Type: $type');
 
     // Redirection basée sur le type
-    if (data?.type === 'payment_success') {
-      // Naviguer vers les détails de la commande
-      navigation.navigate('OrderDetails', { orderId: data.orderId });
-    } else if (data?.type === 'order_completed') {
-      // Naviguer vers la commande
-      navigation.navigate('OrderDetails', { orderId: data.orderId });
+    if (type == 'payment_success' && context.mounted) {
+      final orderId = data['orderId'];
+      Navigator.of(context).pushNamed('/order-details', arguments: {'orderId': orderId});
+    } else if (type == 'order_completed' && context.mounted) {
+      final orderId = data['orderId'];
+      Navigator.of(context).pushNamed('/order-details', arguments: {'orderId': orderId});
     }
-  };
-
-  return null; // Ce composant ne rend rien
-};
-```
-
-#### Affichage des Notifications Locales
-
-```javascript
-import notifee from '@react-native-notifee/react-native';
-
-const showNotification = async ({ title, body, data }) => {
-  try {
-    // Créer un canal (Android)
-    await notifee.createChannel({
-      id: 'kbine_channel',
-      name: 'Kbine Notifications',
-      sound: 'default',
-      importance: 4 // High
-    });
-
-    // Afficher la notification
-    await notifee.displayNotification({
-      title,
-      body,
-      data,
-      android: {
-        channelId: 'kbine_channel',
-        smallIcon: 'ic_launcher', // Icône personnalisée
-        pressAction: {
-          id: 'default'
-        }
-      },
-      ios: {
-        sound: 'default'
-      }
-    });
-  } catch (error) {
-    console.error('❌ Erreur affichage notification:', error);
   }
-};
+
+  // Afficher une notification locale
+  Future<void> _showLocalNotification({
+    required String title,
+    required String body,
+    String? payload,
+  }) async {
+    try {
+      // Initialiser le plugin
+      const AndroidInitializationSettings initializationSettingsAndroid =
+          AndroidInitializationSettings('@mipmap/ic_launcher');
+      
+      const DarwinInitializationSettings initializationSettingsIOS =
+          DarwinInitializationSettings(
+        requestAlertPermission: false,
+        requestBadgePermission: false,
+        requestSoundPermission: false,
+      );
+
+      const InitializationSettings initializationSettings =
+          InitializationSettings(
+        android: initializationSettingsAndroid,
+        iOS: initializationSettingsIOS,
+      );
+
+      await _localNotifications.initialize(
+        initializationSettings,
+        onDidReceiveNotificationResponse: (NotificationResponse response) {
+          print('Notification cliquée: ${response.payload}');
+        },
+      );
+
+      // Créer le canal (Android)
+      const AndroidNotificationChannel channel = AndroidNotificationChannel(
+        'kbine_channel',
+        'Kbine Notifications',
+        description: 'Channel pour les notifications Kbine',
+        importance: Importance.high,
+      );
+
+      await _localNotifications
+          .resolvePlatformSpecificImplementation<
+              AndroidFlutterLocalNotificationsPlugin>()
+          ?.createNotificationChannel(channel);
+
+      // Afficher la notification
+      await _localNotifications.show(
+        0,
+        title,
+        body,
+        NotificationDetails(
+          android: AndroidNotificationDetails(
+            'kbine_channel',
+            'Kbine Notifications',
+            channelDescription: 'Channel pour les notifications Kbine',
+            importance: Importance.high,
+            priority: Priority.high,
+            sound: const RawResourceAndroidNotificationSound('notification'),
+          ),
+          iOS: const DarwinNotificationDetails(
+            sound: 'notification.wav',
+            presentAlert: true,
+            presentBadge: true,
+            presentSound: true,
+          ),
+        ),
+        payload: payload,
+      );
+    } catch (error) {
+      print('❌ Erreur affichage notification: $error');
+    }
+  }
+
+  // Nettoyer les tokens à la déconnexion
+  Future<void> cleanup() async {
+    try {
+      final token = await _messaging.getToken();
+      if (token != null) {
+        final uri = Uri.parse('https://api.kbine.com/api/notifications/remove-token');
+        await http.post(
+          uri,
+          headers: {
+            'Content-Type': 'application/json',
+            'Authorization': 'Bearer $authToken'
+          },
+          body: json.encode({'token': token}),
+        );
+        print('✅ Token supprimé');
+      }
+    } catch (error) {
+      print('❌ Erreur cleanup: $error');
+    }
+  }
+}
+
+// Utilisation dans un StatefulWidget
+class NotificationExample extends StatefulWidget {
+  @override
+  State<NotificationExample> createState() => _NotificationExampleState();
+}
+
+class _NotificationExampleState extends State<NotificationExample> {
+  late NotificationManager _notificationManager;
+
+  @override
+  void initState() {
+    super.initState();
+    _initializeNotifications();
+  }
+
+  Future<void> _initializeNotifications() async {
+    const authToken = 'your_auth_token_here';
+    const userId = 'user_id_here';
+
+    _notificationManager = NotificationManager(
+      authToken: authToken,
+      userId: userId,
+    );
+
+    await _notificationManager.initialize(context);
+  }
+
+  @override
+  void dispose() {
+    _notificationManager.cleanup();
+    super.dispose();
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    return Scaffold(
+      appBar: AppBar(title: const Text('Notifications Kbine')),
+      body: const Center(
+        child: Text('Notifications initialisées'),
+      ),
+    );
+  }
+}
 ```
-
----
-
-### Débogage et Troubleshooting
-
-#### ✅ Vérifier que Firebase est Initialisé
-
-```bash
-# Voir les logs au démarrage
-docker logs kbine-backend | grep Firebase
-
-# Résultat attendu:
-# [Firebase] ✅ Firebase Admin SDK initialisé
-# [Firebase] Project ID: kbine-xxxxx
-# [Firebase] Firebase Cloud Messaging disponible
-```
-
-#### ⚠️ Firebase Non Initialisé
-
-**Cause:** Fichier credentials manquant ou variable d'environnement non définie
-
-**Solution:**
-1. Vérifier que `firebase-service-account.json` est à la racine du projet
-2. OU définir `FIREBASE_SERVICE_ACCOUNT` en env var
-3. Redémarrer le serveur
-
-#### 📋 Tester l'Enregistrement du Token
-
-```bash
-curl -X POST https://api.kbine.com/api/notifications/register-token \
-  -H "Content-Type: application/json" \
-  -H "Authorization: Bearer YOUR_TOKEN" \
-  -d '{
-    "token": "test_token_12345",
-    "platform": "android"
-  }'
-
-# Réponse attendue:
-# { "success": true, "message": "Token enregistré avec succès" }
-```
-
-#### 🧪 Envoyer une Notification de Test
-
-```bash
-curl -X POST https://api.kbine.com/api/notifications/test \
-  -H "Content-Type: application/json" \
-  -H "Authorization: Bearer YOUR_ADMIN_TOKEN" \
-  -d '{
-    "title": "Test",
-    "body": "Test de notification"
-  }'
-```
-
-#### 🔍 Consulter la Base de Données
-
-```sql
--- Voir les tokens enregistrés
-SELECT * FROM fcm_tokens WHERE user_id = 1;
-
--- Voir l'historique des notifications
-SELECT * FROM notifications WHERE user_id = 1 ORDER BY created_at DESC;
-
--- Voir les tokens actifs
-SELECT COUNT(*) as active_tokens FROM fcm_tokens WHERE is_active = TRUE;
-```
-
-#### ⚡ Problèmes Courants
-
-| Problème | Cause | Solution |
-|----------|-------|----------|
-| Notifications non reçues | Firebase non initialisé | Vérifier les credentials Firebase |
-| Tokens perdus après redémarrage | Base de données non connectée | Vérifier la connexion MySQL |
-| Erreur "Invalid token" | Token expiré | Réenregistrer le token |
-| Service unavailable | Firebase service down | Attendre ou essayer plus tard |
-
----
-
-### Bonnes Pratiques
-
-1. **Enregistrer le token au démarrage de l'app** ✅
-2. **Réenregistrer quand le token change** ✅
-3. **Nettoyer les tokens à la déconnexion** ✅
-4. **Gérer les erreurs de notifications gracieusement** ✅
-5. **Tester avec des notifications de test** ✅
-6. **Monitorer les logs Firebase** ✅
-7. **Vérifier les permissions utilisateur (iOS)** ✅
-
----
