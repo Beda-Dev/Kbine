@@ -186,11 +186,15 @@ const findById = async (orderId) => {
                 pay.payment_method, pay.payment_phone, pay.payment_reference,
                 pay.external_reference, pay.status as payment_status, 
                 pay.callback_data, pay.created_at as payment_created_at,
-                pay.updated_at as payment_updated_at
+                pay.updated_at as payment_updated_at,
+                staff.id as staff_id, staff.phone_number as staff_phone,
+                staff.role as staff_role, staff.created_at as staff_created_at,
+                staff.updated_at as staff_updated_at
             FROM orders o
             LEFT JOIN users u ON o.user_id = u.id
             LEFT JOIN plans p ON o.plan_id = p.id
             LEFT JOIN payments pay ON pay.order_id = o.id
+            LEFT JOIN users staff ON o.assigned_to = staff.id
             WHERE o.id = ?`,
       [orderId]
     );
@@ -214,6 +218,7 @@ const findById = async (orderId) => {
       status: order.status,
       phoneNumber: order.phone_number,
       hasPayment: !!order.payment_id,
+      assignedStaffId: order.staff_id,
     });
 
     const result = {
@@ -280,6 +285,19 @@ const findById = async (orderId) => {
       result.plan = null;
     }
 
+    // ✅ AJOUTER - Ajouter le staff assigné avec toutes ses données
+    if (order.staff_id) {
+      result.assigned_staff = {
+        id: order.staff_id,
+        phone_number: order.staff_phone,
+        role: order.staff_role,
+        created_at: order.staff_created_at,
+        updated_at: order.staff_updated_at,
+      };
+    } else {
+      result.assigned_staff = null;
+    }
+
     logger.debug(
       `[OrderService] Commande trouvée avec les relations: ${orderId}`,
       { order: result }
@@ -328,11 +346,15 @@ const findByReference = async (orderReference) => {
                 pay.payment_method, pay.payment_phone, pay.payment_reference,
                 pay.external_reference, pay.status as payment_status, 
                 pay.callback_data, pay.created_at as payment_created_at,
-                pay.updated_at as payment_updated_at
+                pay.updated_at as payment_updated_at,
+                staff.id as staff_id, staff.phone_number as staff_phone,
+                staff.role as staff_role, staff.created_at as staff_created_at,
+                staff.updated_at as staff_updated_at
             FROM orders o
             LEFT JOIN users u ON o.user_id = u.id
             LEFT JOIN plans p ON o.plan_id = p.id
             LEFT JOIN payments pay ON pay.order_id = o.id
+            LEFT JOIN users staff ON o.assigned_to = staff.id
             WHERE o.order_reference = ?`,
       [orderReference]
     );
@@ -424,6 +446,19 @@ const findByReference = async (orderReference) => {
       result.plan = null;
     }
 
+    // ✅ AJOUTER - Ajouter le staff assigné avec toutes ses données
+    if (order.staff_id) {
+      result.assigned_staff = {
+        id: order.staff_id,
+        phone_number: order.staff_phone,
+        role: order.staff_role,
+        created_at: order.staff_created_at,
+        updated_at: order.staff_updated_at,
+      };
+    } else {
+      result.assigned_staff = null;
+    }
+
     logger.debug(
       `[OrderService] Commande trouvée par référence: ${orderReference}`,
       { order: result }
@@ -469,11 +504,15 @@ const findAll = async (filters = {}) => {
                     pay.payment_method, pay.payment_phone, pay.payment_reference,
                     pay.external_reference, pay.status as payment_status,
                     pay.callback_data as payment_callback_data, pay.created_at as payment_created_at,
-                    pay.updated_at as payment_updated_at
+                    pay.updated_at as payment_updated_at,
+                    staff.id as staff_id, staff.phone_number as staff_phone,
+                    staff.role as staff_role, staff.created_at as staff_created_at,
+                    staff.updated_at as staff_updated_at
              FROM orders o
              LEFT JOIN users u ON o.user_id = u.id
              LEFT JOIN plans p ON o.plan_id = p.id
              INNER JOIN payments pay ON o.id = pay.order_id
+             LEFT JOIN users staff ON o.assigned_to = staff.id
              WHERE pay.status IN ('success')`;
 
     const params = [];
@@ -569,6 +608,19 @@ const findAll = async (filters = {}) => {
         };
       } else {
         result.plan = null;
+      }
+
+      // ✅ AJOUTER - Ajouter le staff assigné avec toutes ses données
+      if (order.staff_id) {
+        result.assigned_staff = {
+          id: order.staff_id,
+          phone_number: order.staff_phone,
+          role: order.staff_role,
+          created_at: order.staff_created_at,
+          updated_at: order.staff_updated_at,
+        };
+      } else {
+        result.assigned_staff = null;
       }
 
       return result;
@@ -772,6 +824,7 @@ const getOrderPaymentStatus = async (orderId) => {
                 o.status as order_status,
                 o.created_at as order_created_at,
                 o.updated_at as order_updated_at,
+                o.assigned_to,
                 p.id as plan_id,
                 p.name as plan_name,
                 p.price as plan_price,
@@ -785,10 +838,14 @@ const getOrderPaymentStatus = async (orderId) => {
                 pay.amount as payment_amount,
                 pay.callback_data,
                 pay.created_at as payment_created_at,
-                pay.updated_at as payment_updated_at
+                pay.updated_at as payment_updated_at,
+                staff.id as staff_id, staff.phone_number as staff_phone,
+                staff.role as staff_role, staff.created_at as staff_created_at,
+                staff.updated_at as staff_updated_at
             FROM orders o
             LEFT JOIN plans p ON o.plan_id = p.id
             LEFT JOIN payments pay ON pay.order_id = o.id
+            LEFT JOIN users staff ON o.assigned_to = staff.id
             WHERE o.id = ?`,
       [orderId]
     );
@@ -819,6 +876,7 @@ const getOrderPaymentStatus = async (orderId) => {
         phone_number: order.phone_number,
         amount: parseFloat(order.order_amount),
         status: order.order_status,
+        assigned_to: order.assigned_to,
         created_at: order.order_created_at,
         updated_at: order.order_updated_at,
       },
@@ -850,6 +908,17 @@ const getOrderPaymentStatus = async (orderId) => {
               : null,
             created_at: order.payment_created_at,
             updated_at: order.payment_updated_at,
+          }
+        : null,
+
+      // ✅ AJOUTER - Ajouter le staff assigné avec toutes ses données
+      assigned_staff: order.staff_id
+        ? {
+            id: order.staff_id,
+            phone_number: order.staff_phone,
+            role: order.staff_role,
+            created_at: order.staff_created_at,
+            updated_at: order.staff_updated_at,
           }
         : null,
 
