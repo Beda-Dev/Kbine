@@ -157,12 +157,10 @@ class NotificationService {
       }
 
       const message = {
-        notification: {
-          title: notification.title,
-          body: notification.body
-        },
         data: {
           ...data,
+          title: notification.title,
+          body: notification.body,
           timestamp: Date.now().toString()
         },
         tokens: tokens,
