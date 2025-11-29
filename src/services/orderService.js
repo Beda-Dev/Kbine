@@ -337,7 +337,7 @@ const findByReference = async (orderReference) => {
 
     const [rows] = await db.execute(
       `SELECT o.*,
-                u.phone_number as user_phone, u.role as user_role,
+                u.phone_number as user_phone, u.full_name as user_full_name, u.role as user_role,
                 u.created_at as user_created_at, u.updated_at as user_updated_at,
                 p.id as plan_id_data, p.operator_id as plan_operator_id,
                 p.name as plan_name, p.description as plan_description,
@@ -398,6 +398,7 @@ const findByReference = async (orderReference) => {
       result.user = {
         id: order.user_id,
         phone_number: order.user_phone,
+        full_name: order.user_full_name || null,
         role: order.user_role,
         created_at: order.user_created_at,
         updated_at: order.user_updated_at,
@@ -497,7 +498,7 @@ const findAll = async (filters = {}) => {
 
   try {
     let query = `SELECT o.*,
-                    u.phone_number as user_phone, u.role as user_role,
+                    u.phone_number as user_phone, u.full_name as user_full_name, u.role as user_role,
                     u.created_at as user_created_at, u.updated_at as user_updated_at,
                     p.id as plan_id_data, p.operator_id as plan_operator_id,
                     p.name as plan_name, p.description as plan_description,
@@ -569,6 +570,7 @@ const findAll = async (filters = {}) => {
         result.user = {
           id: order.user_id,
           phone_number: order.user_phone,
+          full_name: order.user_full_name || null,
           role: order.user_role,
           created_at: order.user_created_at,
           updated_at: order.user_updated_at,
