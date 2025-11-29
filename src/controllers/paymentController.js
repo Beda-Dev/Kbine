@@ -5,6 +5,7 @@
 
 const logger = require('../utils/logger');
 const paymentService = require('../services/paymentService');
+const touchpointService = require('../services/touchpointService');
 const { PAYMENT_METHODS, PAYMENT_STATUS } = paymentService;
 
 /**
@@ -632,6 +633,54 @@ const getUserPayments = async (req, res, next) => {
     }
 };
 
+/**
+ * @route   GET /api/payments/touchpoint/verify/:transaction_id
+ * @desc    Vérifier le statut d'une transaction directement depuis TouchPoint (sans mise à jour)
+ * @access  Private
+ */
+const verifyTransactionStatus = async (req, res, next) => {
+    try {
+        const { transaction_id } = req.params;
+        
+        console.log('[PaymentController] [verifyTransactionStatus] Début', { 
+            transactionId: transaction_id,
+            userId: req.user?.id
+        });
+
+        const result = await touchpointService.checkTransactionStatus(transaction_id);
+        
+        console.log('[PaymentController] [verifyTransactionStatus] Succès', { 
+            transactionId: transaction_id,
+            status: result?.status
+        });
+
+        logger.info('Statut TouchPoint vérifié', {
+            transactionId: transaction_id,
+            status: result?.status,
+            verifiedBy: req.user?.id
+        });
+
+        res.json({...result});
+    } catch (error) {
+        console.log('[PaymentController] [verifyTransactionStatus] Erreur', { 
+            message: error.message,
+            transactionId: req.params.transaction_id
+        });
+
+        logger.error('Erreur vérification statut TouchPoint', {
+            error: error.message,
+            transactionId: req.params.transaction_id,
+            userId: req.user?.id
+        });
+
+        res.status(500).json({
+            success: false,
+            error: 'Erreur lors de la vérification du statut auprès de TouchPoint',
+            details: error.message
+        });
+    }
+};
+
 // Export des constantes et contrôleurs
 module.exports = {
     // Constantes
@@ -652,4 +701,5 @@ module.exports = {
     touchpointWebhook,
     checkPaymentStatus,
     getUserPayments,
+    verifyTransactionStatus,
 };

@@ -250,8 +250,7 @@ class TouchPointService {
         auth: {
           username: this.username,
           password: this.password,
-        },
-        timeout: 15000,
+        }
       })
 
       console.log('[TouchPointService] Statut récupéré:', response.data)

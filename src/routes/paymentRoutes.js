@@ -79,6 +79,33 @@ router.post('/initialize',
 router.get('/status/:order_reference', paymentController.checkPaymentStatus);
 
 /**
+ * @route   GET /api/payments/touchpoint/verify/:transaction_id
+ * @desc    Vérifier le statut d'une transaction directement depuis TouchPoint
+ * @access  Private
+ */
+router.get('/touchpoint/verify/:transaction_id',
+    authenticateToken,
+    (req, res, next) => {
+        console.log('[PaymentRoutes] GET /touchpoint/verify/:transaction_id - Validation', { 
+            transactionId: req.params.transaction_id 
+        });
+        
+        const { transaction_id } = req.params;
+        if (!transaction_id || transaction_id.trim() === '') {
+            console.log('[PaymentRoutes] Transaction ID invalide');
+            return res.status(400).json({
+                success: false,
+                error: 'ID de transaction invalide'
+            });
+        }
+        
+        console.log('[PaymentRoutes] Validation transaction_id OK');
+        next();
+    },
+    paymentController.verifyTransactionStatus
+);
+
+/**
  * @route   GET /api/payments/methods
  * @desc    Récupérer les méthodes de paiement disponibles
  * @access  Public
