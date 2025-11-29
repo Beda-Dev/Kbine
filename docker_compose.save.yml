@@ -1,0 +1,72 @@
+services:
+  kbine:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    container_name: kbine-app
+    restart: unless-stopped
+    ports:
+      - "3001:3001"
+    environment:
+      - NODE_ENV=${NODE_ENV}
+      - PORT=${PORT}
+      - DB_HOST=kbine-mysql
+      - DB_PORT=${DB_PORT}
+      - DB_USER=${DB_USER}
+      - DB_PASSWORD=${DB_PASSWORD}
+      - DB_NAME=${DB_NAME}
+      - JWT_SECRET=${JWT_SECRET}
+      - JWT_EXPIRES_IN=${JWT_EXPIRES_IN}
+      - TOUCHPOINT_USERNAME=${TOUCHPOINT_USERNAME}
+      - TOUCHPOINT_PASSWORD=${TOUCHPOINT_PASSWORD}
+      - TOUCHPOINT_AGENCY_CODE=${TOUCHPOINT_AGENCY_CODE}
+      - TOUCHPOINT_LOGIN_AGENT=${TOUCHPOINT_LOGIN_AGENT}
+      - TOUCHPOINT_PASSWORD_AGENT=${TOUCHPOINT_PASSWORD_AGENT}
+      - TOUCHPOINT_SECURE_CODE=${TOUCHPOINT_SECURE_CODE}
+      - TOUCHPOINT_PARTNER_NAME=${TOUCHPOINT_PARTNER_NAME}
+      - TOUCHPOINT_API_URL=${TOUCHPOINT_API_URL}
+      - FIREBASE_SERVICE_ACCOUNT=${FIREBASE_SERVICE_ACCOUNT}
+      - APP_URL=${APP_URL}
+    depends_on:
+      - kbine-mysql
+    volumes:
+      - ./logs:/app/logs
+    networks:
+      - kbine-network
+
+  kbine-mysql:
+    image: mysql:8.0
+    container_name: kbine-mysql
+    restart: unless-stopped
+    environment:
+      - MYSQL_ROOT_PASSWORD=${MYSQL_ROOT_PASSWORD}
+      - MYSQL_DATABASE=${MYSQL_DATABASE}
+      - MYSQL_USER=${MYSQL_USER}
+      - MYSQL_PASSWORD=${MYSQL_PASSWORD}
+    volumes:
+      - kbine-mysql-data:/var/lib/mysql
+      - ./scripts/init.sql:/docker-entrypoint-initdb.d/init.sql
+    networks:
+      - kbine-network
+
+  kbine-phpmyadmin:
+    image: phpmyadmin/phpmyadmin:latest
+    container_name: kbine-phpmyadmin
+    restart: unless-stopped
+    environment:
+      - PMA_HOST=kbine-mysql
+      - MYSQL_ROOT_PASSWORD=${MYSQL_ROOT_PASSWORD}
+    ports:
+      - "8082:80"
+    depends_on:
+      - kbine-mysql
+    networks:
+      - kbine-network
+
+volumes:
+  kbine-mysql-data:
+    driver: local
+
+networks:
+  kbine-network:
+    driver: bridge

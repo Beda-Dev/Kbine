@@ -421,7 +421,7 @@ const getPaymentById = async (id) => {
                     pl.name as plan_name, pl.price as plan_price,
                     pl.description as plan_description, pl.type as plan_type,
                     op.name as operator_name, op.code as operator_code,
-                    u.phone_number as user_phone, u.role as user_role,
+                    u.phone_number as user_phone, u.full_name as user_full_name, u.role as user_role,
                     u.created_at as user_created_at, u.updated_at as user_updated_at
              FROM payments p
              LEFT JOIN orders o ON p.order_id = o.id
@@ -483,6 +483,7 @@ const getPaymentById = async (id) => {
       payment.user = {
         id: payment.user_id,
         phone_number: payment.user_phone,
+        full_name: payment.user_full_name || null,
         role: payment.user_role,
         created_at: payment.user_created_at,
         updated_at: payment.user_updated_at,
@@ -506,6 +507,7 @@ const getPaymentById = async (id) => {
       "operator_name",
       "operator_code",
       "user_phone",
+      "user_full_name",
       "user_role",
       "user_created_at",
       "user_updated_at",

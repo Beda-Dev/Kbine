@@ -175,7 +175,7 @@ const findById = async (orderId) => {
 
     const [rows] = await db.execute(
       `SELECT o.*,
-                u.phone_number as user_phone, u.role as user_role,
+                u.phone_number as user_phone, u.full_name as user_full_name, u.role as user_role,
                 u.created_at as user_created_at, u.updated_at as user_updated_at,
                 p.id as plan_id_data, p.operator_id as plan_operator_id,
                 p.name as plan_name, p.description as plan_description,
@@ -187,7 +187,7 @@ const findById = async (orderId) => {
                 pay.external_reference, pay.status as payment_status, 
                 pay.callback_data, pay.created_at as payment_created_at,
                 pay.updated_at as payment_updated_at,
-                staff.id as staff_id, staff.phone_number as staff_phone,
+                staff.id as staff_id, staff.phone_number as staff_phone, staff.full_name as staff_full_name,
                 staff.role as staff_role, staff.created_at as staff_created_at,
                 staff.updated_at as staff_updated_at
             FROM orders o
@@ -240,6 +240,7 @@ const findById = async (orderId) => {
       result.user = {
         id: order.user_id,
         phone_number: order.user_phone,
+        full_name: order.user_full_name || null,
         role: order.user_role,
         created_at: order.user_created_at,
         updated_at: order.user_updated_at,
@@ -290,6 +291,7 @@ const findById = async (orderId) => {
       result.assigned_staff = {
         id: order.staff_id,
         phone_number: order.staff_phone,
+        full_name: order.staff_full_name || null,
         role: order.staff_role,
         created_at: order.staff_created_at,
         updated_at: order.staff_updated_at,
@@ -347,7 +349,7 @@ const findByReference = async (orderReference) => {
                 pay.external_reference, pay.status as payment_status, 
                 pay.callback_data, pay.created_at as payment_created_at,
                 pay.updated_at as payment_updated_at,
-                staff.id as staff_id, staff.phone_number as staff_phone,
+                staff.id as staff_id, staff.phone_number as staff_phone, staff.full_name as staff_full_name,
                 staff.role as staff_role, staff.created_at as staff_created_at,
                 staff.updated_at as staff_updated_at
             FROM orders o
@@ -451,6 +453,7 @@ const findByReference = async (orderReference) => {
       result.assigned_staff = {
         id: order.staff_id,
         phone_number: order.staff_phone,
+        full_name: order.staff_full_name || null,
         role: order.staff_role,
         created_at: order.staff_created_at,
         updated_at: order.staff_updated_at,
@@ -483,6 +486,7 @@ const findByReference = async (orderReference) => {
   }
 };
 
+
 const findAll = async (filters = {}) => {
   console.log("[OrderService] [findAll] Début de récupération liste", {
     filters,
@@ -505,7 +509,7 @@ const findAll = async (filters = {}) => {
                     pay.external_reference, pay.status as payment_status,
                     pay.callback_data as payment_callback_data, pay.created_at as payment_created_at,
                     pay.updated_at as payment_updated_at,
-                    staff.id as staff_id, staff.phone_number as staff_phone,
+                    staff.id as staff_id, staff.phone_number as staff_phone, staff.full_name as staff_full_name,
                     staff.role as staff_role, staff.created_at as staff_created_at,
                     staff.updated_at as staff_updated_at
              FROM orders o
@@ -615,6 +619,7 @@ const findAll = async (filters = {}) => {
         result.assigned_staff = {
           id: order.staff_id,
           phone_number: order.staff_phone,
+          full_name: order.staff_full_name || null,
           role: order.staff_role,
           created_at: order.staff_created_at,
           updated_at: order.staff_updated_at,
@@ -709,35 +714,38 @@ const updateOrder = async (orderId, orderData) => {
       order: updatedOrder,
     });
 
-// ✅ AJOUTER - Avant le return updatedOrder
-if (orderData.status === 'completed') {
-    console.log('[OrderService] Commande terminée - envoi notification client');
-    
-    try {
+    // ✅ AJOUTER - Avant le return updatedOrder
+    if (orderData.status === "completed") {
+      console.log(
+        "[OrderService] Commande terminée - envoi notification client"
+      );
+
+      try {
         // La commande est déjà récupérée dans updatedOrder
         await notificationService.notifyOrderCompleted(updatedOrder);
-        
-        logger.info('[OrderService] Notification client envoyée', {
-            orderId: updatedOrder.id,
-            userId: updatedOrder.user_id
+
+        logger.info("[OrderService] Notification client envoyée", {
+          orderId: updatedOrder.id,
+          userId: updatedOrder.user_id,
         });
-    } catch (notifError) {
+      } catch (notifError) {
         // Ne pas bloquer la mise à jour si la notification échoue
-        logger.error('[OrderService] Erreur envoi notification client', {
-            error: notifError.message,
-            orderId: updatedOrder.id
+        logger.error("[OrderService] Erreur envoi notification client", {
+          error: notifError.message,
+          orderId: updatedOrder.id,
         });
-        console.log('[OrderService] Erreur envoi notification client', {
-            message: notifError.message,
-            orderId: updatedOrder.id
+        console.log("[OrderService] Erreur envoi notification client", {
+          message: notifError.message,
+          orderId: updatedOrder.id,
         });
+      }
     }
-}
 
-logger.info('[OrderService] Commande mise à jour avec succès', { order: updatedOrder });
-return updatedOrder;
-
+    logger.info("[OrderService] Commande mise à jour avec succès", {
+      order: updatedOrder,
+    });
     return updatedOrder;
+
   } catch (error) {
     console.log("[OrderService] [updateOrder] Erreur attrapée", {
       error: error.message,
@@ -839,7 +847,7 @@ const getOrderPaymentStatus = async (orderId) => {
                 pay.callback_data,
                 pay.created_at as payment_created_at,
                 pay.updated_at as payment_updated_at,
-                staff.id as staff_id, staff.phone_number as staff_phone,
+                staff.id as staff_id, staff.phone_number as staff_phone, staff.full_name as staff_full_name,
                 staff.role as staff_role, staff.created_at as staff_created_at,
                 staff.updated_at as staff_updated_at
             FROM orders o
@@ -916,6 +924,7 @@ const getOrderPaymentStatus = async (orderId) => {
         ? {
             id: order.staff_id,
             phone_number: order.staff_phone,
+            full_name: order.staff_full_name || null,
             role: order.staff_role,
             created_at: order.staff_created_at,
             updated_at: order.staff_updated_at,

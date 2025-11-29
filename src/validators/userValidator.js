@@ -29,6 +29,13 @@ const roleSchema = Joi.string()
 // Validateur principal pour la création d'utilisateur
 const userValidator = Joi.object({
     phone_number: phoneNumberSchema,
+    full_name: Joi.string()
+        .max(100)
+        .optional()
+        .messages({
+            'string.max': 'Le nom complet ne peut pas dépasser 100 caractères',
+            'string.empty': 'Le nom complet ne peut pas être vide'
+        }),
     role: roleSchema
 }).messages({
     'object.unknown': 'Champ non autorisé détecté'
@@ -41,6 +48,13 @@ const userUpdateValidator = Joi.object({
         .messages({
             'string.empty': 'Le numéro de téléphone ne peut pas être vide',
             'string.pattern.base': 'Le numéro de téléphone doit être un numéro ivoirien valide'
+        }),
+    full_name: Joi.string()
+        .max(100)
+        .optional()
+        .messages({
+            'string.max': 'Le nom complet ne peut pas dépasser 100 caractères',
+            'string.empty': 'Le nom complet ne peut pas être vide'
         }),
     role: Joi.string()
         .valid('client', 'staff', 'admin')

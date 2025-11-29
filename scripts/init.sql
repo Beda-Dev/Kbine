@@ -12,6 +12,7 @@ USE kbine_db;
 CREATE TABLE IF NOT EXISTS users (
     id INT AUTO_INCREMENT PRIMARY KEY,
     phone_number VARCHAR(15) UNIQUE NOT NULL,
+    full_name VARCHAR(100),
     role ENUM('client', 'staff', 'admin') DEFAULT 'client',
     created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
     updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP
@@ -147,4 +148,4 @@ INSERT IGNORE INTO app_version (
 -- =========================================================
 -- MESSAGE DE SUCCÈS
 -- =========================================================
-SELECT 'Base de donnees kbine v3 initialisee avec succes!' AS message;
+SELECT 'Base de donnees kbine v3 initialisee avec succes!' AS message

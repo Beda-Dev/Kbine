@@ -33,7 +33,7 @@ const findById = async (userId, includeOrders = false) => {
     console.log(`[userService] Exécution de la requête pour l'ID: ${userId}`);
     
     const [rows] = await db.execute(
-      'SELECT id, phone_number as phone_number, role, created_at as createdAt, updated_at as updatedAt FROM users WHERE id = ?',
+      'SELECT id, phone_number, full_name, role, created_at as createdAt, updated_at as updatedAt FROM users WHERE id = ?',
       [userId]
     );
     
@@ -111,7 +111,7 @@ const findByPhoneNumber = async (phoneNumber, includeOrders = false) => {
     console.log(`[userService] Exécution de la requête pour le numéro: ${phoneNumber}`);
     
     const [rows] = await db.execute(
-      'SELECT id, phone_number as phone_number, role, created_at as createdAt, updated_at as updatedAt FROM users WHERE phone_number = ?',
+      'SELECT id, phone_number, full_name, role, created_at as createdAt, updated_at as updatedAt FROM users WHERE phone_number = ?',
       [phoneNumber]
     );
     
@@ -179,7 +179,7 @@ const findByPhoneNumber = async (phoneNumber, includeOrders = false) => {
 const create = async (userData) => {
   console.log('[userService] Tentative de création d\'utilisateur avec les données:', userData);
   
-  const { phoneNumber, role = 'client' } = userData || {};
+  const { phoneNumber, full_name, role = 'client' } = userData || {};
 
   if (!phoneNumber || !PHONE_NUMBER_REGEX.test(phoneNumber)) {
     console.error('[userService] Numéro de téléphone invalide pour la création:', phoneNumber);
@@ -213,8 +213,8 @@ const create = async (userData) => {
     // Création de l'utilisateur
     console.log('[userService] Création du nouvel utilisateur avec le rôle:', role);
     const [result] = await connection.execute(
-      'INSERT INTO users (phone_number, role) VALUES (?, ?)',
-      [phoneNumber, role]
+      'INSERT INTO users (phone_number, full_name, role) VALUES (?, ?, ?)',
+      [phoneNumber, full_name || null, role]
     );
 
     if (!result || !result.insertId) {
@@ -236,7 +236,9 @@ const create = async (userData) => {
       code: error.code,
       stack: error.stack,
       phoneNumber: phoneNumber,
-      role: role
+      role: role,
+      full_name: full_name || null
+
     });
     
     if (connection) {

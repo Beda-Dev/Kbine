@@ -10,7 +10,7 @@ const userService = require('../services/userService');
  */
 const getAllUsers = async (req, res) => {
     try {
-        const [rows] = await db.execute('SELECT id, phone_number, role, created_at, updated_at FROM users ORDER BY created_at DESC');
+        const [rows] = await db.execute('SELECT id, phone_number, full_name, role, created_at, updated_at FROM users ORDER BY created_at DESC');
 
         return res.json({
             success: true,
@@ -44,7 +44,7 @@ const getUserById = async (req, res) => {
         }
 
         const [rows] = await db.execute(
-            'SELECT id, phone_number, role, created_at, updated_at FROM users WHERE id = ?',
+            'SELECT id, phone_number, full_name, role, created_at, updated_at FROM users WHERE id = ?',
             [userId]
         );
 
@@ -111,7 +111,7 @@ const createUser = async (req, res) => {
             });
         }
 
-        const { phone_number, role } = validatedData;
+        const { phone_number, full_name, role } = validatedData;
 
         // Vérification que le numéro de téléphone n'existe pas déjà
         logger.debug(`${context} Vérification de l'unicité du numéro de téléphone`);
@@ -143,8 +143,8 @@ const createUser = async (req, res) => {
         });
         
         const [result] = await db.execute(
-            'INSERT INTO users (phone_number, role) VALUES (?, ?)',
-            [phone_number, role]
+            'INSERT INTO users (phone_number, full_name, role) VALUES (?, ?, ?)',
+            [phone_number, full_name || null, role]
         );
 
         const newUserId = result.insertId;
@@ -155,7 +155,7 @@ const createUser = async (req, res) => {
 
         // Récupération des données complètes de l'utilisateur créé
         const [newUser] = await db.execute(
-            'SELECT id, phone_number, role, created_at, updated_at FROM users WHERE id = ?',
+            'SELECT id, phone_number, full_name, role, created_at, updated_at FROM users WHERE id = ?',
             [newUserId]
         );
 
@@ -244,7 +244,7 @@ const updateUser = async (req, res) => {
             });
         }
 
-        const { phone_number, role } = validatedData;
+        const { phone_number, full_name, role } = validatedData;
 
         logger.debug(`${context} Vérification des permissions de mise à jour`, {
             userId: req.user.id,
@@ -302,6 +302,11 @@ const updateUser = async (req, res) => {
             updateValues.push(phone_number);
         }
 
+        if (full_name !== undefined) {
+            updateFields.push('full_name = ?');
+            updateValues.push(full_name || null);
+        }
+
         if (role && req.user.role === 'admin') {
             updateFields.push('role = ?');
             updateValues.push(role);
@@ -331,7 +336,7 @@ const updateUser = async (req, res) => {
 
         // Récupérer les données mises à jour
         const [updatedUser] = await db.execute(
-            'SELECT id, phone_number, role, created_at, updated_at FROM users WHERE id = ?',
+            'SELECT id, phone_number, full_name, role, created_at, updated_at FROM users WHERE id = ?',
             [userId]
         );
 
@@ -452,6 +457,7 @@ const getProfile = async (req, res) => {
             data: {
                 id: req.user.id,
                 phone_number: req.user.phone_number,
+                full_name: req.user.full_name || null,
                 role: req.user.role,
                 created_at: req.user.created_at,
                 updated_at: req.user.updated_at
