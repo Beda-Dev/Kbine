@@ -127,7 +127,16 @@ const login = async (req, res, next) => {
         .messages({
           'string.empty': 'Le numéro de téléphone est requis',
           'string.pattern.base': `Le numéro doit commencer par l'un des préfixes valides (${prefixes.join(', ')}) et contenir 10 chiffres au total`
+        }),
+      full_name: Joi.string()
+        .max(100)
+        .optional()
+        .messages({
+          'string.max': 'Le nom complet ne peut pas dépasser 100 caractères',
+          'string.empty': 'Le nom complet ne peut pas être vide'
         })
+    }).messages({
+      'object.unknown': 'Champ non autorisé détecté'
     });
 
     console.log('Corps de la requête reçu:', req.body);

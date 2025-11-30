@@ -28,7 +28,7 @@ const login = async (req, res) => {
   console.log('Corps de la requête reçu:', req.body);
   
   try {
-    const { phoneNumber } = req.body;
+    const { phoneNumber, full_name } = req.body;
     console.log('Tentative de connexion avec le numéro:', phoneNumber);
 
     // Validation des données d'entrée
@@ -45,16 +45,18 @@ const login = async (req, res) => {
 
     if (!user) {
       try {
-        // Création d'un nouvel utilisateur
+        // Création d'un nouvel utilisateur avec full_name optionnel
         user = await userService.create({
           phoneNumber: phoneNumber,
+          full_name: full_name || null,
           role: 'client'
         });
         isNewUser = true;
 
         logger.info('Nouvel utilisateur créé lors du login', {
           userId: user.id,
-          phoneNumber: user.phone_number
+          phoneNumber: user.phone_number,
+          full_name: user.full_name
         });
 
       } catch (error) {
@@ -103,10 +105,11 @@ const login = async (req, res) => {
       // refreshToken: refreshToken,
       user: {
         id: user.id,
-        phone_number: user.phone_number, // Changé de phoneNumber à phone_number
+        phone_number: user.phone_number,
+        full_name: user.full_name || null,
         role: user.role,
-        created_at: user.createdAt, // Ajout de created_at
-        updated_at: user.updatedAt  // Ajout de updated_at
+        created_at: user.createdAt,
+        updated_at: user.updatedAt
       },
       // isNewUser: isNewUser
     };
@@ -195,10 +198,11 @@ const refreshToken = async (req, res) => {
       // refreshToken: newRefreshToken,
       user: {
         id: user.id,
-        phone_number: user.phone_number, // Changé de phoneNumber à phone_number
+        phone_number: user.phone_number,
+        full_name: user.full_name || null,
         role: user.role,
-        created_at: user.createdAt, // Ajout de created_at
-        updated_at: user.updatedAt  // Ajout de updated_at
+        created_at: user.createdAt,
+        updated_at: user.updatedAt
       }
     });
 
