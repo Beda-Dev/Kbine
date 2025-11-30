@@ -241,32 +241,85 @@ class TouchPointService {
    * Vérifier le statut d'une transaction
    */
   async checkTransactionStatus(transactionId) {
+    console.log('[TouchPointService] [checkTransactionStatus] === DÉBUT ===');
+    console.log('[TouchPointService] [checkTransactionStatus] Vérification du statut de la transaction:', transactionId);
+    console.log('[TouchPointService] [checkTransactionStatus] Type de transactionId:', typeof transactionId);
+    
     try {
-      console.log('[TouchPointService] Vérification statut transaction:', transactionId)
+      console.log('[TouchPointService] [checkTransactionStatus] Construction de l\'URL');
+      console.log('[TouchPointService] [checkTransactionStatus] apiUrl:', this.apiUrl);
+      console.log('[TouchPointService] [checkTransactionStatus] agencyCode:', this.agencyCode);
+      console.log('[TouchPointService] [checkTransactionStatus] loginAgent:', this.loginAgent);
+      console.log('[TouchPointService] [checkTransactionStatus] passwordAgent:', this.passwordAgent);
       
-      const url = `${this.apiUrl}/${this.agencyCode}/transaction/${transactionId}?loginAgent=${this.loginAgent}&passwordAgent=${this.passwordAgent}`
+      const url = `${this.apiUrl}/${this.agencyCode}/transaction/${transactionId}?loginAgent=${this.loginAgent}&passwordAgent=${this.passwordAgent}`;
+      console.log('[TouchPointService] [checkTransactionStatus] URL construite:', url);
       
+      console.log('[TouchPointService] [checkTransactionStatus] Préparation des headers d\'authentification');
+      console.log('[TouchPointService] [checkTransactionStatus] Username:', this.username);
+      console.log('[TouchPointService] [checkTransactionStatus] Password:', this.password ? '***' : 'non défini');
+      
+      console.log('[TouchPointService] [checkTransactionStatus] Envoi de la requête GET');
       const response = await axios.get(url, {
         auth: {
           username: this.username,
           password: this.password,
-        }
-      })
+        },
+        timeout: 15000,
+      });
 
-      console.log('[TouchPointService] Statut récupéré:', response.data)
+      console.log('[TouchPointService] [checkTransactionStatus] Réponse reçue du serveur');
+      console.log('[TouchPointService] [checkTransactionStatus] Status HTTP:', response.status);
+      console.log('[TouchPointService] [checkTransactionStatus] Headers de réponse:', response.headers);
+      console.log('[TouchPointService] [checkTransactionStatus] Données de réponse:', JSON.stringify(response.data, null, 2));
 
-      return {
+      const touchpointStatus = response.data.status;
+      console.log('[TouchPointService] [checkTransactionStatus] Statut TouchPoint reçu:', touchpointStatus);
+
+      const mappedStatus = this.mapStatus(touchpointStatus);
+      console.log('[TouchPointService] [checkTransactionStatus] Statut mappé vers interne:', mappedStatus);
+
+      const result = {
         success: true,
         status: response.data.status,
-        mapped_status: this.mapStatus(response.data.status),
+        mapped_status: mappedStatus,
         data: response.data,
-      }
+      };
+
+      console.log('[TouchPointService] [checkTransactionStatus] Construction du résultat final');
+      console.log('[TouchPointService] [checkTransactionStatus] Résultat:', JSON.stringify(result, null, 2));
+      
+      console.log('[TouchPointService] [checkTransactionStatus] === FIN RÉUSSIE ===');
+      return result;
+      
     } catch (error) {
-      logger.error("[TouchPointService] Erreur vérification statut", {
+      console.log('[TouchPointService] [checkTransactionStatus] === ERREUR ===');
+      console.log('[TouchPointService] [checkTransactionStatus] Type d\'erreur:', error.constructor.name);
+      console.log('[TouchPointService] [checkTransactionStatus] Message d\'erreur:', error.message);
+      console.log('[TouchPointService] [checkTransactionStatus] Stack trace:', error.stack);
+      
+      if (error.response) {
+        console.log('[TouchPointService] [checkTransactionStatus] Erreur HTTP détectée');
+        console.log('[TouchPointService] [checkTransactionStatus] Status HTTP:', error.response.status);
+        console.log('[TouchPointService] [checkTransactionStatus] Headers de réponse:', error.response.headers);
+        console.log('[TouchPointService] [checkTransactionStatus] Données d\'erreur:', JSON.stringify(error.response.data, null, 2));
+      } else if (error.request) {
+        console.log('[TouchPointService] [checkTransactionStatus] Erreur réseau détectée');
+        console.log('[TouchPointService] [checkTransactionStatus] Aucune réponse reçue du serveur');
+        console.log('[TouchPointService] [checkTransactionStatus] Request:', error.request);
+      } else {
+        console.log('[TouchPointService] [checkTransactionStatus] Erreur client détectée');
+      }
+
+      logger.error("[TouchPointService] [checkTransactionStatus] Erreur vérification statut", {
         error: error.message,
         transactionId,
-      })
-      throw error
+        statusCode: error.response?.status,
+        errorData: error.response?.data,
+      });
+
+      console.log('[TouchPointService] [checkTransactionStatus] Propagation de l\'erreur');
+      throw error;
     }
   }
 
