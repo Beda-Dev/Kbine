@@ -72,12 +72,16 @@ const createPayment = async (paymentData) => {
     "[PaymentService] createPayment - Début",
     JSON.stringify(paymentData, null, 2)
   );
+  logger.info("[PaymentService] createPayment - Début", {
+    paymentData,
+  });
 
   let connection;
   try {
     connection = await db.getConnection();
     await connection.beginTransaction();
     console.log("[PaymentService] createPayment - Transaction démarrée");
+    logger.info("[PaymentService] createPayment - Transaction démarrée");
 
     // Validation des données
     validatePaymentData(paymentData);
@@ -91,6 +95,9 @@ const createPayment = async (paymentData) => {
       "[PaymentService] createPayment - Paiement existant (count)",
       existingPayment?.length || 0
     );
+    logger.info("[PaymentService] createPayment - Paiement existant (count)", {
+      count: existingPayment?.length || 0,
+    });
 
     if (existingPayment.length > 0) {
       throw new Error("Une transaction avec cette référence existe déjà");
@@ -105,6 +112,9 @@ const createPayment = async (paymentData) => {
       "[PaymentService] createPayment - Commande trouvée (count)",
       orderResults?.length || 0
     );
+    logger.info("[PaymentService] createPayment - Commande trouvée (count)", {
+      count: orderResults?.length || 0,
+    });
 
     if (!orderResults || orderResults.length === 0) {
       throw new Error("Commande non trouvée");
@@ -131,6 +141,12 @@ const createPayment = async (paymentData) => {
       "[PaymentService] createPayment - Données du paiement préparées",
       payment
     );
+
+    logger.info(
+      "[PaymentService] createPayment - Données du paiement préparées",
+      payment
+    );
+    
 
     const [result] = await connection.query("INSERT INTO payments SET ?", [
       payment,
@@ -178,6 +194,12 @@ const updatePayment = async (id, updateData) => {
     JSON.stringify(updateData, null, 2)
   );
 
+  logger.info("[PaymentService] updatePayment - Début", { paymentId: id });
+  logger.info(
+    "[PaymentService] updatePayment - Données de mise à jour",
+    JSON.stringify(updateData, null, 2)
+  );
+
   let connection;
   try {
     connection = await db.getConnection();
@@ -192,7 +214,14 @@ const updatePayment = async (id, updateData) => {
       count: payments?.length || 0,
     });
 
+    logger.info("[PaymentService] updatePayment - Paiements trouvés", {
+      count: payments?.length || 0,
+    });
+
     if (!payments || payments.length === 0) {
+      logger.error("[PaymentService] updatePayment - Paiement non trouvé", {
+        paymentId: id,
+      });
       throw new Error("Paiement non trouvé");
     }
 
@@ -202,8 +231,18 @@ const updatePayment = async (id, updateData) => {
       status: payment.status,
     });
 
+    logger.info("[PaymentService] updatePayment - Paiement courant", {
+      id: payment.id,
+      status: payment.status,
+    });
+
+
+
     // Valider le statut si fourni
     if (updateData.status && !PAYMENT_STATUS.includes(updateData.status)) {
+      logger.error("[PaymentService] updatePayment - Statut invalide", {
+        status: updateData.status,
+      });
       throw new Error(`Statut invalide: ${updateData.status}`);
     }
 
@@ -213,6 +252,7 @@ const updatePayment = async (id, updateData) => {
       if (
         !updateData.payment_phone.replace(/[\s\-\+]/g, "").match(phoneRegex)
       ) {
+        logger.error("Numéro de téléphone de paiement invalide" , { paymentPhone: updateData.payment_phone } );
         throw new Error("Numéro de téléphone de paiement invalide");
       }
     }
@@ -226,6 +266,9 @@ const updatePayment = async (id, updateData) => {
       "[PaymentService] updatePayment - Champs à mettre à jour",
       JSON.stringify(fieldsToUpdate, null, 2)
     );
+    logger.info("[PaymentService] updatePayment - Champs à mettre à jour", {
+      fieldsToUpdate,
+    });
 
     // Gérer callback_data
     if (
@@ -260,7 +303,8 @@ const updatePayment = async (id, updateData) => {
       .map((key) => `${key} = ?`)
       .join(", ");
     const updateValues = Object.values(fieldsToUpdate);
-
+    
+    logger.info("[PaymentService] updatePayment - Exécution UPDATE");
     console.log("[PaymentService] updatePayment - Exécution UPDATE");
     await connection.query(`UPDATE payments SET ${updateFields} WHERE id = ?`, [
       ...updateValues,
@@ -275,7 +319,7 @@ const updatePayment = async (id, updateData) => {
     console.log(
       "[PaymentService] updatePayment - Paiement mis à jour récupéré"
     );
-
+    logger.info("[PaymentService] updatePayment - Paiement mis à jour récupéré");
     await connection.commit();
 
     const updatedPayment = updatedPayments[0];
@@ -783,6 +827,7 @@ const initializePayment = async (paymentData) => {
     "[PaymentService] initializePayment - Début",
     JSON.stringify(paymentData, null, 2)
   );
+  
 
   try {
     logger.info("[PaymentService] Initialisation paiement", {
@@ -887,6 +932,8 @@ const initializePayment = async (paymentData) => {
           cancel_url: touchpointParams.cancel_url,
         }
       );
+
+      
     }
 
     const paymentResult = await touchpointService.createTransaction(
@@ -1092,55 +1139,60 @@ const processTouchPointWebhook = async (webhookData) => {
     });
 
     // Dans processTouchPointWebhook(), après le UPDATE réussi
-// ✅ AJOUTER - Après le UPDATE du paiement
-if (newStatus === 'success') {
-    console.log('[PaymentService] Paiement réussi - envoi notification staff');
-    
-    try {
+    // ✅ AJOUTER - Après le UPDATE du paiement
+    if (newStatus === "success") {
+      console.log(
+        "[PaymentService] Paiement réussi - envoi notification staff"
+      );
+
+      try {
         // Récupérer les détails de la commande
         const [orders] = await db.execute(
-            `SELECT o.*, p.name as plan_name 
+          `SELECT o.*, p.name as plan_name 
              FROM orders o
              LEFT JOIN plans p ON o.plan_id = p.id
              WHERE o.id = ?`,
-            [payment.order_id]
+          [payment.order_id]
         );
-        
+
         if (orders.length > 0) {
-            const order = orders[0];
-            
-            // Créer l'objet payment enrichi
-            const enrichedPayment = {
-                id: payment.id,
-                amount: parseFloat(payment.amount),
-                payment_method: payment.payment_method,
-                payment_reference: payment.payment_reference
-            };
-            
-            // Notifier le staff
-            await notificationService.notifyPaymentSuccess(enrichedPayment, order);
-            
-            logger.info('[PaymentService] Notification staff envoyée', {
-                orderId: order.id,
-                paymentId: payment.id
-            });
-            console.log('[PaymentService] Notification staff envoyée', {
-                orderId: order.id,
-                paymentId: payment.id
-            });
+          const order = orders[0];
+
+          // Créer l'objet payment enrichi
+          const enrichedPayment = {
+            id: payment.id,
+            amount: parseFloat(payment.amount),
+            payment_method: payment.payment_method,
+            payment_reference: payment.payment_reference,
+          };
+
+          // Notifier le staff
+          await notificationService.notifyPaymentSuccess(
+            enrichedPayment,
+            order
+          );
+
+          logger.info("[PaymentService] Notification staff envoyée", {
+            orderId: order.id,
+            paymentId: payment.id,
+          });
+          console.log("[PaymentService] Notification staff envoyée", {
+            orderId: order.id,
+            paymentId: payment.id,
+          });
         }
-    } catch (notifError) {
+      } catch (notifError) {
         // Ne pas bloquer le webhook si la notification échoue
-        logger.error('[PaymentService] Erreur envoi notification staff', {
-            error: notifError.message,
-            paymentId: payment.id
+        logger.error("[PaymentService] Erreur envoi notification staff", {
+          error: notifError.message,
+          paymentId: payment.id,
         });
-        console.log('[PaymentService] Erreur envoi notification staff', {
-            message: notifError.message,
-            paymentId: payment.id
+        console.log("[PaymentService] Erreur envoi notification staff", {
+          message: notifError.message,
+          paymentId: payment.id,
         });
+      }
     }
-}
 
     return {
       success: true,

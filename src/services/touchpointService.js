@@ -282,7 +282,7 @@ class TouchPointService {
       const result = {
         success: true,
         status: response.data.status,
-        mapped_status: mappedStatus,
+        // mapped_status: mappedStatus,
         data: response.data,
       };
 
