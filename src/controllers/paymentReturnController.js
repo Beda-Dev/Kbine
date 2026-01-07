@@ -13,6 +13,10 @@ const { getSuccessPage, getFailedPage } = require('../templates/paymentPages');
  * Amélioration: Cherche d'abord via order_reference, puis avec retry si nécessaire
  */
 const getPaymentByOrderReference = async (orderReference) => {
+    logger.debug('💳 Recherche paiement par référence commande', {
+        orderReference,
+        ip: req?.ip
+    });
     try {
         console.log('[getPaymentByOrderReference] Recherche pour:', orderReference);
         
@@ -28,6 +32,12 @@ const getPaymentByOrderReference = async (orderReference) => {
         
         console.log('[getPaymentByOrderReference] Résultats trouvés:', payments?.length || 0);
         if (payments && payments.length > 0) {
+            logger.info('💳 Paiement trouvé par référence commande', {
+                orderReference,
+                paymentId: payments[0].id,
+                status: payments[0].status,
+                amount: payments[0].amount
+            });
             console.log('[getPaymentByOrderReference] Paiement trouvé:', {
                 id: payments[0].id,
                 status: payments[0].status,
@@ -44,13 +54,27 @@ const getPaymentByOrderReference = async (orderReference) => {
         );
         
         if (orders && orders.length > 0) {
+            logger.warn('💳 Commande existe mais pas de paiement trouvé', {
+                orderReference,
+                orderId: orders[0].id
+            });
             console.warn('[getPaymentByOrderReference] Commande existe mais pas de paiement trouvé:', orderReference);
             return null; // Commande existe mais paiement not found
         }
         
+        logger.warn('💳 Ni commande ni paiement trouvé', {
+            orderReference
+        });
         console.warn('[getPaymentByOrderReference] Ni commande ni paiement trouvé pour:', orderReference);
         return null;
     } catch (error) {
+        logger.error('💳 Erreur recherche paiement par référence commande', {
+            error: {
+                message: error.message,
+                stack: error.stack
+            },
+            orderReference
+        });
         console.error('[getPaymentByOrderReference] Erreur SQL:', error);
         logger.error('Erreur récupération paiement', { 
             error: error.message,
@@ -66,6 +90,11 @@ const getPaymentByOrderReference = async (orderReference) => {
  * @access  Public
  */
 const paymentSuccessful = async (req, res) => {
+    logger.info('💳 Page retour paiement succès - Début', {
+        orderReference: req.params.orderReference,
+        ip: req.ip,
+        userAgent: req.headers['user-agent']
+    });
     try {
         const { orderReference } = req.params;
         console.log('[PaymentReturnController] Succès - orderReference:', orderReference);
@@ -73,6 +102,10 @@ const paymentSuccessful = async (req, res) => {
         const payment = await getPaymentByOrderReference(orderReference);
         
         if (!payment) {
+            logger.warn('💳 Paiement non trouvé pour page succès', {
+                orderReference,
+                ip: req.ip
+            });
             console.warn('[PaymentReturnController] Paiement non trouvé pour:', orderReference);
             
             // Afficher la page de succès même si le paiement n'est pas encore trouvé
@@ -87,6 +120,16 @@ const paymentSuccessful = async (req, res) => {
             }));
         }
         
+        logger.info('💳 Données paiement récupérées pour page succès', {
+            orderReference,
+            paymentId: payment.id,
+            paymentMethod: payment.payment_method,
+            amount: payment.amount,
+            status: payment.status,
+            orderAmount: payment.order_amount,
+            hasCallback: !!payment.callback_data,
+            ip: req.ip
+        });
         console.log('[PaymentReturnController] Données du paiement:', {
             id: payment.id,
             payment_method: payment.payment_method,
@@ -96,6 +139,10 @@ const paymentSuccessful = async (req, res) => {
             has_callback: !!payment.callback_data
         });
         
+        logger.debug('💳 Parsing callback_data pour page succès', {
+            orderReference,
+            hasCallbackData: !!payment.callback_data
+        });
         let callbackData = {};
         try {
             if (payment.callback_data) {
@@ -106,10 +153,25 @@ const paymentSuccessful = async (req, res) => {
                 }
             }
         } catch (parseError) {
+            logger.error('💳 Erreur parsing callback_data page succès', {
+                error: {
+                    message: parseError.message,
+                    stack: parseError.stack
+                },
+                orderReference,
+                ip: req.ip
+            });
             console.error('[PaymentReturnController] Erreur parsing callback_data:', parseError);
             callbackData = {};
         }
         
+        logger.debug('💳 Préparation données HTML page succès', {
+            orderReference,
+            amount: payment.order_amount || payment.amount,
+            paymentMethod: payment.payment_method || 'unknown',
+            hasCallbackData: !!payment.callback_data,
+            ip: req.ip
+        });
         const htmlData = {
             orderReference,
             amount: payment.order_amount || payment.amount,
@@ -123,10 +185,23 @@ const paymentSuccessful = async (req, res) => {
         
         console.log('[PaymentReturnController] Données pour la page HTML:', htmlData);
         
+        logger.info('💳 Page succès générée avec succès', {
+            orderReference,
+            paymentId: payment.id,
+            ip: req.ip
+        });
         const html = getSuccessPage(htmlData);
         
         res.send(html);
     } catch (error) {
+        logger.error('💳 Erreur page retour paiement succès', {
+            error: {
+                message: error.message,
+                stack: error.stack
+            },
+            orderReference: req.params.orderReference,
+            ip: req.ip
+        });
         console.error('[PaymentReturnController] Erreur page succès:', error);
         console.error('[PaymentReturnController] Stack:', error.stack);
         logger.error('Erreur page succès', { 
@@ -144,6 +219,11 @@ const paymentSuccessful = async (req, res) => {
  * @access  Public
  */
 const paymentFailed = async (req, res) => {
+    logger.info('💳 Page retour paiement échec - Début', {
+        orderReference: req.params.orderReference,
+        ip: req.ip,
+        userAgent: req.headers['user-agent']
+    });
     try {
         const { orderReference } = req.params;
         console.log('[PaymentReturnController] Échec', { orderReference });
@@ -151,12 +231,26 @@ const paymentFailed = async (req, res) => {
         const payment = await getPaymentByOrderReference(orderReference);
         
         if (!payment) {
+            logger.warn('💳 Paiement non trouvé pour page échec', {
+                orderReference,
+                ip: req.ip
+            });
             return res.status(404).send(getErrorPage('Paiement non trouvé', 'Nous n\'avons pas pu trouver votre paiement.'));
         }
         
+        logger.debug('💳 Parsing callback_data pour page échec', {
+            orderReference,
+            hasCallbackData: !!payment.callback_data
+        });
         const callbackData = payment.callback_data ? JSON.parse(payment.callback_data) : {};
         const reason = callbackData.webhook_data?.reason || 'Raison inconnue';
         
+        logger.info('💳 Page échec générée', {
+            orderReference,
+            reason,
+            paymentId: payment.id,
+            ip: req.ip
+        });
         const html = getFailedPage({
             orderReference,
             amount: payment.order_amount || payment.amount,
@@ -168,6 +262,14 @@ const paymentFailed = async (req, res) => {
         
         res.send(html);
     } catch (error) {
+        logger.error('💳 Erreur page retour paiement échec', {
+            error: {
+                message: error.message,
+                stack: error.stack
+            },
+            orderReference: req.params.orderReference,
+            ip: req.ip
+        });
         logger.error('Erreur page échec', { error: error.message });
         res.status(500).send(getErrorPage('Erreur', 'Une erreur est survenue.'));
     }

@@ -14,9 +14,23 @@ const { PAYMENT_METHODS, PAYMENT_STATUS } = paymentService;
  * @access  Private
  */
 const createPayment = async (req, res, next) => {
+    logger.info('💳 Création paiement - Début', {
+        paymentData: req.body,
+        userId: req.user?.id,
+        ip: req.ip
+    });
     try {
         console.log('[PaymentController] [createPayment] Début', JSON.stringify(req.body, null, 2));
         const payment = await paymentService.createPayment(req.body);
+        
+        logger.info('💳 Paiement créé avec succès', {
+            paymentId: payment.id,
+            orderId: payment.order_id,
+            amount: payment.amount,
+            method: payment.payment_method,
+            userId: req.user?.id,
+            ip: req.ip
+        });
         console.log('[PaymentController] [createPayment] Succès', { paymentId: payment?.id });
         
         logger.info(`Paiement créé avec succès - ID: ${payment.id}`, { 
@@ -30,6 +44,16 @@ const createPayment = async (req, res, next) => {
             data: payment
         });
     } catch (error) {
+        logger.error('💳 Erreur création paiement', {
+            error: {
+                message: error.message,
+                stack: error.stack,
+                code: error.code
+            },
+            paymentData: req.body,
+            userId: req.user?.id,
+            ip: req.ip
+        });
         console.log('[PaymentController] [createPayment] Erreur', { message: error.message });
         logger.error('Erreur lors de la création du paiement', { 
             error: error.message,
@@ -65,6 +89,12 @@ const createPayment = async (req, res, next) => {
  * @access  Private/Admin
  */
 const getPayments = async (req, res, next) => {
+    logger.info('💳 Récupération liste paiements - Début', {
+        query: req.query,
+        userId: req.user?.id,
+        userRole: req.user?.role,
+        ip: req.ip
+    });
     try {
         console.log('[PaymentController] [getPayments] Début', JSON.stringify(req.query, null, 2));
         const { 
@@ -79,6 +109,18 @@ const getPayments = async (req, res, next) => {
             plan_id
         } = req.query;
         
+        logger.debug('💳 Paramètres récupération paiements', {
+            page,
+            limit,
+            status,
+            payment_method,
+            start_date,
+            end_date,
+            order_id,
+            user_id,
+            plan_id
+        });
+        
         const result = await paymentService.getPayments({
             page: parseInt(page),
             limit: parseInt(limit),
@@ -90,6 +132,14 @@ const getPayments = async (req, res, next) => {
             user_id: user_id ? parseInt(user_id) : undefined,
             plan_id: plan_id ? parseInt(plan_id) : undefined
         });
+        
+        logger.info('💳 Paiements récupérés avec succès', {
+            count: result?.data?.length || 0,
+            page: parseInt(page),
+            limit: parseInt(limit),
+            userId: req.user?.id,
+            ip: req.ip
+        });
         console.log('[PaymentController] [getPayments] Succès', { count: result?.data?.length || 0 });
         
         res.json({
@@ -97,6 +147,15 @@ const getPayments = async (req, res, next) => {
             ...result
         });
     } catch (error) {
+        logger.error('💳 Erreur récupération paiements', {
+            error: {
+                message: error.message,
+                stack: error.stack
+            },
+            query: req.query,
+            userId: req.user?.id,
+            ip: req.ip
+        });
         console.log('[PaymentController] [getPayments] Erreur', { message: error.message });
         logger.error('Erreur lors de la récupération des paiements', { 
             error: error.message,
@@ -117,9 +176,22 @@ const getPayments = async (req, res, next) => {
  * @access  Private
  */
 const getPaymentById = async (req, res, next) => {
+    logger.info('💳 Récupération paiement par ID - Début', {
+        paymentId: req.params.id,
+        userId: req.user?.id,
+        ip: req.ip
+    });
     try {
+        logger.debug('💳 Recherche paiement par ID', { paymentId: req.params.id });
         console.log('[PaymentController] [getPaymentById] Début', { id: req.params.id });
         const payment = await paymentService.getPaymentById(req.params.id);
+        
+        logger.info('💳 Paiement récupéré avec succès', {
+            paymentId: payment?.id,
+            orderId: payment?.order_id,
+            userId: req.user?.id,
+            ip: req.ip
+        });
         console.log('[PaymentController] [getPaymentById] Succès', { id: payment?.id });
         
         res.json({
@@ -127,6 +199,15 @@ const getPaymentById = async (req, res, next) => {
             data: payment
         });
     } catch (error) {
+        logger.error('💳 Erreur récupération paiement par ID', {
+            error: {
+                message: error.message,
+                stack: error.stack
+            },
+            paymentId: req.params.id,
+            userId: req.user?.id,
+            ip: req.ip
+        });
         console.log('[PaymentController] [getPaymentById] Erreur', { message: error.message });
         logger.error('Erreur lors de la récupération du paiement', { 
             error: error.message,
@@ -155,9 +236,21 @@ const getPaymentById = async (req, res, next) => {
  * @access  Private/Admin
  */
 const updatePayment = async (req, res, next) => {
+    logger.info('💳 Mise à jour paiement - Début', {
+        paymentId: req.params.id,
+        updateData: req.body,
+        updatedBy: req.user?.id,
+        userRole: req.user?.role,
+        ip: req.ip
+    });
     try {
         const { id } = req.params;
         
+        logger.debug('💳 Paramètres mise à jour paiement', {
+            paymentId: id,
+            updateData: req.body,
+            updatedBy: req.user?.id
+        });
         console.log('[PaymentController] [updatePayment] Début', {
             paymentId: id,
             body: req.body,
@@ -166,6 +259,11 @@ const updatePayment = async (req, res, next) => {
         
         const paymentId = parseInt(id);
         if (isNaN(paymentId)) {
+            logger.warn('💳 ID paiement invalide pour mise à jour', {
+                paymentId: id,
+                updatedBy: req.user?.id,
+                ip: req.ip
+            });
             console.log('[PaymentController] [updatePayment] ID invalide');
             return res.status(400).json({
                 success: false,
@@ -175,6 +273,12 @@ const updatePayment = async (req, res, next) => {
         
         const payment = await paymentService.updatePayment(paymentId, req.body);
         
+        logger.info('💳 Paiement mis à jour avec succès', {
+            paymentId: id,
+            updates: req.body,
+            updatedBy: req.user?.id,
+            ip: req.ip
+        });
         console.log('[PaymentController] [updatePayment] Succès', { paymentId: id });
         
         logger.info(`Paiement mis à jour - ID: ${id}`, { 
@@ -188,6 +292,17 @@ const updatePayment = async (req, res, next) => {
             data: payment
         });
     } catch (error) {
+        logger.error('💳 Erreur mise à jour paiement', {
+            error: {
+                message: error.message,
+                stack: error.stack,
+                code: error.code
+            },
+            paymentId: req.params.id,
+            updateData: req.body,
+            updatedBy: req.user?.id,
+            ip: req.ip
+        });
         console.error('[PaymentController] [updatePayment] Erreur', {
             error: error.message,
             stack: error.stack,
@@ -229,9 +344,19 @@ const updatePayment = async (req, res, next) => {
  * @access  Private/Admin
  */
 const deletePayment = async (req, res, next) => {
+    logger.info('💳 Suppression paiement - Début', {
+        paymentId: req.params.id,
+        deletedBy: req.user?.id,
+        userRole: req.user?.role,
+        ip: req.ip
+    });
     try {
         const { id } = req.params;
         
+        logger.debug('💳 Paramètres suppression paiement', {
+            paymentId: id,
+            deletedBy: req.user?.id
+        });
         console.log('[PaymentController] [deletePayment] Début', {
             paymentId: id,
             userId: req.user?.id,
@@ -240,6 +365,11 @@ const deletePayment = async (req, res, next) => {
         
         const paymentId = parseInt(id);
         if (isNaN(paymentId)) {
+            logger.warn('💳 ID paiement invalide pour suppression', {
+                paymentId: id,
+                deletedBy: req.user?.id,
+                ip: req.ip
+            });
             console.log('[PaymentController] [deletePayment] ID invalide');
             return res.status(400).json({
                 success: false,
@@ -249,6 +379,11 @@ const deletePayment = async (req, res, next) => {
         
         await paymentService.deletePayment(paymentId);
         
+        logger.info('💳 Paiement supprimé avec succès', {
+            paymentId: id,
+            deletedBy: req.user?.id,
+            ip: req.ip
+        });
         console.log('[PaymentController] [deletePayment] Succès', { paymentId: id });
         
         logger.info(`Paiement supprimé - ID: ${id}`, { 
@@ -258,6 +393,16 @@ const deletePayment = async (req, res, next) => {
         
         res.status(204).send();
     } catch (error) {
+        logger.error('💳 Erreur suppression paiement', {
+            error: {
+                message: error.message,
+                stack: error.stack,
+                code: error.code
+            },
+            paymentId: req.params.id,
+            deletedBy: req.user?.id,
+            ip: req.ip
+        });
         console.error('[PaymentController] [deletePayment] Erreur', {
             error: error.message,
             stack: error.stack,
@@ -298,18 +443,32 @@ const deletePayment = async (req, res, next) => {
  * @access  Private/Admin
  */
 const updatePaymentStatus = async (req, res, next) => {
+    logger.info('💳 Mise à jour statut paiement - Début', {
+        paymentId: req.params.id,
+        newStatus: req.body.status,
+        notes: req.body.notes,
+        updatedBy: req.user?.id,
+        ip: req.ip
+    });
     try {
         console.log('[PaymentController] [updatePaymentStatus] Début', { id: req.params.id, body: req.body });
         const { id } = req.params;
         const { status, notes } = req.body;
         
+        logger.debug('💳 Appel service mise à jour statut paiement', {
+            paymentId: id,
+            newStatus: status,
+            notes,
+            updatedBy: req.user?.id
+        });
         const payment = await paymentService.updatePaymentStatus(id, status, notes);
         console.log('[PaymentController] [updatePaymentStatus] Succès', { id });
         
         logger.info(`Statut du paiement mis à jour - ID: ${id}`, { 
             paymentId: id,
             status,
-            notes
+            notes,
+            updatedBy: req.user?.id
         });
         
         res.json({
@@ -318,6 +477,18 @@ const updatePaymentStatus = async (req, res, next) => {
             data: payment
         });
     } catch (error) {
+        logger.error('💳 Erreur mise à jour statut paiement', {
+            error: {
+                message: error.message,
+                stack: error.stack,
+                code: error.code
+            },
+            paymentId: req.params.id,
+            newStatus: req.body.status,
+            notes: req.body.notes,
+            updatedBy: req.user?.id,
+            ip: req.ip
+        });
         console.log('[PaymentController] [updatePaymentStatus] Erreur', { message: error.message });
         logger.error('Erreur lors de la mise à jour du statut du paiement', { 
             error: error.message,
@@ -327,6 +498,11 @@ const updatePaymentStatus = async (req, res, next) => {
         });
         
         if (error.message.includes('non trouvé')) {
+            logger.warn('💳 Paiement non trouvé pour mise à jour statut', {
+                paymentId: req.params.id,
+                updatedBy: req.user?.id,
+                ip: req.ip
+            });
             return res.status(404).json({
                 success: false,
                 error: error.message
@@ -334,12 +510,28 @@ const updatePaymentStatus = async (req, res, next) => {
         }
         
         if (error.message.includes('Statut invalide')) {
+            logger.warn('💳 Statut invalide pour mise à jour paiement', {
+                paymentId: req.params.id,
+                invalidStatus: req.body.status,
+                updatedBy: req.user?.id,
+                ip: req.ip
+            });
             return res.status(400).json({
                 success: false,
                 error: error.message
             });
         }
         
+        logger.error('💳 Erreur non gérée mise à jour statut paiement', {
+            error: {
+                message: error.message,
+                stack: error.stack
+            },
+            paymentId: req.params.id,
+            newStatus: req.body.status,
+            updatedBy: req.user?.id,
+            ip: req.ip
+        });
         res.status(500).json({
             success: false,
             error: 'Erreur lors de la mise à jour du statut',
@@ -354,14 +546,31 @@ const updatePaymentStatus = async (req, res, next) => {
  * @access  Private/Admin
  */
 const refundPayment = async (req, res, next) => {
+    logger.info('💳 Remboursement paiement - Début', {
+        paymentId: req.params.id,
+        reason: req.body.reason,
+        refundedBy: req.user?.id,
+        ip: req.ip
+    });
     try {
         console.log('[PaymentController] [refundPayment] Début', { id: req.params.id, body: req.body });
         const { id } = req.params;
         const { reason } = req.body;
         
+        logger.debug('💳 Appel service remboursement paiement', {
+            paymentId: id,
+            reason,
+            refundedBy: req.user?.id
+        });
         const payment = await paymentService.refundPayment(id, reason);
         console.log('[PaymentController] [refundPayment] Succès', { id });
         
+        logger.info('💳 Paiement remboursé avec succès', {
+            paymentId: id,
+            reason,
+            refundedBy: req.user?.id,
+            ip: req.ip
+        });
         logger.info(`Paiement remboursé - ID: ${id}`, { 
             paymentId: id,
             reason
@@ -373,6 +582,17 @@ const refundPayment = async (req, res, next) => {
             data: payment
         });
     } catch (error) {
+        logger.error('💳 Erreur remboursement paiement', {
+            error: {
+                message: error.message,
+                stack: error.stack,
+                code: error.code
+            },
+            paymentId: req.params.id,
+            reason: req.body.reason,
+            refundedBy: req.user?.id,
+            ip: req.ip
+        });
         console.log('[PaymentController] [refundPayment] Erreur', { message: error.message });
         logger.error('Erreur lors du remboursement du paiement', { 
             error: error.message,
@@ -382,6 +602,11 @@ const refundPayment = async (req, res, next) => {
         });
         
         if (error.message.includes('non trouvé')) {
+            logger.warn('💳 Paiement non trouvé pour remboursement', {
+                paymentId: req.params.id,
+                refundedBy: req.user?.id,
+                ip: req.ip
+            });
             return res.status(404).json({
                 success: false,
                 error: error.message
@@ -390,12 +615,28 @@ const refundPayment = async (req, res, next) => {
         
         if (error.message.includes('Seuls les paiements réussis') || 
             error.message.includes('déjà été remboursé')) {
+            logger.warn('💳 Remboursement impossible - conditions non remplies', {
+                paymentId: req.params.id,
+                errorMessage: error.message,
+                refundedBy: req.user?.id,
+                ip: req.ip
+            });
             return res.status(400).json({
                 success: false,
                 error: error.message
             });
         }
         
+        logger.error('💳 Erreur non gérée remboursement paiement', {
+            error: {
+                message: error.message,
+                stack: error.stack
+            },
+            paymentId: req.params.id,
+            reason: req.body.reason,
+            refundedBy: req.user?.id,
+            ip: req.ip
+        });
         res.status(500).json({
             success: false,
             error: 'Erreur lors du remboursement',
@@ -410,14 +651,30 @@ const refundPayment = async (req, res, next) => {
  * @access  Public
  */
 const initializePayment = async (req, res) => {
+    logger.info('💳 Initialisation paiement - Début', {
+        paymentData: req.body,
+        ip: req.ip,
+        userAgent: req.headers['user-agent']
+    });
     try {
         console.log('[PaymentController] [initializePayment] Début', JSON.stringify(req.body, null, 2));
+        
+        logger.debug('💳 Appel service initialisation paiement', {
+            paymentData: req.body,
+            ip: req.ip
+        });
         const result = await paymentService.initializePayment(req.body);
         console.log('[PaymentController] [initializePayment] Succès', { 
             payment_id: result?.payment_id, 
             transaction_id: result?.transaction_id 
         });
 
+        logger.info('💳 Paiement initialisé avec succès', {
+            paymentId: result.payment_id,
+            transactionId: result.transaction_id,
+            paymentMethod: result.payment_method,
+            ip: req.ip
+        });
         logger.info("Paiement initialisé avec succès", {
             paymentId: result.payment_id,
             transactionId: result.transaction_id,
@@ -430,6 +687,15 @@ const initializePayment = async (req, res) => {
             data: result,
         });
     } catch (error) {
+        logger.error('💳 Erreur initialisation paiement', {
+            error: {
+                message: error.message,
+                stack: error.stack,
+                code: error.code
+            },
+            paymentData: req.body,
+            ip: req.ip
+        });
         console.log('[PaymentController] [initializePayment] Erreur', { message: error.message });
         logger.error("Erreur lors de l'initialisation du paiement", {
             error: error.message,
@@ -437,6 +703,11 @@ const initializePayment = async (req, res) => {
         });
 
         if (error.message.includes("non trouvée")) {
+            logger.warn('💳 Commande non trouvée pour initialisation paiement', {
+                errorMessage: error.message,
+                paymentData: req.body,
+                ip: req.ip
+            });
             return res.status(404).json({
                 success: false,
                 error: error.message,
@@ -444,6 +715,11 @@ const initializePayment = async (req, res) => {
         }
 
         if (error.message.includes("déjà été payée")) {
+            logger.warn('💳 Commande déjà payée pour initialisation paiement', {
+                errorMessage: error.message,
+                paymentData: req.body,
+                ip: req.ip
+            });
             return res.status(409).json({
                 success: false,
                 error: error.message,
@@ -451,12 +727,25 @@ const initializePayment = async (req, res) => {
         }
 
         if (error.message.includes("ne correspond pas") || error.message.includes("OTP")) {
+            logger.warn('💳 Erreur validation initialisation paiement', {
+                errorMessage: error.message,
+                paymentData: req.body,
+                ip: req.ip
+            });
             return res.status(400).json({
                 success: false,
                 error: error.message,
             });
         }
 
+        logger.error('💳 Erreur non gérée initialisation paiement', {
+            error: {
+                message: error.message,
+                stack: error.stack
+            },
+            paymentData: req.body,
+            ip: req.ip
+        });
         res.status(500).json({
             success: false,
             error: "Erreur lors de l'initialisation du paiement",
@@ -476,10 +765,24 @@ const initializePayment = async (req, res) => {
  * @access  Public
  */
 const touchpointWebhook = async (req, res) => {
+    logger.info('💳 Webhook TouchPoint - Début', {
+        webhookData: req.body,
+        ip: req.ip,
+        userAgent: req.headers['user-agent']
+    });
     try {
         console.log('[PaymentController] [touchpointWebhook] Début', JSON.stringify(req.body, null, 2));
+        
+        logger.debug('💳 Appel service traitement webhook TouchPoint', {
+            webhookData: req.body,
+            ip: req.ip
+        });
         const result = await paymentService.processTouchPointWebhook(req.body);
 
+        logger.info('💳 Webhook TouchPoint traité avec succès', {
+            result,
+            ip: req.ip
+        });
         logger.info("Webhook TouchPoint traité avec succès", { result });
         console.log('[PaymentController] [touchpointWebhook] Succès');
 
@@ -488,6 +791,15 @@ const touchpointWebhook = async (req, res) => {
             message: "Webhook traité avec succès",
         });
     } catch (error) {
+        logger.error('💳 Erreur traitement webhook TouchPoint', {
+            error: {
+                message: error.message,
+                stack: error.stack,
+                code: error.code
+            },
+            webhookData: req.body,
+            ip: req.ip
+        });
         console.log('[PaymentController] [touchpointWebhook] Erreur', { message: error.message });
         logger.error("Erreur traitement webhook TouchPoint", {
             error: error.message,

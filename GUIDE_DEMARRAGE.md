@@ -173,6 +173,8 @@ docker compose up -d --build
 
 docker logs -f kbine-app
 
+docker volume inspect kbine-logs
+
 ## 🏆 Status : PRÊT POUR LE DÉVELOPPEMENT
 
 Le backend Kbine dispose maintenant d'une base solide avec :

@@ -11,6 +11,11 @@ const logger = require('../utils/logger');
  * @access  Private
  */
 const registerToken = async (req, res, next) => {
+  logger.info(' Enregistrement token FCM - Début', {
+    userId: req.user.id,
+    platform: req.body.platform,
+    ip: req.ip
+  });
   console.log('[NotificationController] [registerToken] Début', {
     userId: req.user.id,
     body: req.body
@@ -22,6 +27,10 @@ const registerToken = async (req, res, next) => {
 
     // Validation
     if (!token) {
+      logger.warn(' Token FCM manquant', {
+        userId: req.user.id,
+        ip: req.ip
+      });
       console.log('[NotificationController] [registerToken] Token manquant');
       return res.status(400).json({
         success: false,
@@ -30,6 +39,11 @@ const registerToken = async (req, res, next) => {
     }
 
     if (!platform || !['android', 'ios'].includes(platform)) {
+      logger.warn(' Plateforme invalide', {
+        userId: req.user.id,
+        platform,
+        ip: req.ip
+      });
       console.log('[NotificationController] [registerToken] Plateforme invalide');
       return res.status(400).json({
         success: false,
@@ -39,6 +53,11 @@ const registerToken = async (req, res, next) => {
 
     await notificationService.registerToken(userId, token, platform);
 
+    logger.info(' Token FCM enregistré avec succès', {
+      userId,
+      platform,
+      tokenPrefix: token.substring(0, 20) + '...'
+    });
     logger.info('Token FCM enregistré', {
       userId,
       platform
@@ -51,6 +70,15 @@ const registerToken = async (req, res, next) => {
       message: 'Token enregistré avec succès'
     });
   } catch (error) {
+    logger.error(' Erreur enregistrement token FCM', {
+      error: {
+        message: error.message,
+        stack: error.stack
+      },
+      userId: req.user?.id,
+      platform: req.body.platform,
+      ip: req.ip
+    });
     console.log('[NotificationController] [registerToken] Erreur', {
       message: error.message
     });
@@ -74,6 +102,10 @@ const registerToken = async (req, res, next) => {
  * @access  Private
  */
 const removeToken = async (req, res, next) => {
+  logger.info(' Suppression token FCM - Début', {
+    userId: req.user.id,
+    ip: req.ip
+  });
   console.log('[NotificationController] [removeToken] Début', {
     userId: req.user.id,
     body: req.body
@@ -84,6 +116,10 @@ const removeToken = async (req, res, next) => {
     const userId = req.user.id;
 
     if (!token) {
+      logger.warn(' Token FCM manquant pour suppression', {
+        userId: req.user.id,
+        ip: req.ip
+      });
       console.log('[NotificationController] [removeToken] Token manquant');
       return res.status(400).json({
         success: false,
@@ -93,6 +129,10 @@ const removeToken = async (req, res, next) => {
 
     await notificationService.removeToken(userId, token);
 
+    logger.info(' Token FCM supprimé avec succès', {
+      userId,
+      tokenPrefix: token.substring(0, 20) + '...'
+    });
     logger.info('Token FCM supprimé', { userId });
     console.log('[NotificationController] [removeToken] Succès');
 
@@ -101,6 +141,14 @@ const removeToken = async (req, res, next) => {
       message: 'Token supprimé avec succès'
     });
   } catch (error) {
+    logger.error(' Erreur suppression token FCM', {
+      error: {
+        message: error.message,
+        stack: error.stack
+      },
+      userId: req.user?.id,
+      ip: req.ip
+    });
     console.log('[NotificationController] [removeToken] Erreur', {
       message: error.message
     });
@@ -124,6 +172,12 @@ const removeToken = async (req, res, next) => {
  * @access  Private
  */
 const getHistory = async (req, res, next) => {
+  logger.info(' Récupération historique notifications - Début', {
+    userId: req.user.id,
+    page: req.query.page,
+    limit: req.query.limit,
+    ip: req.ip
+  });
   console.log('[NotificationController] [getHistory] Début', {
     userId: req.user.id,
     query: req.query
@@ -140,6 +194,12 @@ const getHistory = async (req, res, next) => {
       limit
     );
 
+    logger.info(' Historique notifications récupéré avec succès', {
+      userId,
+      count: result.notifications.length,
+      page,
+      limit
+    });
     console.log('[NotificationController] [getHistory] Succès', {
       count: result.notifications.length
     });
@@ -150,6 +210,16 @@ const getHistory = async (req, res, next) => {
       pagination: result.pagination
     });
   } catch (error) {
+    logger.error(' Erreur récupération historique notifications', {
+      error: {
+        message: error.message,
+        stack: error.stack
+      },
+      userId: req.user?.id,
+      page: req.query.page,
+      limit: req.query.limit,
+      ip: req.ip
+    });
     console.log('[NotificationController] [getHistory] Erreur', {
       message: error.message
     });
@@ -173,6 +243,12 @@ const getHistory = async (req, res, next) => {
  * @access  Private (Admin)
  */
 const sendTestNotification = async (req, res, next) => {
+  logger.info(' Envoi notification test - Début', {
+    userId: req.user.id,
+    targetUserId: req.body.userId,
+    title: req.body.title,
+    ip: req.ip
+  });
   console.log('[NotificationController] [sendTestNotification] Début', {
     userId: req.user.id,
     body: req.body
@@ -182,6 +258,12 @@ const sendTestNotification = async (req, res, next) => {
     const { title, body, userId } = req.body;
 
     if (!title || !body) {
+      logger.warn(' Titre ou corps manquant pour notification test', {
+        userId: req.user.id,
+        title,
+        body,
+        ip: req.ip
+      });
       return res.status(400).json({
         success: false,
         error: 'Le titre et le corps sont requis'
@@ -189,6 +271,7 @@ const sendTestNotification = async (req, res, next) => {
     }
 
     // Déterminer les tokens cibles
+    logger.debug(' Recherche tokens cibles', { userId, targetUserId: userId });
     let tokens;
     if (userId) {
       tokens = await notificationService.getUserTokens(userId);
@@ -197,6 +280,10 @@ const sendTestNotification = async (req, res, next) => {
     }
 
     if (tokens.length === 0) {
+      logger.warn(' Aucun token trouvé pour notification test', {
+        targetUserId: userId || 'staff',
+        tokenCount: 0
+      });
       return res.status(404).json({
         success: false,
         error: 'Aucun token trouvé pour cet utilisateur'
@@ -209,6 +296,13 @@ const sendTestNotification = async (req, res, next) => {
       { type: 'test' }
     );
 
+    logger.info(' Notification test envoyée avec succès', {
+      targetUserId: userId || 'staff',
+      tokenCount: tokens.length,
+      successCount: response?.successCount,
+      failureCount: response?.failureCount,
+      sentBy: req.user.id
+    });
     logger.info('Notification de test envoyée', {
       userId: userId || 'staff',
       successCount: response?.successCount
@@ -223,6 +317,15 @@ const sendTestNotification = async (req, res, next) => {
       failureCount: response?.failureCount
     });
   } catch (error) {
+    logger.error(' Erreur envoi notification test', {
+      error: {
+        message: error.message,
+        stack: error.stack
+      },
+      sentBy: req.user?.id,
+      targetUserId: req.body.userId,
+      ip: req.ip
+    });
     console.log('[NotificationController] [sendTestNotification] Erreur', {
       message: error.message
     });

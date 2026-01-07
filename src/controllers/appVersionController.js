@@ -14,11 +14,16 @@ const getAppVersion = async (req, res) => {
         // ✅ Les données sont déjà validées par le middleware
         const { platform } = req.query;
         
+        logger.info('📱 Récupération version application - Début', {
+            platform,
+            ip: req.ip
+        });
         console.log(`${context} Requête reçue`, { platform });
         
-        // ✅ Plus besoin de revalider ici, c'est déjà fait dans le middleware
+        // Plus besoin de revalider ici, c'est déjà fait dans le middleware
         
         // Récupérer la configuration de version
+        logger.debug(' Requête données de version', { platform });
         console.log(`${context} Récupération des données de version`);
         const [rows] = await db.execute('SELECT * FROM app_version LIMIT 1');
         
@@ -48,6 +53,12 @@ const getAppVersion = async (req, res) => {
             };
         }
 
+        logger.info(' Version application récupérée avec succès', {
+            platform,
+            version: responseData.version,
+            buildNumber: responseData.build_number,
+            forceUpdate: responseData.force_update
+        });
         console.log(`${context} Données préparées pour ${platform}`, responseData);
 
         res.json({
@@ -85,6 +96,16 @@ const updateAppVersion = async (req, res) => {
             force_update = false
         } = req.body;
 
+        logger.info(' Mise à jour version application - Début', {
+            updatedBy: req.user?.id,
+            versions: {
+                ios_version,
+                ios_build_number,
+                android_version,
+                android_build_number,
+                force_update
+            }
+        });
         console.log(`${context} Données de mise à jour reçues`, {
             ios_version,
             ios_build_number,
@@ -95,6 +116,10 @@ const updateAppVersion = async (req, res) => {
 
         // Validation des données requises
         if (!ios_version || !ios_build_number || !android_version || !android_build_number) {
+            logger.warn(' Données manquantes pour mise à jour version', {
+                updatedBy: req.user?.id,
+                provided: { ios_version, ios_build_number, android_version, android_build_number }
+            });
             console.log(`${context} Données manquantes`);
             return res.status(400).json({
                 success: false,
@@ -104,6 +129,11 @@ const updateAppVersion = async (req, res) => {
 
         // Validation des types
         if (typeof ios_build_number !== 'number' || typeof android_build_number !== 'number') {
+            logger.warn(' Types invalides pour mise à jour version', {
+                updatedBy: req.user?.id,
+                ios_build_number_type: typeof ios_build_number,
+                android_build_number_type: typeof android_build_number
+            });
             console.log(`${context} Types invalides`);
             return res.status(400).json({
                 success: false,
@@ -112,6 +142,16 @@ const updateAppVersion = async (req, res) => {
         }
 
         // Mettre à jour la configuration
+        logger.debug(' Exécution mise à jour BDD', {
+            updatedBy: req.user?.id,
+            updateData: {
+                ios_version,
+                ios_build_number,
+                android_version,
+                android_build_number,
+                force_update: Boolean(force_update)
+            }
+        });
         console.log(`${context} Exécution de la mise à jour`);
         const [result] = await db.execute(
             `UPDATE app_version SET 
@@ -132,6 +172,10 @@ const updateAppVersion = async (req, res) => {
         );
 
         if (result.affectedRows === 0) {
+            logger.warn(' Aucune ligne mise à jour', {
+                updatedBy: req.user?.id,
+                affectedRows: result.affectedRows
+            });
             console.log(`${context} Aucune ligne mise à jour`);
             return res.status(404).json({
                 success: false,
@@ -151,11 +195,12 @@ const updateAppVersion = async (req, res) => {
             force_update: Boolean(updatedVersion.force_update)
         };
 
-        console.log(`${context} Mise à jour réussie`, responseData);
-        logger.info(`${context} Versions mises à jour`, {
+        logger.info(' Versions application mises à jour avec succès', {
             updatedBy: req.user?.id,
-            newVersions: responseData
+            newVersions: responseData,
+            affectedRows: result.affectedRows
         });
+        console.log(`${context} Mise à jour réussie`, responseData);
 
         res.json({
             success: true,
@@ -164,14 +209,18 @@ const updateAppVersion = async (req, res) => {
         });
 
     } catch (error) {
+        logger.error(' Erreur mise à jour version application', {
+            error: {
+                message: error.message,
+                stack: error.stack
+            },
+            updatedBy: req.user?.id,
+            body: req.body
+        });
         console.error(`${context} Erreur serveur`, {
             error: error.message,
             stack: error.stack,
             body: req.body
-        });
-        logger.error(`${context} Erreur lors de la mise à jour des versions`, {
-            error: error.message,
-            updatedBy: req.user?.id
         });
         
         res.status(500).json({
@@ -189,6 +238,10 @@ const getVersionConfig = async (req, res) => {
     const context = '[AppVersionController] [getVersionConfig]';
     
     try {
+        logger.info('📱 Récupération configuration complète versions - Début', {
+            requestedBy: req.user?.id,
+            ip: req.ip
+        });
         console.log(`${context} Récupération de la configuration complète`);
         
         const [rows] = await db.execute('SELECT * FROM app_version LIMIT 1');
@@ -212,6 +265,10 @@ const getVersionConfig = async (req, res) => {
             created_at: config.created_at
         };
 
+        logger.info('📱 Configuration complète récupérée avec succès', {
+            requestedBy: req.user?.id,
+            configKeys: Object.keys(responseData)
+        });
         console.log(`${context} Configuration récupérée avec succès`);
         
         res.json({
