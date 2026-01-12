@@ -1,5 +1,23 @@
 # 🚀 Guide de Démarrage - Backend Kbine
 
+## Table des Matières
+- [Serveur Fonctionnel](#-serveur-fonctionnel-)
+- [Tests Effectués](#-tests-effectués)
+  - [Installation Réussie](#-installation-réussie)
+  - [Serveur Démarré](#-serveur-démarré)
+  - [Endpoints Testés](#-endpoints-testés)
+- [Structure Implémentée](#-structure-implémentée)
+  - [Fichiers Documentés et Fonctionnels](#-fichiers-documentés-et-fonctionnels)
+  - [Stubs Créés pour le Développeur](#-stubs-créés-pour-le-développeur)
+- [Prochaines Étapes pour le Développeur Junior](#-prochaines-étapes-pour-le-développeur-junior)
+  - [Configuration Base de Données](#1-configuration-base-de-données)
+  - [Docker Setup](#2-docker-setup)
+  - [Implémentation Progressive](#3-implémentation-progressive)
+- [Commandes Utiles](#-commandes-utiles)
+  - [Développement](#développement)
+  - [Docker](#docker)
+- [Status](#-status--prêt-pour-le-développement)
+
 ## ✅ Serveur Fonctionnel !
 
 Le backend Kbine est maintenant opérationnel avec une base de code documentée et testée.
@@ -122,13 +140,17 @@ app.use('/api/payments', paymentRoutes);
 
 ## 🔧 Commandes Utiles
 
+### Développement
 ```bash
 # Développement
 pnpm run dev        # Serveur avec nodemon
 pnpm start          # Serveur production
 pnpm test           # Tests (à configurer)
 pnpm run lint       # Linting (à configurer)
+```
 
+### Docker
+```bash
 # Docker
 docker-compose -p kbine up -d      # Démarrer tous services
 docker-compose -p kbine up -d --build # Démarrer tous services avec build
@@ -164,25 +186,38 @@ mysql -u kbine_user -p'kbine_secure_password' kbine_db < scripts/migration1.sql
 
 
 
-sur le serveur 
+# syntaxe a effectuer sur le serveur 
 
-git pull origin main
-
-
+# mettre a ajour
+git pull origin main 
 docker compose up -d --build
 
+# voir les log en temps reel
 docker logs -f kbine-app
 
 docker volume inspect kbine-logs
 
+# voir les logs dans le dossier logs/
+
+# Voir les logs en temps réel
+docker exec -it kbine-app tail -f /app/logs/combined-$(date +%Y-%m-%d).log
+
+# Voir tous les fichiers de logs
+docker exec -it kbine-app ls -lah /app/logs
+
+# Lire un fichier de log spécifique
+docker exec -it kbine-app cat /app/logs/error-2026-01-07.log
+
+# Ouvrir un shell dans le conteneur pour explorer
+docker exec -it kbine-app sh
+cd /app/logs
+ls -lah
+
+# Copier tous les logs dans le dossier actuel
+docker cp kbine-app:/app/logs ./logs-backup
+
+# Copier un fichier spécifique
+docker cp kbine-app:/app/logs/error-2026-01-07.log ./error.log
+
 ## 🏆 Status : PRÊT POUR LE DÉVELOPPEMENT
 
-Le backend Kbine dispose maintenant d'une base solide avec :
-- ✅ Architecture clean documentée
-- ✅ Serveur fonctionnel
-- ✅ Middlewares de sécurité
-- ✅ Stubs d'exemple pour l'apprentissage
-- ✅ Documentation complète
-- ✅ Configuration Docker prête
-
-**Le développeur junior peut commencer immédiatement !**

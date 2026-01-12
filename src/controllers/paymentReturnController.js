@@ -14,8 +14,7 @@ const { getSuccessPage, getFailedPage } = require('../templates/paymentPages');
  */
 const getPaymentByOrderReference = async (orderReference) => {
     logger.debug('💳 Recherche paiement par référence commande', {
-        orderReference,
-        ip: req?.ip
+        orderReference
     });
     try {
         console.log('[getPaymentByOrderReference] Recherche pour:', orderReference);
