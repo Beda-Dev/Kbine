@@ -4,7 +4,7 @@
 const Joi = require('joi');
 
 // Constantes de validation
-const ORDER_STATUS = ['pending', 'assigned', 'processing', 'completed', 'cancelled'];
+const ORDER_STATUS = ['pending', 'assigned', 'processing', 'completed', 'cancelled', 'network_error'];
 
 // Regex pour valider les numéros de téléphone ivoiriens
 const PHONE_REGEX = /^(07|05|01)\d{8}$/;

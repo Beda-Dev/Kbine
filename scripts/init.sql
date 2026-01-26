@@ -55,7 +55,7 @@ CREATE TABLE IF NOT EXISTS orders (
     plan_id INT DEFAULT NULL,
     phone_number VARCHAR(15) NOT NULL,
     amount DECIMAL(10,2) NOT NULL,
-    status ENUM('pending', 'assigned', 'processing', 'completed', 'cancelled') DEFAULT 'pending',
+    status ENUM('pending', 'assigned', 'processing', 'completed', 'cancelled', 'network_error') DEFAULT 'pending',
     assigned_to INT DEFAULT NULL,
     created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
     updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
