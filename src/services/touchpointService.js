@@ -6,6 +6,7 @@
 const axios = require("axios")
 const logger = require("../utils/logger")
 const paymentConfig = require("../config/payment")
+const retryableHttpClient = require("../utils/retryableHttpClient")
 
 class TouchPointService {
   constructor() {
@@ -153,8 +154,8 @@ class TouchPointService {
       console.log('[TouchPointService] URL de la requête:', url)
       console.log('[TouchPointService] Données envoyées:', JSON.stringify(transactionData, null, 2))
 
-      // Appel API
-      const response = await axios.put(url, transactionData, {
+      // ✅ Appel API avec retry automatique pour les 429
+      const response = await retryableHttpClient.put(url, transactionData, {
         auth: {
           username: this.username,
           password: this.password,
@@ -260,7 +261,8 @@ class TouchPointService {
       console.log('[TouchPointService] [checkTransactionStatus] Password:', this.password ? '***' : 'non défini');
       
       console.log('[TouchPointService] [checkTransactionStatus] Envoi de la requête GET');
-      const response = await axios.get(url, {
+      // ✅ Appel API avec retry automatique pour les 429
+      const response = await retryableHttpClient.get(url, {
         auth: {
           username: this.username,
           password: this.password,
@@ -332,7 +334,8 @@ class TouchPointService {
       
       const url = `${this.apiUrl}/${this.agencyCode}/transaction/${transactionId}/cancel?loginAgent=${this.loginAgent}&passwordAgent=${this.passwordAgent}`
       
-      const response = await axios.post(url, {}, {
+      // ✅ Appel API avec retry automatique pour les 429
+      const response = await retryableHttpClient.post(url, {}, {
         auth: {
           username: this.username,
           password: this.password,

@@ -14,7 +14,7 @@ const { Server } = require('socket.io');
 const config = require('./config/database');
 const logger = require('./utils/logger');
 const errorHandler = require('./middlewares/errorHandler');
-const rateLimiter = require('./middlewares/rateLimiter');
+const rateLimiterMiddleware = require('./middlewares/rateLimiter');
 
 // ✅ NOUVEAU: Import des middlewares de logging
 const { 
@@ -33,6 +33,7 @@ const paymentRoutes = require('./routes/paymentRoutes');
 const planRoutes = require('./routes/planRoutes');
 const appVersionRoutes = require('./routes/appVersionRoutes');
 const notificationRoutes = require('./routes/notificationRoutes');
+const webhookRoutes = require('./routes/webhooks');
 
 const app = express();
 const server = createServer(app);
@@ -62,7 +63,7 @@ app.use(express.json({ limit: '10mb' }));
 app.use(express.urlencoded({ extended: true }));
 
 // 4. Rate limiting
-app.use(rateLimiter);
+app.use(rateLimiterMiddleware);
 
 // ===============================
 // FICHIERS STATIQUES
@@ -96,6 +97,7 @@ app.use('/api/orders', orderRoutes);
 app.use('/api/payments', paymentRoutes);
 app.use('/api/app', appVersionRoutes);
 app.use('/api/notifications', notificationRoutes);
+app.use('/api/webhooks', webhookRoutes);
 
 // ===============================
 // ROUTES PUBLIQUES

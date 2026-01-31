@@ -10,7 +10,7 @@
  * Il limite le nombre de requetes qu'une adresse IP peut faire
  * dans une periode donnee (fenetre glissante).
  * 
- * Configuration actuelle: 100 requetes par minute par IP
+ * Configuration actuelle: 5000 requetes par minute par IP
  * 
  * IMPORTANT: Ce middleware est applique GLOBALEMENT a toutes les routes
  * dans app.js avant la definition des routes
@@ -50,7 +50,7 @@ const rateLimiter = new RateLimiterMemory({
    * Chaque requete "consomme" 1 point
    * Quand tous les points sont consommes, les requetes sont rejetees
    */
-  points: 100, // 100 requetes autorisees
+  points: 5000, // 5000 requetes autorisees
   
   /**
    * duration: Duree de la fenetre en secondes
