@@ -33,7 +33,7 @@ const paymentRoutes = require('./routes/paymentRoutes');
 const planRoutes = require('./routes/planRoutes');
 const appVersionRoutes = require('./routes/appVersionRoutes');
 const notificationRoutes = require('./routes/notificationRoutes');
-const webhookRoutes = require('./routes/webhooks');
+
 
 const app = express();
 const server = createServer(app);
@@ -97,7 +97,7 @@ app.use('/api/orders', orderRoutes);
 app.use('/api/payments', paymentRoutes);
 app.use('/api/app', appVersionRoutes);
 app.use('/api/notifications', notificationRoutes);
-app.use('/api/webhooks', webhookRoutes);
+
 
 // ===============================
 // ROUTES PUBLIQUES
